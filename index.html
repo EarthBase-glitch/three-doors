@@ -104,6 +104,16 @@
     background: radial-gradient(120% 140% at 50% -10%, var(--threshold-glow) 0%, transparent 55%), linear-gradient(180deg, var(--void-2), var(--void));
     box-shadow: inset 0 0 0 1px var(--hairline), 0 40px 100px -30px rgba(0,0,0,0.8), 0 0 140px -50px var(--threshold);
   }
+  .signin-tabs{ display:flex; gap:6px; margin-top:18px; }
+  .signin-tab{
+    flex:1; appearance:none; background:var(--void-3); border:1px solid var(--hairline); color:var(--ink-dim);
+    font-family:'JetBrains Mono',ui-monospace,monospace; font-size:0.68rem; letter-spacing:0.08em; text-transform:uppercase;
+    padding:0.65em 0.4em; border-radius:10px; cursor:pointer;
+    transition:background 160ms ease, color 160ms ease, border-color 160ms ease;
+  }
+  .signin-tab:hover{ color:var(--ink); }
+  .signin-tab.active{ background:var(--threshold); color:#0b0810; border-color:var(--threshold); font-weight:600; }
+  .signin-tab:focus-visible{ outline:2px solid var(--threshold-glow); outline-offset:2px; }
   .field{ display:flex; flex-direction:column; gap:6px; margin-top:16px; }
   .field label{ font-family:'JetBrains Mono',ui-monospace,monospace; font-size:0.65rem; letter-spacing:0.14em; text-transform:uppercase; color:var(--ink-faint); }
   .field input{ background:var(--void-3); border:1px solid var(--hairline); border-radius:10px; padding:0.7em 0.9em; color:var(--ink); font-family:'Work Sans',sans-serif; font-size:0.95rem; }
@@ -406,6 +416,8 @@
   }
 
   function SignIn(props){
+    var _m = useState("signin");
+    var mode = _m[0], setMode = _m[1];
     var _h = useState(function(){
       try{ return localStorage.getItem("doors_last_handle") || ""; }catch(e){ return ""; }
     });
@@ -416,6 +428,11 @@
     var error = _e[0], setError = _e[1];
     var _c = useState(false);
     var checking = _c[0], setChecking = _c[1];
+
+    function switchMode(next){
+      setMode(next);
+      setError("");
+    }
 
     async function handleSubmit(ev){
       ev.preventDefault();
@@ -435,18 +452,27 @@
         }
         var ref = ns.doc("accounts/" + id);
         var snap = await ref.get();
-        if(snap.exists){
-          var data = snap.data();
-          if(data && data.passHash === hash){
-            try{ localStorage.setItem("doors_last_handle", handleInput.trim()); }catch(e){}
-            props.onSignedIn(id, data.displayName || handleInput.trim());
+
+        if(mode === "create"){
+          if(snap.exists){
+            setError("That name is already taken — try another, or switch to Sign in.");
           }else{
-            setError("That name is taken with a different passphrase.");
+            await ref.set({ displayName: handleInput.trim(), passHash: hash, createdAt: Date.now() });
+            try{ localStorage.setItem("doors_last_handle", handleInput.trim()); }catch(e){}
+            props.onSignedIn(id, handleInput.trim());
           }
         }else{
-          await ref.set({ displayName: handleInput.trim(), passHash: hash, createdAt: Date.now() });
-          try{ localStorage.setItem("doors_last_handle", handleInput.trim()); }catch(e){}
-          props.onSignedIn(id, handleInput.trim());
+          if(!snap.exists){
+            setError("No account with that name yet — switch to Create account.");
+          }else{
+            var data = snap.data();
+            if(data && data.passHash === hash){
+              try{ localStorage.setItem("doors_last_handle", handleInput.trim()); }catch(e){}
+              props.onSignedIn(id, data.displayName || handleInput.trim());
+            }else{
+              setError("Wrong passphrase for that name.");
+            }
+          }
         }
       }catch(err){
         setError("Something went wrong — try again.");
@@ -457,7 +483,19 @@
     return h("div", { className:"signinwrap" + (props.active ? " active" : "") },
       h("form", { className:"signin-panel", onSubmit: handleSubmit },
         h("div", { className:"q-eyebrow" }, "identify yourself"),
-        h("h2", { className:"q-heading" }, "Who are you?"),
+        h("h2", { className:"q-heading" }, mode === "create" ? "Create your name" : "Who are you?"),
+        h("div", { className:"signin-tabs" },
+          h("button", {
+            type:"button",
+            className:"signin-tab" + (mode === "signin" ? " active" : ""),
+            onClick: function(){ switchMode("signin"); }
+          }, "Sign in"),
+          h("button", {
+            type:"button",
+            className:"signin-tab" + (mode === "create" ? " active" : ""),
+            onClick: function(){ switchMode("create"); }
+          }, "Create account")
+        ),
         h("div", { className:"field" },
           h("label", { htmlFor:"doors-handle" }, "Name"),
           h("input", {
@@ -474,7 +512,8 @@
         ),
         h("div", { className:"signin-error" }, error),
         h("div", { className:"signin-actions" },
-          h("button", { className:"enter-btn", type:"submit", disabled: checking }, checking ? "Checking…" : "Sign in")
+          h("button", { className:"enter-btn", type:"submit", disabled: checking },
+            checking ? "Checking…" : (mode === "create" ? "Create account" : "Sign in"))
         ),
         h("p", { className:"signin-note" },
           "The same name and passphrase bring your door and character back on any device. This isn't a verified login — anyone who knows both can sign in as you, so don't reuse a real password."
