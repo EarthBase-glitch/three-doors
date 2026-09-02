@@ -1,0 +1,7 @@
+# Changelog
+
+Daily additions to Three Doors, one per realm per day. See NOTES-FOR-OWNER.md for any manual Firebase console steps a given day's update requires.
+
+## 2026-09-02
+
+- **All three realms — Memories (milestone visions).** Added a "Memories" screen, reachable from the character page next to Lore and Today's tasks. It's a per-realm ladder of one-time narrative unlocks tied to the existing streak counter: reaching a 3-, 7-, or 30-day streak while a realm is your current door permanently unlocks that realm's vision for that milestone — a short piece of atmospheric second-person narrative, written in the game's existing voice, that you keep and can revisit forever after. Each realm has its own three-part arc (Heaven: a light that starts letting old names and a hidden seam through; Reincarnation: a body and a soil that both turn out to remember more than "starting over" implied; Hell: a fire that's learning to aim, and a voice that finally gets to be heard) — the first narrative throughline the game has had, on top of what was previously pure daily-habit/customization infrastructure. A small dot on the "Memories" nav button flags a freshly unlocked vision until it's opened. Stored as an `unlockedVisions` array on the existing `dailytasks/{accountId}` document — no new Firestore collection, and no `firestore.rules` change needed (that document was already fully open to read/write).
