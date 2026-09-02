@@ -383,7 +383,7 @@
 
   /* Hidden by default (desktop keeps the readable top realm-stats bar);
      the mobile media query below turns this on and hides that bar instead. */
-  .soul-stats-btn{ display:none; }
+  .soul-stats-btn.bi{ display:none; }
 
   .soul-stats-overlay{
     position:fixed; inset:0; z-index:20; background:rgba(5,4,9,0.72);
@@ -446,8 +446,12 @@
        and centering made the two collide on wider phones (e.g. iPhone 16
        Pro Max's 430px width). Safe-area-aware so it clears the home
        indicator instead of sitting under it. */
-    .soul-stats-btn{
-      display:block;
+    /* .bi (selector button.bi) sets display:flex unconditionally for the
+       stacked-label pattern and, being element+class, outranks a plain
+       .soul-stats-btn class selector regardless of media query or source
+       order. Matching .bi in these selectors too is what actually wins. */
+    .soul-stats-btn.bi{
+      display:flex;
       position:fixed; left:calc(16px + env(safe-area-inset-left)); z-index:6;
       bottom:calc(16px + env(safe-area-inset-bottom));
       opacity:0; visibility:hidden; transform:translateY(6px);
@@ -456,7 +460,7 @@
       background:rgba(13,10,23,0.82); color:var(--ink-dim); border:1px solid var(--hairline);
       border-radius:999px; padding:8px 18px; cursor:pointer;
     }
-    .soul-stats-btn.show{
+    .soul-stats-btn.bi.show{
       opacity:1; visibility:visible; transform:translateY(0);
       transition:opacity 400ms ease, transform 400ms ease;
     }
@@ -479,7 +483,7 @@
       bottom:calc(8px + env(safe-area-inset-bottom));
       max-width:90vw;
     }
-    .soul-stats-btn{ left:calc(8px + env(safe-area-inset-left)); }
+    .soul-stats-btn.bi{ left:calc(8px + env(safe-area-inset-left)); }
     .feedback-form{ width:min(90vw,270px); padding:14px; }
     .feedback-toggle{ font-size:0.62rem; padding:8px 14px; }
 
