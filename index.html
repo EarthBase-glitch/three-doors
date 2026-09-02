@@ -457,9 +457,15 @@
           if(snap.exists){
             setError("That name is already taken — try another, or switch to Sign in.");
           }else{
-            await ref.set({ displayName: handleInput.trim(), passHash: hash, createdAt: Date.now() });
-            try{ localStorage.setItem("doors_last_handle", handleInput.trim()); }catch(e){}
-            props.onSignedIn(id, handleInput.trim());
+            try{
+              await ref.set({ displayName: handleInput.trim(), passHash: hash, createdAt: Date.now() });
+              try{ localStorage.setItem("doors_last_handle", handleInput.trim()); }catch(e){}
+              props.onSignedIn(id, handleInput.trim());
+            }catch(createErr){
+              // Someone else claimed this exact name a moment earlier —
+              // Firestore rules block the overwrite, so this loses the race.
+              setError("That name was just taken — try another, or switch to Sign in.");
+            }
           }
         }else{
           if(!snap.exists){

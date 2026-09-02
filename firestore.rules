@@ -10,10 +10,16 @@ service cloud.firestore {
     }
 
     // Sign-in records (display name + hashed passphrase). Not real auth —
-    // see the in-app disclaimer. Open so the app can create/check accounts.
+    // see the in-app disclaimer. A name can be claimed exactly once: create
+    // is open, but update/delete are blocked entirely, so a name already
+    // taken can never be overwritten — including by two people racing to
+    // create the same name at once. Firestore treats a second write to the
+    // same path as "update" once the first has landed, so this closes the
+    // race at the database level, not just in the app's own pre-check.
     match /accounts/{id} {
       allow read: if true;
-      allow write: if true;
+      allow create: if true;
+      allow update, delete: if false;
     }
 
     match /characters/{id} {
