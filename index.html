@@ -267,11 +267,19 @@
   .char-lore-link{ margin-top:8px; display:flex; gap:10px; flex-wrap:wrap; }
   .char-lore-link .q-btn{ width:auto; }
 
+  .streak-row{ display:flex; gap:8px; flex-wrap:wrap; margin-top:16px; }
   .streak-chip{
-    display:inline-block; margin-top:16px;
+    display:inline-block;
     font-family:'JetBrains Mono',ui-monospace,monospace; font-size:0.72rem; letter-spacing:0.06em;
     color:var(--realm-color); border:1px solid var(--hairline); padding:0.35em 0.9em; border-radius:999px;
   }
+  .streak-chip.points{ color:var(--ink-dim); font-variant-numeric:tabular-nums; }
+
+  .escape-block{
+    margin-top:30px; padding-top:22px; border-top:1px solid var(--hairline); max-width:420px;
+  }
+  .escape-actions{ display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; }
+  .escape-actions .q-btn{ width:auto; }
 
   .lore-form{ margin-top:26px; }
   .lore-input{
@@ -395,6 +403,82 @@
   function taskOfTheDay(realmKey){
     var pool = DAILY_TASKS[realmKey] || DAILY_TASKS.earth;
     return pool[dayOfYear(new Date()) % pool.length];
+  }
+
+  var POINTS_PER_TASK = 10;
+  var MOVE_DOOR_COST = 50;
+
+  // Shared with App (not just the Tasks screen) so points earned here can
+  // actually pay for moving to a different door.
+  function useDailyTasks(accountId){
+    var dbRef = useRef(null);
+    var _s = useState({ streak:0, points:0, lastCompletedDate:null, resolvedFor:null });
+    var state = _s[0], setState = _s[1];
+    var loaded = !accountId || state.resolvedFor === accountId;
+
+    useEffect(function(){
+      if(!accountId){
+        setState(function(s){ return Object.assign({}, s, { streak:0, points:0, lastCompletedDate:null, resolvedFor:null }); });
+        return;
+      }
+      var cancelled = false;
+      (async function(){
+        var ns = dbRef.current || await getDb();
+        dbRef.current = ns;
+        var found = null;
+        if(ns){
+          try{
+            var snap = await ns.doc("dailytasks/" + accountId).get();
+            if(snap.exists) found = snap.data();
+          }catch(e){}
+        }
+        if(!cancelled){
+          setState({
+            streak: (found && found.streak) || 0,
+            points: (found && found.points) || 0,
+            lastCompletedDate: (found && found.lastCompletedDate) || null,
+            resolvedFor: accountId
+          });
+        }
+      })();
+      return function(){ cancelled = true; };
+    }, [accountId]);
+
+    async function markDone(realmKey, today){
+      if(!accountId) return { ok:false };
+      var wasYesterday = state.lastCompletedDate === dateKey(-1);
+      var nextStreak = wasYesterday ? state.streak + 1 : 1;
+      var nextPoints = state.points + POINTS_PER_TASK;
+      var ns = dbRef.current;
+      if(ns){
+        try{
+          await ns.doc("dailytasks/" + accountId).set({
+            realm: realmKey, streak: nextStreak, points: nextPoints, lastCompletedDate: today
+          });
+        }catch(e){
+          return { ok:false };
+        }
+      }
+      setState(function(s){ return Object.assign({}, s, { streak:nextStreak, points:nextPoints, lastCompletedDate:today }); });
+      return { ok:true };
+    }
+
+    async function spend(amount){
+      if(state.points < amount) return { ok:false, reason:"points" };
+      var nextPoints = state.points - amount;
+      var ns = dbRef.current;
+      if(ns && accountId){
+        try{
+          await ns.doc("dailytasks/" + accountId).update({ points: nextPoints });
+        }catch(e){
+          return { ok:false, reason:"save" };
+        }
+      }
+      setState(function(s){ return Object.assign({}, s, { points:nextPoints }); });
+      return { ok:true };
+    }
+
+    return { state: Object.assign({}, state, { loaded:loaded }), markDone: markDone, spend: spend };
   }
 
   // Door-opening sound, synthesized entirely with the Web Audio API — no
@@ -1033,88 +1117,82 @@
   }
 
   function DailyTasks(props){
-    var accountId = props.accountId;
-    var realmKey = props.doorKey;
-    var realm = REALMS[realmKey] || REALMS.earth;
-    var today = dateKey(0);
-    var todaysTask = taskOfTheDay(realmKey);
+    var realm = REALMS[props.doorKey] || REALMS.earth;
+    var s = props.state;
+    var completedToday = s.lastCompletedDate === props.today;
+    var others = DOORS.filter(function(d){ return d.key !== props.doorKey; });
 
-    var dbRef = useRef(null);
-    var _d = useState({ streak: 0, lastCompletedDate: null, loaded: false });
-    var data = _d[0], setData = _d[1];
     var _saving = useState(false);
     var saving = _saving[0], setSaving = _saving[1];
     var _err = useState(false);
     var err = _err[0], setErr = _err[1];
+    var _moving = useState(null);
+    var moving = _moving[0], setMoving = _moving[1];
+    var _moveErr = useState("");
+    var moveErr = _moveErr[0], setMoveErr = _moveErr[1];
 
-    useEffect(function(){
-      var cancelled = false;
-      (async function(){
-        var ns = await getDb();
-        dbRef.current = ns;
-        var found = null;
-        if(ns && accountId){
-          try{
-            var snap = await ns.doc("dailytasks/" + accountId).get();
-            if(snap.exists) found = snap.data();
-          }catch(e){}
-        }
-        if(cancelled) return;
-        setData({
-          streak: (found && found.streak) || 0,
-          lastCompletedDate: (found && found.lastCompletedDate) || null,
-          loaded: true
-        });
-      })();
-      return function(){ cancelled = true; };
-    }, [accountId]);
-
-    var completedToday = data.lastCompletedDate === today;
-
-    async function markDone(){
-      if(!data.loaded || completedToday || saving) return;
-      var wasYesterday = data.lastCompletedDate === dateKey(-1);
-      var nextStreak = wasYesterday ? data.streak + 1 : 1;
-      var ns = dbRef.current;
+    async function handleMarkDone(){
+      if(!s.loaded || completedToday || saving) return;
       setSaving(true);
       setErr(false);
-      if(ns && accountId){
-        try{
-          await ns.doc("dailytasks/" + accountId).set({
-            realm: realmKey,
-            streak: nextStreak,
-            lastCompletedDate: today
-          });
-          setData({ streak: nextStreak, lastCompletedDate: today, loaded: true });
-        }catch(e){
-          // Surfaced to the visitor instead of swallowed — the usual cause
-          // is the dailytasks Firestore rule not having been published yet.
-          setErr(true);
-        }
-      }else{
-        // No db (offline/local session): still reflect it for this visit.
-        setData({ streak: nextStreak, lastCompletedDate: today, loaded: true });
-      }
+      var result = await props.onMarkDone();
+      // Surfaced to the visitor instead of swallowed — the usual cause of a
+      // failure here is the dailytasks Firestore rule not being published.
+      if(!result || !result.ok) setErr(true);
       setSaving(false);
+    }
+
+    async function handleMove(otherKey){
+      if(moving) return;
+      setMoving(otherKey);
+      setMoveErr("");
+      var result = await props.onMove(otherKey);
+      if(!result || !result.ok){
+        setMoveErr(result && result.reason === "points" ? "Not enough points yet." : "Couldn't move right now — try again.");
+      }
+      setMoving(null);
     }
 
     return h("div", null,
       h("div", { className:"q-eyebrow" }, realm.name + " · today's task"),
-      h("h2", { className:"q-heading" }, todaysTask),
+      h("h2", { className:"q-heading" }, props.todaysTask),
       h("p", { className:"q-tagline" },
         completedToday ? "Done for today. A new task arrives here tomorrow." : "A new task arrives here every day."
       ),
-      h("div", { className:"streak-chip" },
-        data.streak > 0 ? (data.streak + (data.streak === 1 ? " day streak" : " day streak")) : "no streak yet"
+      h("div", { className:"streak-row" },
+        h("span", { className:"streak-chip" },
+          s.streak > 0 ? (s.streak + (s.streak === 1 ? " day streak" : " day streak")) : "no streak yet"
+        ),
+        h("span", { className:"streak-chip points" }, s.points + " pts")
       ),
       h("div", { className:"q-actions", style:{ marginTop:"24px" } },
         h("button", {
           className:"q-btn primary",
           type:"button",
-          disabled: completedToday || saving || !data.loaded,
-          onClick: markDone
-        }, completedToday ? "Done ✓" : (saving ? "Saving…" : "Mark as done")),
-        err ? h("p", { className:"lore-note error" }, "Couldn't save that — check your connection and try again.") : null,
+          disabled: completedToday || saving || !s.loaded,
+          onClick: handleMarkDone
+        }, completedToday ? "Done ✓  ·  +" + POINTS_PER_TASK + " pts" : (saving ? "Saving…" : "Mark as done  (+" + POINTS_PER_TASK + " pts)")),
+        err ? h("p", { className:"lore-note error" }, "Couldn't save that — check your connection and try again.") : null
+      ),
+      h("div", { className:"escape-block" },
+        h("span", { className:"field-label" }, "Move to another door — " + MOVE_DOOR_COST + " pts"),
+        h("p", { className:"q-tagline", style:{ marginTop:"0.4em" } },
+          "Keep at your tasks and you'll earn your way out."
+        ),
+        h("div", { className:"escape-actions" },
+          others.map(function(d){
+            var disabled = s.points < MOVE_DOOR_COST || !!moving;
+            return h("button", {
+              key: d.key, type:"button",
+              className:"q-btn ghost",
+              disabled: disabled,
+              onClick: function(){ handleMove(d.key); }
+            }, moving === d.key ? "Moving…" : ("Move to " + d.label));
+          })
+        ),
+        moveErr ? h("p", { className:"lore-note error" }, moveErr) : null
+      ),
+      h("div", { className:"q-actions", style:{ marginTop:"18px" } },
         h("button", { className:"q-btn ghost", type:"button", onClick: props.onBack }, "Back")
       )
     );
@@ -1166,8 +1244,12 @@
     }else if(props.gamePhase === "tasks"){
       content = h(DailyTasks, {
         key: "tasks-" + props.accountId,
-        accountId: props.accountId,
         doorKey: key,
+        today: props.today,
+        todaysTask: props.todaysTask,
+        state: props.dailyTasksState,
+        onMarkDone: props.onMarkDone,
+        onMove: props.onMove,
         onBack: props.onBackToCharacter
       });
     }else{
@@ -1191,6 +1273,7 @@
     var _snd = useState(function(){ return DoorSound.isMuted(); });
     var muted = _snd[0], setMuted = _snd[1];
     var doors = useDoorsDb(account ? account.id : null);
+    var dailyTasks = useDailyTasks(account ? account.id : null);
     var redirectTimer = useRef(null);
 
     function toggleSound(){
@@ -1248,6 +1331,14 @@
     function handleOpenLore(){ setGamePhase("lore"); }
     function handleOpenTasks(){ setGamePhase("tasks"); }
     function handleBackToCharacter(){ setGamePhase("character"); }
+    function handleMarkDone(){ return dailyTasks.markDone(doors.state.myChoice, dateKey(0)); }
+    async function handleMoveDoor(newKey){
+      var result = await dailyTasks.spend(MOVE_DOOR_COST);
+      if(!result.ok) return result;
+      doors.choose(newKey);
+      setGamePhase("character");
+      return { ok:true };
+    }
 
     var showBadge = !!account && (phase === "hall" || phase === "game");
     var showControls = phase !== "threshold";
@@ -1276,12 +1367,17 @@
         accountId: account ? account.id : null,
         authorName: account ? account.displayName : null,
         gamePhase: gamePhase,
+        today: dateKey(0),
+        todaysTask: doors.state.myChoice ? taskOfTheDay(doors.state.myChoice) : "",
+        dailyTasksState: dailyTasks.state,
         onSatisfied: handleSatisfied,
         onEscape: handleEscape,
         onExit: handleExit,
         onOpenLore: handleOpenLore,
         onOpenTasks: handleOpenTasks,
-        onBackToCharacter: handleBackToCharacter
+        onBackToCharacter: handleBackToCharacter,
+        onMarkDone: handleMarkDone,
+        onMove: handleMoveDoor
       })
     );
   }
