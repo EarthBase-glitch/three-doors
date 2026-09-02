@@ -862,6 +862,15 @@
     return arr.map(function(b){ return b.toString(16).padStart(2, "0"); }).join("");
   }
 
+  // GA4 event helper. window.gtag is defined synchronously in <head> (the
+  // async script just fills it in later), so this is safe to call from
+  // the moment the app mounts, before the GA library itself has loaded —
+  // early calls queue in dataLayer and get processed once it does. Never
+  // pass PII (email, passphrase, free-text content) as a param.
+  function trackEvent(name, params){
+    try{ if(window.gtag) window.gtag("event", name, params || {}); }catch(e){}
+  }
+
   function useDoorsDb(accountId){
     var dbRef = useRef(null);
     var unsubRef = useRef(null);
@@ -1016,6 +1025,7 @@
             try{
               await ref.set({ displayName: handleInput.trim(), passHash: hash, createdAt: Date.now() });
               try{ localStorage.setItem("doors_last_handle", handleInput.trim()); }catch(e){}
+              trackEvent("sign_up", { method: "passphrase" });
               props.onSignedIn(id, handleInput.trim());
             }catch(createErr){
               // Someone else claimed this exact name a moment earlier —
@@ -1030,6 +1040,7 @@
             var data = snap.data();
             if(data && data.passHash === hash){
               try{ localStorage.setItem("doors_last_handle", handleInput.trim()); }catch(e){}
+              trackEvent("login", { method: "passphrase" });
               props.onSignedIn(id, data.displayName || handleInput.trim());
             }else{
               setError("Wrong passphrase for that name.");
@@ -1302,6 +1313,7 @@
             lastMessageAt: Date.now()
           }).catch(function(){});
         }
+        trackEvent("submit_feedback", { door: props.doorKey || "unknown" });
         setText("");
         setEmail("");
         setStatus("sent");
@@ -1493,7 +1505,10 @@
           ),
           h("button", {
             className:"q-btn primary bi", type:"button", style:{ marginTop:"6px" },
-            onClick: function(){ setEditing(false); }
+            onClick: function(){
+              trackEvent("save_character", { outfit: character.outfit, gender: character.gender || "unset" });
+              setEditing(false);
+            }
           }, biLabel("Save & continue", "保存して進む", "저장하고 계속하기"))
         ) : null
       ),
@@ -1552,6 +1567,7 @@
           status: "pending",
           createdAt: Date.now()
         });
+        trackEvent("submit_lore", { door: props.doorKey });
         setText("");
         setStatus("sent");
       }catch(err){
@@ -1865,19 +1881,34 @@
 
     function handleChooseDoor(key){
       if(doors.state.myChoice && doors.state.myChoice !== key) return;
-      if(!doors.state.myChoice) doors.choose(key);
+      if(!doors.state.myChoice){
+        doors.choose(key);
+        trackEvent("choose_door", { door: key });
+      }
     }
 
-    function handleSatisfied(){ setGamePhase("character"); }
-    function handleEscape(newKey){ doors.choose(newKey); setGamePhase("question"); }
+    function handleSatisfied(){
+      trackEvent("satisfied_choice", { door: doors.state.myChoice });
+      setGamePhase("character");
+    }
+    function handleEscape(newKey){
+      trackEvent("escape_door", { from: doors.state.myChoice, to: newKey });
+      doors.choose(newKey);
+      setGamePhase("question");
+    }
     function handleExit(){ setPhase("threshold"); setGamePhase("question"); }
     function handleOpenLore(){ setGamePhase("lore"); }
     function handleOpenTasks(){ setGamePhase("tasks"); }
     function handleBackToCharacter(){ setGamePhase("character"); }
-    function handleMarkDone(){ return dailyTasks.markDone(doors.state.myChoice, dateKey(0)); }
+    async function handleMarkDone(){
+      var result = await dailyTasks.markDone(doors.state.myChoice, dateKey(0));
+      if(result && result.ok) trackEvent("complete_daily_task", { door: doors.state.myChoice });
+      return result;
+    }
     async function handleMoveDoor(newKey){
       var result = await dailyTasks.spend(MOVE_DOOR_COST);
       if(!result.ok) return result;
+      trackEvent("move_door", { from: doors.state.myChoice, to: newKey });
       doors.choose(newKey);
       setGamePhase("character");
       return { ok:true };
