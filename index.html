@@ -1032,7 +1032,10 @@
         var hash = await sha256Hex(id + ":" + passInput);
         var ns = await getDb();
         if(!ns){
-          try{ localStorage.setItem("doors_last_handle", handleInput.trim()); }catch(e){}
+          try{
+            localStorage.setItem("doors_last_handle", handleInput.trim());
+            localStorage.setItem("doors_session_" + id, hash);
+          }catch(e){}
           props.onSignedIn(id, handleInput.trim());
           setChecking(false);
           return;
@@ -1046,7 +1049,10 @@
           }else{
             try{
               await ref.set({ displayName: handleInput.trim(), passHash: hash, createdAt: Date.now() });
-              try{ localStorage.setItem("doors_last_handle", handleInput.trim()); }catch(e){}
+              try{
+                localStorage.setItem("doors_last_handle", handleInput.trim());
+                localStorage.setItem("doors_session_" + id, hash);
+              }catch(e){}
               trackEvent("sign_up", { method: "passphrase" });
               props.onSignedIn(id, handleInput.trim());
             }catch(createErr){
@@ -1061,7 +1067,10 @@
           }else{
             var data = snap.data();
             if(data && data.passHash === hash){
-              try{ localStorage.setItem("doors_last_handle", handleInput.trim()); }catch(e){}
+              try{
+                localStorage.setItem("doors_last_handle", handleInput.trim());
+                localStorage.setItem("doors_session_" + id, hash);
+              }catch(e){}
               trackEvent("login", { method: "passphrase" });
               props.onSignedIn(id, data.displayName || handleInput.trim());
             }else{
@@ -1927,6 +1936,37 @@
         url.searchParams.delete("portal");
         window.history.replaceState({}, "", url.pathname + url.search);
       }catch(e){}
+    }, []);
+
+    // Stripe Checkout and the Billing Portal are a full page navigation
+    // away, so the SPA's in-memory account is gone by the time the visitor
+    // is redirected back. There's no verified auth token to restore (see
+    // SignIn's disclaimer), but the same-device passphrase hash saved at
+    // sign-in is: reuse it to resume straight to the character screen
+    // instead of asking them to type the passphrase again right after
+    // they just came from Stripe. Falls through to the normal sign-in
+    // screen (with the checkoutStatus message) if nothing usable is saved.
+    useEffect(function(){
+      if(!checkoutStatus) return;
+      var cancelled = false;
+      (async function(){
+        try{
+          var lastHandle = localStorage.getItem("doors_last_handle") || "";
+          var id = sanitizeHandle(lastHandle);
+          if(!id) return;
+          var storedHash = localStorage.getItem("doors_session_" + id);
+          if(!storedHash) return;
+          var ns = await getDb();
+          if(!ns || cancelled) return;
+          var snap = await ns.doc("accounts/" + id).get();
+          if(cancelled || !snap.exists) return;
+          var data = snap.data();
+          if(data && data.passHash === storedHash){
+            handleSignedIn(id, data.displayName || lastHandle);
+          }
+        }catch(e){}
+      })();
+      return function(){ cancelled = true; };
     }, []);
 
     useEffect(function(){ setSoulStatsOpen(false); }, [phase]);
