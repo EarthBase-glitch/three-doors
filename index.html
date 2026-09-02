@@ -155,6 +155,9 @@
   .threshold-note{
     margin:0; max-width:44ch; color:var(--ink-faint); font-size:0.8rem; font-style:italic;
   }
+  .threshold-legal{ margin-top:4px; font-size:0.72rem; color:var(--ink-faint); }
+  .threshold-legal a{ color:var(--ink-faint); text-decoration:underline; }
+  .threshold-legal a:hover{ color:var(--ink-dim); }
   .enter-btn{
     appearance:none; border:1px solid var(--threshold-glow); background:rgba(141,111,224,0.12); color:var(--ink);
     font-family:'Work Sans',sans-serif; font-size:0.95rem; letter-spacing:0.04em;
@@ -959,7 +962,12 @@
       h(Sub, {
         ja:"この世界は日々育つ——毎日、新しいものがここに届く。",
         ko:"이 세계는 매일 자란다 — 매일 새로운 것이 이곳에 도착한다."
-      })
+      }),
+      h("div", { className:"threshold-legal" },
+        h("a", { href:"./terms.html" }, "Terms"),
+        h("span", null, " · "),
+        h("a", { href:"./privacy.html" }, "Privacy")
+      )
     );
   }
 
