@@ -1212,12 +1212,15 @@
     }, [phase, doors.state.ready, doors.state.myChoice]);
 
     // Returning visitor: once we know (not just assume) whether this account
-    // already has a door, route straight there — the Hall/doors screen is
-    // skipped entirely, not just auto-advanced past.
+    // already has a door, route straight there — the Hall/doors screen and
+    // the satisfied/escape question are both skipped, straight to their
+    // character. That question only ever shows once, right after a door is
+    // freshly chosen (see the effect above); signing back in later goes
+    // straight to the avatar.
     useEffect(function(){
       if(phase === "signin" && account && doors.state.myChoiceReady){
         if(doors.state.myChoice){
-          setGamePhase("question");
+          setGamePhase("character");
           setPhase("game");
         }else{
           setPhase("hall");
