@@ -96,5 +96,15 @@ service cloud.firestore {
       allow read: if true;
       allow write: if false;
     }
+
+    // Private billing record, one per account (id = accountId) —
+    // { stripeCustomerId }. Never exposed to any client, including the
+    // signed-in owner of the account: only the stripeWebhook and
+    // createPortalSession Cloud Functions touch this, via the Admin SDK,
+    // which bypasses these rules by design.
+    match /billing/{id} {
+      allow read: if false;
+      allow write: if false;
+    }
   }
 }

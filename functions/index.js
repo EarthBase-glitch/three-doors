@@ -1,20 +1,33 @@
 // Stripe donation checkout + webhook for Three Doors.
 //
-// Two HTTP functions:
+// Three HTTP functions:
 //  - createCheckoutSession: the frontend POSTs { accountId, displayName,
 //    kind, amountCents }. kind "subscribe" (default) starts the $3/month
 //    subscription; kind "tip" starts a one-time payment for amountCents
 //    (no account required to keep paying afterward). Either way the
 //    response is a Stripe Checkout URL to redirect the browser to.
+//  - createPortalSession: the frontend POSTs { accountId }, gets back a
+//    Stripe Billing Portal URL where the visitor can cancel their
+//    subscription (or update payment details) themselves. Requires the
+//    Stripe Customer ID captured from a prior subscription payment — see
+//    `billing/{accountId}` below.
 //  - stripeWebhook: Stripe calls this on payment events.
 //     - `invoice.paid` records subscription donations — it fires for
 //       every billing cycle (the first payment included), so recording
 //       from both that and `checkout.session.completed` would
-//       double-count a subscription's first payment.
+//       double-count a subscription's first payment. It also captures
+//       the Stripe Customer ID so createPortalSession can find it later.
 //     - `checkout.session.completed` records tips, but only when
 //       session.mode is "payment" (one-time) — a subscription checkout's
 //       completion is intentionally ignored here since invoice.paid
 //       already covers it.
+//
+// Firestore collections written here (both via the Admin SDK, which
+// bypasses firestore.rules by design):
+//  - donations/{accountId}   public leaderboard totals (see firestore.rules)
+//  - billing/{accountId}     private — { stripeCustomerId }. Never exposed
+//    to clients directly; firestore.rules blocks all client read/write on
+//    it, it only exists for createPortalSession to look up.
 //
 // Secrets (never in code): set via `firebase functions:secrets:set NAME`.
 //  - STRIPE_SECRET_KEY    Stripe secret API key (sk_test_... / sk_live_...)
@@ -36,6 +49,7 @@ const stripePriceId = defineSecret("STRIPE_PRICE_ID");
 const ALLOWED_ORIGIN = "https://earthbase-glitch.github.io";
 const SUCCESS_URL = "https://earthbase-glitch.github.io/three-doors/?donated=1";
 const CANCEL_URL = "https://earthbase-glitch.github.io/three-doors/?donated=0";
+const PORTAL_RETURN_URL = "https://earthbase-glitch.github.io/three-doors/?portal=1";
 
 function setCors(res){
   res.set("Access-Control-Allow-Origin", ALLOWED_ORIGIN);
@@ -118,10 +132,44 @@ exports.createCheckoutSession = onRequest(
   }
 );
 
+exports.createPortalSession = onRequest(
+  { secrets: [stripeSecretKey] },
+  async (req, res) => {
+    setCors(res);
+    if(req.method === "OPTIONS"){ res.status(204).send(""); return; }
+    if(req.method !== "POST"){ res.status(405).json({ error: "Method not allowed" }); return; }
+
+    const accountId = req.body && req.body.accountId;
+    if(!accountId || typeof accountId !== "string"){
+      res.status(400).json({ error: "accountId required" });
+      return;
+    }
+
+    try{
+      const billingSnap = await db.doc("billing/" + accountId).get();
+      const customerId = billingSnap.exists && billingSnap.data().stripeCustomerId;
+      if(!customerId){
+        res.status(404).json({ error: "No subscription found for this account." });
+        return;
+      }
+
+      const stripe = new Stripe(stripeSecretKey.value(), { apiVersion: "2025-03-31.basil" });
+      const session = await stripe.billingPortal.sessions.create({
+        customer: customerId,
+        return_url: PORTAL_RETURN_URL
+      });
+      res.status(200).json({ url: session.url });
+    }catch(err){
+      console.error("createPortalSession failed", err);
+      res.status(500).json({ error: "Could not open subscription management" });
+    }
+  }
+);
+
 exports.stripeWebhook = onRequest(
   { secrets: [stripeSecretKey, stripeWebhookSecret] },
   async (req, res) => {
-    const stripe = new Stripe(stripeSecretKey.value());
+    const stripe = new Stripe(stripeSecretKey.value(), { apiVersion: "2025-03-31.basil" });
     const sig = req.headers["stripe-signature"];
     let event;
     try{
@@ -155,6 +203,13 @@ async function recordSubscriptionPayment(invoice, stripe){
   if(!accountId) return;
 
   await addToDonationTotal(accountId, meta.displayName, invoice.amount_paid, invoice.currency);
+
+  if(invoice.customer){
+    await db.doc("billing/" + accountId).set(
+      { stripeCustomerId: invoice.customer },
+      { merge: true }
+    );
+  }
 }
 
 async function recordTipPayment(session){

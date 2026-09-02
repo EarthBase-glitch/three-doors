@@ -177,6 +177,8 @@
     background: radial-gradient(120% 140% at 50% -10%, var(--threshold-glow) 0%, transparent 55%), linear-gradient(180deg, var(--void-2), var(--void));
     box-shadow: inset 0 0 0 1px var(--hairline), 0 40px 100px -30px rgba(0,0,0,0.8), 0 0 140px -50px var(--threshold);
   }
+  .signin-status{ margin-top:16px; padding:12px 16px; border-radius:14px; background:rgba(255,255,255,0.04); border:1px solid var(--hairline); color:var(--ink-dim); font-size:0.88rem; }
+  .signin-status .btn-sub{ display:block; font-size:0.8em; opacity:0.72; margin-top:2px; }
   .signin-tabs{ display:flex; gap:6px; margin-top:18px; }
   .signin-tab{
     flex:1; appearance:none; background:var(--void-3); border:1px solid var(--hairline); color:var(--ink-dim);
@@ -301,6 +303,7 @@
   .q-btn.tiny.bi .btn-sub{ font-size:0.68em; }
 
   .char-tip-label{ font-size:0.78rem; color:var(--ink-faint); align-self:center; }
+  .char-manage-status{ margin:6px 0 0; font-size:0.8rem; color:var(--ink-faint); }
 
   .char-layout{ display:flex; gap:clamp(20px,4vw,44px); align-items:flex-start; flex-wrap:wrap; margin-top:28px; }
   .char-preview{ flex:0 0 auto; display:flex; flex-direction:column; align-items:center; gap:12px; }
@@ -650,9 +653,18 @@
   var POINTS_PER_TASK = 10;
   var MOVE_DOOR_COST = 50;
 
-  // Cloud Function that creates the Stripe Checkout session for the
-  // $3/month "support the world" subscription. Deployed from ./functions.
+  // Cloud Functions for Stripe checkout and subscription management,
+  // deployed from ./functions.
   var CHECKOUT_FUNCTION_URL = "https://us-central1-earthbase-f863b.cloudfunctions.net/createCheckoutSession";
+  var PORTAL_FUNCTION_URL = "https://us-central1-earthbase-f863b.cloudfunctions.net/createPortalSession";
+
+  // Messages shown on the sign-in screen after returning from Stripe
+  // Checkout or the Billing Portal (see App's checkoutReturnInfo).
+  var CHECKOUT_STATUS_TEXT = {
+    donated: ["Thank you — your support helps keep the doors open.", "ありがとう — あなたの支援が扉を開き続けます。", "감사합니다 — 당신의 후원이 문을 계속 열어둡니다。"],
+    cancelled: ["Checkout cancelled — you weren't charged.", "決済はキャンセルされました — 請求はありません。", "결제가 취소되었습니다 — 청구되지 않았습니다。"],
+    portal: ["Your subscription settings were updated.", "サブスクリプション設定が更新されました。", "구독 설정이 업데이트되었습니다。"]
+  };
 
   // Shared with App (not just the Tasks screen) so points earned here can
   // actually pay for moving to a different door.
@@ -1070,6 +1082,9 @@
         h(Sub, mode === "create"
           ? { ja:"名を刻め", ko:"이름을 새겨라" }
           : { ja:"あなたは誰か？", ko:"당신은 누구인가?" }),
+        props.checkoutStatus ? h("div", { className:"signin-status bi" },
+          biLabel.apply(null, CHECKOUT_STATUS_TEXT[props.checkoutStatus])
+        ) : null,
         h("div", { className:"signin-tabs" },
           h("button", {
             type:"button",
@@ -1415,6 +1430,18 @@
     // skin/outfit/gender pickers on screen permanently.
     var _e = useState(true);
     var editing = _e[0], setEditing = _e[1];
+    var _ms = useState(null);
+    var manageStatus = _ms[0], setManageStatus = _ms[1];
+    var _mb = useState(false);
+    var manageBusy = _mb[0], setManageBusy = _mb[1];
+
+    async function handleManageClick(){
+      setManageStatus(null);
+      setManageBusy(true);
+      var result = await props.onManageSubscription();
+      setManageBusy(false);
+      if(result && !result.ok) setManageStatus(result.error || "Could not open subscription management.");
+    }
 
     useEffect(function(){
       var cancelled = false;
@@ -1563,8 +1590,13 @@
             className:"q-btn ghost tiny", type:"button", key:"tip-" + amt,
             onClick: function(){ props.onTip(amt * 100); }
           }, "$" + amt);
-        })
+        }),
+        h("button", {
+          className:"q-btn ghost tiny bi", type:"button", disabled: manageBusy,
+          onClick: handleManageClick
+        }, biLabel(manageBusy ? "Opening…" : "Manage subscription", "サブスク管理", "구독 관리"))
       ),
+      manageStatus ? h("p", { className:"char-manage-status" }, manageStatus) : null,
       h(FeedbackWidget, { authorName: props.authorName, doorKey: props.doorKey })
     );
   }
@@ -1819,7 +1851,8 @@
         onOpenLore: props.onOpenLore,
         onOpenTasks: props.onOpenTasks,
         onDonate: props.onDonate,
-        onTip: props.onTip
+        onTip: props.onTip,
+        onManageSubscription: props.onManageSubscription
       });
     }else if(props.gamePhase === "lore"){
       content = h(LoreScreen, {
@@ -1850,9 +1883,30 @@
     );
   }
 
+    // Returning from Stripe Checkout or the Billing Portal lands back here
+    // with a query param — skip the threshold screen straight to sign-in
+    // (name is already remembered) instead of making them click through
+    // the intro again, and surface what happened.
+    function checkoutReturnInfo(){
+      try{
+        var params = new URLSearchParams(window.location.search);
+        if(params.has("donated") || params.has("portal")){
+          var status = params.get("donated") === "1" ? "donated"
+            : params.get("donated") === "0" ? "cancelled"
+            : "portal";
+          return { phase: "signin", status: status };
+        }
+      }catch(e){}
+      return { phase: "threshold", status: null };
+    }
+
   function App(){
-    var _p = useState("threshold");
+    var _returnInfo = useState(checkoutReturnInfo);
+    var returnInfo = _returnInfo[0];
+    var _p = useState(returnInfo.phase);
     var phase = _p[0], setPhase = _p[1];
+    var _cs = useState(returnInfo.status);
+    var checkoutStatus = _cs[0], setCheckoutStatus = _cs[1];
     var _g = useState("question");
     var gamePhase = _g[0], setGamePhase = _g[1];
     var _a = useState(null);
@@ -1864,6 +1918,16 @@
     var doors = useDoorsDb(account ? account.id : null);
     var dailyTasks = useDailyTasks(account ? account.id : null);
     var redirectTimer = useRef(null);
+
+    useEffect(function(){
+      if(!checkoutStatus) return;
+      try{
+        var url = new URL(window.location.href);
+        url.searchParams.delete("donated");
+        url.searchParams.delete("portal");
+        window.history.replaceState({}, "", url.pathname + url.search);
+      }catch(e){}
+    }, []);
 
     useEffect(function(){ setSoulStatsOpen(false); }, [phase]);
 
@@ -1921,6 +1985,7 @@
 
     function handleSignedIn(id, displayName){
       setAccount({ id: id, displayName: displayName });
+      setCheckoutStatus(null);
     }
 
     function handleSignOut(){
@@ -1995,6 +2060,26 @@
       }catch(e){}
     }
 
+    async function handleManageSubscription(){
+      if(!account) return { ok:false, error:"Not signed in." };
+      try{
+        var res = await fetch(PORTAL_FUNCTION_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ accountId: account.id })
+        });
+        var data = await res.json();
+        if(res.ok && data && data.url){
+          trackEvent("open_billing_portal", { door: doors.state.myChoice });
+          window.location.href = data.url;
+          return { ok:true };
+        }
+        return { ok:false, error: (data && data.error) || "Could not open subscription management." };
+      }catch(e){
+        return { ok:false, error:"Could not open subscription management." };
+      }
+    }
+
     var showBadge = !!account && (phase === "hall" || phase === "game");
     var showControls = phase !== "threshold";
     var showStats = phase === "hall" || phase === "game";
@@ -2031,7 +2116,7 @@
         leaving: phase !== "threshold",
         onEnter: function(){ DoorSound.unlock(); setPhase("signin"); }
       }),
-      h(SignIn, { active: phase === "signin", onSignedIn: handleSignedIn }),
+      h(SignIn, { active: phase === "signin", onSignedIn: handleSignedIn, checkoutStatus: checkoutStatus }),
       h(Hall, { active: phase === "hall", dbState: doors.state, onChoose: handleChooseDoor }),
       h(GameScreen, {
         active: phase === "game",
@@ -2051,7 +2136,8 @@
         onMarkDone: handleMarkDone,
         onMove: handleMoveDoor,
         onDonate: handleDonate,
-        onTip: handleTip
+        onTip: handleTip,
+        onManageSubscription: handleManageSubscription
       })
     );
   }
