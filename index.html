@@ -146,6 +146,12 @@
     transition:opacity 900ms ease, transform 900ms ease, visibility 0s linear 900ms;
   }
   .threshold.leaving{ opacity:0; transform:scale(1.06); visibility:hidden; }
+  .resuming{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    opacity:0; pointer-events:none; transition:opacity 300ms ease; }
+  .resuming.active{ opacity:1; pointer-events:auto; }
+  .resuming .q-eyebrow{ text-align:center; }
+  .resuming .btn-en{ display:block; }
+  .resuming .btn-sub{ display:block; margin-top:4px; opacity:0.7; font-size:0.85em; letter-spacing:normal; text-transform:none; }
   .threshold-art{ width:min(78vw,520px); aspect-ratio:1094/661; border-radius:18px; overflow:hidden;
     box-shadow:0 0 120px -10px rgba(141,111,224,0.45), 0 0 260px -40px rgba(255,106,61,0.25); }
   .threshold-art img{ display:block; width:100%; height:100%; object-fit:cover; }
@@ -1903,7 +1909,7 @@
           var status = params.get("donated") === "1" ? "donated"
             : params.get("donated") === "0" ? "cancelled"
             : "portal";
-          return { phase: "signin", status: status };
+          return { phase: "resuming", status: status };
         }
       }catch(e){}
       return { phase: "threshold", status: null };
@@ -1950,21 +1956,32 @@
       if(!checkoutStatus) return;
       var cancelled = false;
       (async function(){
+        var resumed = false;
         try{
           var lastHandle = localStorage.getItem("doors_last_handle") || "";
           var id = sanitizeHandle(lastHandle);
-          if(!id) return;
-          var storedHash = localStorage.getItem("doors_session_" + id);
-          if(!storedHash) return;
-          var ns = await getDb();
-          if(!ns || cancelled) return;
-          var snap = await ns.doc("accounts/" + id).get();
-          if(cancelled || !snap.exists) return;
-          var data = snap.data();
-          if(data && data.passHash === storedHash){
-            handleSignedIn(id, data.displayName || lastHandle);
+          if(id){
+            var storedHash = localStorage.getItem("doors_session_" + id);
+            if(storedHash){
+              var ns = await getDb();
+              if(ns && !cancelled){
+                var snap = await ns.doc("accounts/" + id).get();
+                if(!cancelled && snap.exists){
+                  var data = snap.data();
+                  if(data && data.passHash === storedHash){
+                    handleSignedIn(id, data.displayName || lastHandle);
+                    resumed = true;
+                  }
+                }
+              }
+            }
           }
         }catch(e){}
+        // No usable saved session (new browser, cleared storage, or this
+        // is the visitor's first sign-in since this feature shipped) —
+        // fall through to the ordinary, visible sign-in screen instead of
+        // leaving them stuck on the resuming screen forever.
+        if(!cancelled && !resumed) setPhase("signin");
       })();
       return function(){ cancelled = true; };
     }, []);
@@ -2013,7 +2030,7 @@
     // freshly chosen (see the effect above); signing back in later goes
     // straight to the avatar.
     useEffect(function(){
-      if(phase === "signin" && account && doors.state.myChoiceReady){
+      if((phase === "signin" || phase === "resuming") && account && doors.state.myChoiceReady){
         if(doors.state.myChoice){
           setGamePhase("character");
           setPhase("game");
@@ -2157,6 +2174,9 @@
         onEnter: function(){ DoorSound.unlock(); setPhase("signin"); }
       }),
       h(SignIn, { active: phase === "signin", onSignedIn: handleSignedIn, checkoutStatus: checkoutStatus }),
+      h("div", { className:"resuming" + (phase === "resuming" ? " active" : "") },
+        h("div", { className:"q-eyebrow bi" }, biLabel("Returning…", "戻っています…", "돌아가는 중…"))
+      ),
       h(Hall, { active: phase === "hall", dbState: doors.state, onChoose: handleChooseDoor }),
       h(GameScreen, {
         active: phase === "game",
