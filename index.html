@@ -371,6 +371,17 @@
   .lore-item p{ margin:0; color:var(--ink); line-height:1.6; font-size:0.92rem; }
   .lore-author{ display:block; margin-top:10px; font-size:0.72rem; color:var(--ink-faint); }
 
+  .vision-groups{ margin-top:28px; display:flex; flex-direction:column; gap:26px; }
+  .vision-group-title{ display:flex; align-items:center; gap:8px; font-family:'JetBrains Mono',ui-monospace,monospace; font-size:0.68rem; letter-spacing:0.16em; text-transform:uppercase; color:var(--ink-faint); }
+  .vision-group-title .dot{ width:7px; height:7px; border-radius:50%; display:inline-block; }
+  .vision-list{ margin-top:12px; display:flex; flex-direction:column; gap:12px; }
+  .vision-item{ border:1px solid var(--hairline); border-radius:14px; padding:14px 18px; background:rgba(255,255,255,0.02); transition:opacity 200ms ease; }
+  .vision-item.locked{ opacity:0.45; }
+  .vision-item h3{ margin:0; font-family:'Cinzel',serif; font-weight:600; font-size:0.95rem; color:var(--ink); letter-spacing:0.02em; }
+  .vision-item p{ margin:8px 0 0; color:var(--ink-dim); line-height:1.65; font-size:0.88rem; }
+  .vision-day{ font-family:'JetBrains Mono',ui-monospace,monospace; font-size:0.64rem; letter-spacing:0.1em; color:var(--ink-faint); text-transform:uppercase; }
+  .vision-nav-dot{ display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--threshold-glow); margin-left:6px; box-shadow:0 0 8px var(--threshold-glow); vertical-align:middle; }
+
   .feedback-widget{
     position:fixed; z-index:6; max-width:min(88vw,320px);
     bottom:calc(16px + env(safe-area-inset-bottom));
@@ -636,6 +647,67 @@
     ]
   };
 
+  // Milestone "visions" — one-time narrative unlocks tied to the streak
+  // counter above. Reaching a milestone day count while a given realm is
+  // your current door earns that realm's vision for that day, permanently
+  // (see unlockedVisions in useDailyTasks) — the first threads of an
+  // actual story for a game that's otherwise just daily-habit mechanics.
+  var VISION_MILESTONES = [3, 7, 30];
+
+  var VISIONS = {
+    heaven: [
+      { day: 3,
+        title: "A Name Half-Remembered", titleJa: "半分思い出した名前", titleKo: "반쯤 기억나는 이름",
+        en: "On the third morning, you hear it — someone calling a name that isn't the one you were given here. It sounds like yours. You don't know why the light lets old names through, only that it does, sometimes, when you've stayed still long enough to listen.",
+        ja: "三日目の朝、それが聞こえる——ここで与えられた名前ではない誰かの呼び声。それはあなたの名前のように響く。なぜ光が古い名前を通すのか分からない。ただ、十分静かに耳を澄ませていると、時々そうなるということだけを知っている。",
+        ko: "셋째 날 아침, 그 소리가 들린다 — 여기서 받은 이름이 아닌 이름을 부르는 목소리. 그것은 당신의 이름처럼 들린다. 빛이 왜 오래된 이름을 흘려보내는지는 알 수 없다. 다만 충분히 오래 조용히 귀 기울이면, 가끔 그런 일이 일어난다는 것만 알 뿐이다." },
+      { day: 7,
+        title: "The Door Behind the Door", titleJa: "扉の奥の扉", titleKo: "문 뒤의 문",
+        en: "A week clean, and you notice the light isn't uniform — there's a seam where it thins, near the edge of everything, like a door someone forgot to finish building. Nobody else here seems to see it. You wonder if that means something, or if it means you're the only one still looking.",
+        ja: "一週間が経ち、光が均一ではないことに気づく——すべての端近くに、誰かが作りかけて忘れた扉のように、光が薄くなる継ぎ目がある。ここでは誰もそれに気づいていないようだ。それが何かを意味するのか、それとも自分だけがまだ見ているという意味なのか、あなたには分からない。",
+        ko: "일주일이 지나자, 빛이 균일하지 않다는 것을 알아챈다 — 모든 것의 가장자리 근처, 마치 누군가 짓다가 잊어버린 문처럼 빛이 얇아지는 이음매가 있다. 여기 다른 누구도 그것을 보지 못하는 것 같다. 그것이 무언가를 뜻하는지, 아니면 아직도 보고 있는 사람이 자신뿐이라는 뜻인지, 당신은 알 수 없다." },
+      { day: 30,
+        title: "What the Light Keeps", titleJa: "光が保つもの", titleKo: "빛이 간직하는 것",
+        en: "Thirty days, and the light finally answers the question you stopped asking out loud: it isn't judging you, because it's already decided. What you did with these thirty days is filed somewhere you can't see, kept the way everything here is kept — gently, permanently, without comment.",
+        ja: "三十日が経ち、光はついに、あなたがもう口に出すのをやめた問いに答える——裁いていないのは、すでに決めているからだ。この三十日間あなたが何をしたかは、見えない場所に記録されている。ここにあるすべてと同じように、静かに、永遠に、何も言わずに保たれている。",
+        ko: "서른 날이 지나고, 빛은 마침내 당신이 더 이상 소리 내어 묻지 않게 된 질문에 답한다 — 심판하지 않는 것은, 이미 결정했기 때문이다. 이 서른 날 동안 당신이 한 일은 보이지 않는 곳에 기록된다. 이곳의 모든 것이 그러하듯, 조용히, 영원히, 아무 말 없이 간직된 채로." }
+    ],
+    earth: [
+      { day: 3,
+        title: "The Weight of a Body", titleJa: "体の重さ", titleKo: "몸의 무게",
+        en: "Three days into this life and your hands already remember things you didn't teach them — how to flinch, how to reach. The soil doesn't tell you whose hands these were before. It only says: use them better this time.",
+        ja: "この生に入って三日、あなたの手はもう教えていないことを覚えている——すくめる方法、伸ばす方法。土はこの手が以前誰のものだったかを教えてはくれない。ただこう言うだけだ、今度はもっと上手く使え、と。",
+        ko: "이 삶에 들어온 지 사흘, 당신의 손은 가르쳐준 적 없는 것을 이미 기억하고 있다 — 움츠리는 법, 뻗는 법. 흙은 이 손이 예전에 누구의 것이었는지 말해주지 않는다. 그저 이렇게 말할 뿐이다, 이번엔 더 잘 써보라고." },
+      { day: 7,
+        title: "Someone Else's Habit", titleJa: "他人の癖", titleKo: "다른 누군가의 버릇",
+        en: "A week in, you catch yourself doing something small and unfamiliar — humming a tune, favoring a side when you sleep — and realize it isn't new. It's inherited, worn into the body by someone who lived here before you and left the habit behind like a key under a mat.",
+        ja: "一週間が経ち、見慣れない小さな癖に気づく——鼻歌を歌う、寝るときに決まった側を向く。それは新しいものではない。以前ここに生きていた誰かが、マットの下の鍵のように残していった、受け継がれたものだ。",
+        ko: "일주일이 지나, 낯설고 사소한 버릇 하나를 알아챈다 — 흥얼거리는 노래, 잘 때 기우는 쪽. 그것은 새로 생긴 것이 아니다. 이전에 이곳에 살았던 누군가가 문 앞 매트 밑 열쇠처럼 남겨두고 간, 물려받은 것이다." },
+      { day: 30,
+        title: "The Soil Remembers Too", titleJa: "土もまた覚えている", titleKo: "흙도 기억한다",
+        en: "Thirty days, and you finally understand what \"starting over\" actually meant: not a blank page, but a used one, scraped almost clean. The soil forgives slowly because it forgets slower still — and somewhere under everything you've built this month, the last life is still faintly readable, if you dig.",
+        ja: "三十日が経ち、あなたはようやく「やり直す」という言葉の本当の意味を理解する——白紙ではなく、ほとんどきれいに削られた、使用済みの紙なのだと。土がゆっくり赦すのは、それ以上にゆっくり忘れるからだ。そして今月あなたが築いたものの下には、掘れば読み取れるほど、前の生がまだかすかに残っている。",
+        ko: "서른 날이 지나고, 당신은 마침내 '다시 시작한다'는 말의 진짜 의미를 이해한다 — 백지가 아니라, 거의 깨끗하게 긁어낸, 이미 쓰였던 종이라는 것을. 흙이 천천히 용서하는 것은, 그보다 더 천천히 잊기 때문이다. 그리고 이번 달 당신이 쌓아온 모든 것 아래에는, 파보면 읽힐 만큼, 지난 삶이 아직 희미하게 남아 있다." }
+    ],
+    hell: [
+      { day: 3,
+        title: "The Fire Learns Your Shape", titleJa: "炎があなたの形を覚える", titleKo: "불꽃이 당신의 모양을 익히다",
+        en: "Three days, and the fire has stopped burning you evenly — it's begun to trace the parts of you that are actually guilty, leaving the rest almost bearable. That's not mercy. That's it getting better at aiming.",
+        ja: "三日が経ち、炎はもう均等にあなたを焼いていない——実際に罪のある部分だけをなぞり始め、残りはほとんど耐えられるほどにしている。それは慈悲ではない。狙いが上手くなっているだけだ。",
+        ko: "사흘이 지나자, 불꽃은 더 이상 당신을 고르게 태우지 않는다 — 실제로 죄가 있는 부분만을 따라가기 시작했고, 나머지는 거의 견딜 만하게 남겨둔다. 그것은 자비가 아니다. 겨냥이 나아지고 있는 것일 뿐이다." },
+      { day: 7,
+        title: "A Voice You Owe", titleJa: "あなたが借りのある声", titleKo: "당신이 빚진 목소리",
+        en: "On the seventh day something speaks from inside the burn, using a voice you recognize but can't place — not one of the damned, and not yours. It asks nothing. It just wants to be heard once, the way you never let it be heard when it mattered.",
+        ja: "七日目、燃える中から声がする——聞き覚えはあるのに、誰のものか分からない。それは呪われた者の声でもなく、あなたの声でもない。何も求めていない。ただ一度、聞いてもらいたいだけだ——それが大切だった時、あなたが決して聞かなかったように。",
+        ko: "일곱째 날, 불타는 안쪽에서 목소리가 들린다 — 낯익지만 누구의 것인지 알 수 없다. 저주받은 자의 목소리도, 당신의 목소리도 아니다. 아무것도 요구하지 않는다. 그저 한 번, 들어달라는 것뿐이다 — 그것이 중요했던 그 순간, 당신이 결코 들어주지 않았던 것처럼." },
+      { day: 30,
+        title: "What Burns Off Last", titleJa: "最後に燃え尽きるもの", titleKo: "마지막에 타 없어지는 것",
+        en: "Thirty days in the fire, and most of what you carried in has burned away — the excuses first, then the reasons, then the story you told yourself about both. What's left, thirty days clean of all of it, turns out to be smaller than you feared and harder to look at than you expected.",
+        ja: "炎の中で三十日、あなたが持ち込んだもののほとんどは燃え尽きた——まず言い訳が、次に理由が、そして両方について自分に語っていた物語が。すべてが燃え尽きた後、三十日分きれいになって残ったものは、恐れていたよりも小さく、予想していたよりも直視しにくいものだった。",
+        ko: "불 속에서 서른 날, 당신이 가지고 들어온 것 대부분이 타 없어졌다 — 먼저 변명이, 다음엔 이유가, 그리고 그 둘에 대해 스스로에게 들려주던 이야기가. 서른 날 만에 그 모든 것에서 벗어나 남은 것은, 두려워했던 것보다 작고, 예상했던 것보다 마주보기 어려운 것이었다." }
+    ]
+  };
+
   function dateKey(offsetDays){
     var d = new Date();
     if(offsetDays) d.setDate(d.getDate() + offsetDays);
@@ -676,13 +748,13 @@
   // actually pay for moving to a different door.
   function useDailyTasks(accountId){
     var dbRef = useRef(null);
-    var _s = useState({ streak:0, points:0, lastCompletedDate:null, resolvedFor:null });
+    var _s = useState({ streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], resolvedFor:null });
     var state = _s[0], setState = _s[1];
     var loaded = !accountId || state.resolvedFor === accountId;
 
     useEffect(function(){
       if(!accountId){
-        setState(function(s){ return Object.assign({}, s, { streak:0, points:0, lastCompletedDate:null, resolvedFor:null }); });
+        setState(function(s){ return Object.assign({}, s, { streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], resolvedFor:null }); });
         return;
       }
       var cancelled = false;
@@ -701,6 +773,7 @@
             streak: (found && found.streak) || 0,
             points: (found && found.points) || 0,
             lastCompletedDate: (found && found.lastCompletedDate) || null,
+            unlockedVisions: (found && found.unlockedVisions) || [],
             resolvedFor: accountId
           });
         }
@@ -713,18 +786,30 @@
       var wasYesterday = state.lastCompletedDate === dateKey(-1);
       var nextStreak = wasYesterday ? state.streak + 1 : 1;
       var nextPoints = state.points + POINTS_PER_TASK;
+      var nextUnlocked = state.unlockedVisions.slice();
+      var newVision = null;
+      if(VISION_MILESTONES.indexOf(nextStreak) !== -1){
+        var visionKey = realmKey + ":" + nextStreak;
+        if(nextUnlocked.indexOf(visionKey) === -1){
+          nextUnlocked.push(visionKey);
+          newVision = visionKey;
+        }
+      }
       var ns = dbRef.current;
       if(ns){
         try{
+          // A full set(), not update() — matches the existing shape of this
+          // doc, so every field this doc holds has to be listed here or it
+          // gets dropped, unlockedVisions included.
           await ns.doc("dailytasks/" + accountId).set({
-            realm: realmKey, streak: nextStreak, points: nextPoints, lastCompletedDate: today
+            realm: realmKey, streak: nextStreak, points: nextPoints, lastCompletedDate: today, unlockedVisions: nextUnlocked
           });
         }catch(e){
           return { ok:false };
         }
       }
-      setState(function(s){ return Object.assign({}, s, { streak:nextStreak, points:nextPoints, lastCompletedDate:today }); });
-      return { ok:true };
+      setState(function(s){ return Object.assign({}, s, { streak:nextStreak, points:nextPoints, lastCompletedDate:today, unlockedVisions:nextUnlocked }); });
+      return { ok:true, newVision: newVision };
     }
 
     async function spend(amount){
@@ -1597,6 +1682,9 @@
           biLabel("Today's tasks", "今日の課題", "오늘의 과제")),
         h("button", { className:"q-btn ghost tiny bi", type:"button", onClick: props.onOpenLore },
           biLabel(realm.name + " lore →", realm.nameJa + "の伝承 →", realm.nameKo + "의 전승 →")),
+        h("button", { className:"q-btn ghost tiny bi", type:"button", onClick: props.onOpenVisions },
+          h("span", { className:"btn-en" }, "Memories", props.hasNewVision ? h("span", { className:"vision-nav-dot" }) : null),
+          h("span", { className:"btn-sub" }, "記憶 ・ 기억")),
         h("button", { className:"q-btn ghost tiny bi", type:"button", onClick: props.onDonate },
           biLabel("Support — $3/mo", "サポート — 月3ドル", "후원 — 월 $3")),
         h("span", { className:"char-tip-label" }, "or tip:"),
@@ -1825,6 +1913,62 @@
     );
   }
 
+  // Milestone-vision journal: one section per realm's ladder of streak
+  // milestones (see VISION_MILESTONES). Unlocked entries show their full
+  // text permanently; locked ones stay dimmed teasers. Shows every realm,
+  // not just the current one, so switching doors never orphans a vision
+  // already earned there.
+  function VisionsScreen(props){
+    return h("div", null,
+      h("div", { className:"q-eyebrow" }, "Memories"),
+      h(Sub, { ja:"記憶", ko:"기억" }),
+      h("h2", { className:"q-heading" }, "What staying has shown you."),
+      h(Sub, { ja:"留まり続けたことが、あなたに見せたもの。", ko:"머물러 온 시간이 당신에게 보여준 것." }),
+      h("p", { className:"q-tagline" }, "Each realm reveals more of itself the longer you keep your streak there. Once seen, a vision is yours to keep."),
+      h(Sub, {
+        ja:"連続記録を保つほど、それぞれの世界はより多くの姿を見せる。一度見た記憶は、あなたのものとして残り続ける。",
+        ko:"연속 기록을 이어갈수록, 각 세계는 자신의 더 많은 모습을 드러낸다. 한 번 본 기억은 계속 당신의 것으로 남는다."
+      }),
+      h("div", { className:"vision-groups" },
+        DOORS.map(function(d){
+          var realm = REALMS[d.key];
+          return h("div", { key: d.key },
+            h("div", { className:"vision-group-title" },
+              h("span", { className:"dot", style:{ background:"var(--" + d.key + ")" } }),
+              realm.name + (d.key === props.doorKey ? " — your door" : ""),
+              " · ", realm.nameJa, " · ", realm.nameKo
+            ),
+            h("div", { className:"vision-list" },
+              VISION_MILESTONES.map(function(day){
+                var v = (VISIONS[d.key] || []).filter(function(x){ return x.day === day; })[0];
+                if(!v) return null;
+                var key = d.key + ":" + day;
+                var unlocked = props.unlockedVisions.indexOf(key) !== -1;
+                return h("div", { key: key, className:"vision-item" + (unlocked ? " unlocked" : " locked") },
+                  h("span", { className:"vision-day" }, "day " + day),
+                  unlocked
+                    ? [
+                        h("h3", { key:"t" }, v.title),
+                        h(Sub, { key:"ts", ja:v.titleJa, ko:v.titleKo }),
+                        h("p", { key:"b" }, v.en),
+                        h(Sub, { key:"bs", ja:v.ja, ko:v.ko })
+                      ]
+                    : [
+                        h("h3", { key:"t" }, "Not yet reached"),
+                        h(Sub, { key:"ts", ja:"まだ届いていない", ko:"아직 닿지 않았다" })
+                      ]
+                );
+              })
+            )
+          );
+        })
+      ),
+      h("div", { className:"q-actions", style:{ marginTop:"24px" } },
+        h("button", { className:"q-btn ghost bi", type:"button", onClick: props.onBack }, biLabel("Back", "戻る", "뒤로"))
+      )
+    );
+  }
+
   function QuestionScreen(props){
     var realm = REALMS[props.doorKey] || REALMS.earth;
     var others = DOORS.filter(function(d){ return d.key !== props.doorKey; });
@@ -1865,6 +2009,8 @@
         authorName: props.authorName,
         onOpenLore: props.onOpenLore,
         onOpenTasks: props.onOpenTasks,
+        onOpenVisions: props.onOpenVisions,
+        hasNewVision: props.hasNewVision,
         onDonate: props.onDonate,
         onTip: props.onTip,
         onManageSubscription: props.onManageSubscription
@@ -1874,6 +2020,13 @@
         key: "lore-" + key,
         doorKey: key,
         authorName: props.authorName,
+        onBack: props.onBackToCharacter
+      });
+    }else if(props.gamePhase === "visions"){
+      content = h(VisionsScreen, {
+        key: "visions-" + props.accountId,
+        doorKey: key,
+        unlockedVisions: props.unlockedVisions,
         onBack: props.onBackToCharacter
       });
     }else if(props.gamePhase === "tasks"){
@@ -1930,6 +2083,8 @@
     var muted = _snd[0], setMuted = _snd[1];
     var _ss = useState(false);
     var soulStatsOpen = _ss[0], setSoulStatsOpen = _ss[1];
+    var _nv = useState(false);
+    var hasNewVision = _nv[0], setHasNewVision = _nv[1];
     var doors = useDoorsDb(account ? account.id : null);
     var dailyTasks = useDailyTasks(account ? account.id : null);
     var redirectTimer = useRef(null);
@@ -2070,10 +2225,17 @@
     function handleExit(){ setPhase("threshold"); setGamePhase("question"); }
     function handleOpenLore(){ setGamePhase("lore"); }
     function handleOpenTasks(){ setGamePhase("tasks"); }
+    function handleOpenVisions(){ setHasNewVision(false); setGamePhase("visions"); }
     function handleBackToCharacter(){ setGamePhase("character"); }
     async function handleMarkDone(){
       var result = await dailyTasks.markDone(doors.state.myChoice, dateKey(0));
-      if(result && result.ok) trackEvent("complete_daily_task", { door: doors.state.myChoice });
+      if(result && result.ok){
+        trackEvent("complete_daily_task", { door: doors.state.myChoice });
+        if(result.newVision){
+          trackEvent("unlock_vision", { vision: result.newVision });
+          setHasNewVision(true);
+        }
+      }
       return result;
     }
     async function handleMoveDoor(newKey){
@@ -2187,11 +2349,14 @@
         today: dateKey(0),
         todaysTask: doors.state.myChoice ? taskOfTheDay(doors.state.myChoice) : null,
         dailyTasksState: dailyTasks.state,
+        unlockedVisions: dailyTasks.state.unlockedVisions,
+        hasNewVision: hasNewVision,
         onSatisfied: handleSatisfied,
         onEscape: handleEscape,
         onExit: handleExit,
         onOpenLore: handleOpenLore,
         onOpenTasks: handleOpenTasks,
+        onOpenVisions: handleOpenVisions,
         onBackToCharacter: handleBackToCharacter,
         onMarkDone: handleMarkDone,
         onMove: handleMoveDoor,
