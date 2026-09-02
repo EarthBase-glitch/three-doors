@@ -62,7 +62,11 @@ exports.createCheckoutSession = onRequest(
     }
 
     try{
-      const stripe = new Stripe(stripeSecretKey.value());
+      // Newer Stripe accounts have "Managed Payments" on by default, which
+      // needs a newer API version than this SDK defaults to and requires a
+      // tax code on every inline price_data line item. We don't use that
+      // feature, so pin a compatible version and opt each session out.
+      const stripe = new Stripe(stripeSecretKey.value(), { apiVersion: "2025-03-31.basil" });
 
       if(kind === "tip"){
         const amountCents = Math.round(Number(req.body && req.body.amountCents));
@@ -83,7 +87,8 @@ exports.createCheckoutSession = onRequest(
           success_url: SUCCESS_URL,
           cancel_url: CANCEL_URL,
           client_reference_id: accountId,
-          metadata: { accountId, displayName, kind: "tip" }
+          metadata: { accountId, displayName, kind: "tip" },
+          managed_payments: { enabled: false }
         });
         res.status(200).json({ url: session.url });
         return;
@@ -102,7 +107,8 @@ exports.createCheckoutSession = onRequest(
         subscription_data: {
           metadata: { accountId, displayName }
         },
-        metadata: { accountId, displayName, kind: "subscribe" }
+        metadata: { accountId, displayName, kind: "subscribe" },
+        managed_payments: { enabled: false }
       });
       res.status(200).json({ url: session.url });
     }catch(err){
