@@ -4,7 +4,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import {
   getFirestore, doc, getDoc, setDoc, updateDoc, addDoc, deleteDoc,
-  collection, query, where, orderBy, limit, getDocs, onSnapshot
+  collection, query, where, orderBy, limit, getDocs, onSnapshot, increment
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import {
   getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut
@@ -24,7 +24,7 @@ function makeDocRef(path){
     id: ref.id,
     path: ref.path,
     async get(){ return wrapSnap(await getDoc(ref)); },
-    async set(data){ await setDoc(ref, data); },
+    async set(data, options){ await setDoc(ref, data, options || {}); },
     async update(data){ await updateDoc(ref, data); },
     async delete(){ await deleteDoc(ref); },
     onSnapshot(next, err){
@@ -66,7 +66,13 @@ function makeCollectionRef(path){
 
 window.doorsDb = {
   doc: (p) => makeDocRef(p),
-  collection: (p) => makeCollectionRef(p)
+  collection: (p) => makeCollectionRef(p),
+  // A Firestore FieldValue sentinel: pass the result inside a `set(data,
+  // {merge:true})` call to atomically increment a field server-side —
+  // safe even when many visitors write it at the same moment, and
+  // creates the document (starting from the increment amount) if it
+  // doesn't exist yet.
+  increment: (n) => increment(n)
 };
 
 window.doorsAuth = {

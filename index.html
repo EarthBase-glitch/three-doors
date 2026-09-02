@@ -1785,6 +1785,23 @@
 
     useEffect(function(){ setSoulStatsOpen(false); }, [phase]);
 
+    // A raw page-view counter, independent of sign-in — every load of the
+    // site counts, whether or not that visitor ever creates an account.
+    // One aggregate doc per day (not one doc per view) so this can't grow
+    // into thousands of documents over time.
+    useEffect(function(){
+      (async function(){
+        var ns = await getDb();
+        if(!ns) return;
+        try{
+          await ns.doc("pageviews/" + dateKey(0)).set(
+            { count: ns.increment(1), lastAt: Date.now() },
+            { merge: true }
+          );
+        }catch(e){}
+      })();
+    }, []);
+
     function toggleSound(){
       var next = !muted;
       DoorSound.setMuted(next);

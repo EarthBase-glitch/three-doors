@@ -75,5 +75,15 @@ service cloud.firestore {
       allow create, update: if request.resource.data.email is string
                     && request.resource.data.email.matches('^[^\\s@]+@[^\\s@]+[.][^\\s@]+$');
     }
+
+    // Raw page-view counter — one aggregate document per day (id is the
+    // date), incremented on every load of index.html regardless of
+    // sign-in. Anyone can write (every visitor increments it before they
+    // may have an account); only the admin can read the numbers back, via
+    // stats.html.
+    match /pageviews/{id} {
+      allow read: if request.auth != null;
+      allow write: if true;
+    }
   }
 }

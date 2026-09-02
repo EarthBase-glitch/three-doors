@@ -83,6 +83,11 @@
     </section>
 
     <section>
+      <h2>Page views, last 14 days</h2>
+      <div class="chart"><div class="daybars" id="views-chart"></div></div>
+    </section>
+
+    <section>
       <h2>New souls, last 14 days</h2>
       <div class="chart"><div class="daybars" id="day-chart"></div></div>
     </section>
@@ -175,7 +180,7 @@
         var refreshedEl = document.getElementById("refreshed");
         refreshedEl.textContent = "Loading…";
 
-        var accounts, votes, characters, dailytasks, submissions, feedback, emails;
+        var accounts, votes, characters, dailytasks, submissions, feedback, emails, pageviews;
         try{
           var results = await Promise.all([
             fetchAll("accounts"),
@@ -184,10 +189,12 @@
             fetchAll("dailytasks"),
             fetchAll("submissions"),
             fetchAll("feedback"),
-            fetchAll("emails")
+            fetchAll("emails"),
+            fetchAll("pageviews")
           ]);
           accounts = results[0]; votes = results[1]; characters = results[2];
           dailytasks = results[3]; submissions = results[4]; feedback = results[5]; emails = results[6];
+          pageviews = results[7];
         }catch(err){
           refreshedEl.textContent = "Couldn't load data — check the console for details.";
           console.error(err);
@@ -205,9 +212,13 @@
         var longestStreak = streaks.length ? Math.max.apply(null, streaks) : 0;
         var pendingLore = submissions.filter(function(s){ return s.status === "pending"; }).length;
         var charactersBuilt = characters.length;
+        var totalViews = pageviews.reduce(function(sum, p){ return sum + (p.count || 0); }, 0);
+        var viewsToday = (pageviews.filter(function(p){ return p.id === today; })[0] || {}).count || 0;
 
         var tilesEl = document.getElementById("tiles");
         tilesEl.innerHTML = "";
+        tilesEl.appendChild(tile(totalViews, "Page views (all time)"));
+        tilesEl.appendChild(tile(viewsToday, "Views today"));
         tilesEl.appendChild(tile(accounts.length, "Souls signed in"));
         tilesEl.appendChild(tile(votes.length, "Doors opened"));
         tilesEl.appendChild(tile(charactersBuilt, "Characters built"));
@@ -235,37 +246,48 @@
           });
         }
 
+        // ---- Last-14-days helpers, shared by the views and signups charts ----
+        function last14Days(){
+          var labels = [];
+          for(var i = 13; i >= 0; i--){
+            var d = new Date();
+            d.setDate(d.getDate() - i);
+            labels.push({ key: dateKey(d), label: (d.getMonth() + 1) + "/" + d.getDate() });
+          }
+          return labels;
+        }
+        function renderDayChart(elId, dayLabels, counts){
+          var el = document.getElementById(elId);
+          el.innerHTML = "";
+          var max = Math.max(1, Math.max.apply(null, dayLabels.map(function(d){ return counts[d.key] || 0; })));
+          dayLabels.forEach(function(d){
+            var count = counts[d.key] || 0;
+            var col = document.createElement("div");
+            col.className = "daybar";
+            var heightPct = Math.max((count / max) * 100, count > 0 ? 4 : 0);
+            col.innerHTML =
+              '<div class="val"></div>' +
+              '<div class="col" style="height:' + heightPct + '%;"></div>' +
+              '<div class="day"></div>';
+            col.querySelector(".val").textContent = count > 0 ? count : "";
+            col.querySelector(".day").textContent = d.label;
+            el.appendChild(col);
+          });
+        }
+
+        // ---- Page views per day, last 14 days (already daily-aggregated) ----
+        var viewCounts = {};
+        pageviews.forEach(function(p){ viewCounts[p.id] = p.count || 0; });
+        renderDayChart("views-chart", last14Days(), viewCounts);
+
         // ---- New souls per day, last 14 days ----
         var dayCounts = {};
-        var dayLabels = [];
-        for(var i = 13; i >= 0; i--){
-          var d = new Date();
-          d.setDate(d.getDate() - i);
-          var key = dateKey(d);
-          dayCounts[key] = 0;
-          dayLabels.push({ key: key, label: (d.getMonth() + 1) + "/" + d.getDate() });
-        }
         accounts.forEach(function(a){
           if(!a.createdAt) return;
           var key = dateKey(new Date(a.createdAt));
-          if(dayCounts.hasOwnProperty(key)) dayCounts[key] += 1;
+          dayCounts[key] = (dayCounts[key] || 0) + 1;
         });
-        var dayChartEl = document.getElementById("day-chart");
-        dayChartEl.innerHTML = "";
-        var dayMax = Math.max(1, Math.max.apply(null, dayLabels.map(function(d){ return dayCounts[d.key]; })));
-        dayLabels.forEach(function(d){
-          var count = dayCounts[d.key];
-          var col = document.createElement("div");
-          col.className = "daybar";
-          var heightPct = Math.max((count / dayMax) * 100, count > 0 ? 4 : 0);
-          col.innerHTML =
-            '<div class="val"></div>' +
-            '<div class="col" style="height:' + heightPct + '%;"></div>' +
-            '<div class="day"></div>';
-          col.querySelector(".val").textContent = count > 0 ? count : "";
-          col.querySelector(".day").textContent = d.label;
-          dayChartEl.appendChild(col);
-        });
+        renderDayChart("day-chart", last14Days(), dayCounts);
 
         // ---- Streak distribution ----
         var buckets = [
