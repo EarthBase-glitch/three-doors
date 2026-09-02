@@ -72,6 +72,24 @@
   .link-btn{ background:none; border:none; color:var(--ink-dim); text-decoration:underline; cursor:pointer; font:inherit; padding:0; }
   .link-btn:hover{ color:var(--ink); }
 
+  .sound-toggle{
+    position:fixed; top:14px; left:16px; z-index:5;
+    font-family:'JetBrains Mono',ui-monospace,monospace;
+    font-size:0.7rem; color:var(--ink-faint);
+    background:rgba(13,10,23,0.65);
+    padding:7px 13px; border-radius:999px; border:1px solid var(--hairline);
+    cursor:pointer;
+    opacity:0; transform:translateY(-6px);
+    transition:opacity 500ms ease, transform 500ms ease, visibility 0s linear 500ms, color 160ms ease, border-color 160ms ease;
+    visibility:hidden;
+  }
+  .sound-toggle.show{
+    opacity:1; transform:translateY(0); visibility:visible;
+    transition:opacity 500ms ease, transform 500ms ease, color 160ms ease, border-color 160ms ease;
+  }
+  .sound-toggle:hover{ color:var(--ink); border-color:var(--threshold-glow); }
+  .sound-toggle:focus-visible{ outline:2px solid var(--threshold-glow); outline-offset:2px; }
+
   .threshold{
     position:absolute; inset:0;
     display:flex; flex-direction:column; align-items:center; justify-content:center;
@@ -308,6 +326,117 @@
 
   var GENDERS = ["Male","Female","Non-binary","Other"];
 
+  // Door-opening sound, synthesized entirely with the Web Audio API — no
+  // audio files to host. Each realm gets its own tonal character: a rising
+  // sweep plus a filtered noise "breath," layered together.
+  var DoorSound = (function(){
+    var ctx = null;
+    var muted = false;
+    try{ muted = localStorage.getItem("doors_muted") === "1"; }catch(e){}
+
+    var PROFILES = {
+      heaven: { base:260, sweepTo:520, wave:"sine",     noiseColor:6000, drive:0 },
+      earth:  { base:140, sweepTo:220, wave:"triangle", noiseColor:1800, drive:0 },
+      hell:   { base:70,  sweepTo:55,  wave:"sawtooth", noiseColor:700,  drive:14 }
+    };
+
+    function ensureCtx(){
+      if(!ctx){
+        var AC = window.AudioContext || window.webkitAudioContext;
+        if(!AC) return null;
+        try{ ctx = new AC(); }catch(e){ return null; }
+      }
+      if(ctx.state === "suspended"){ ctx.resume().catch(function(){}); }
+      return ctx;
+    }
+
+    function noiseBuffer(c, seconds){
+      var len = Math.max(1, Math.floor(c.sampleRate * seconds));
+      var buf = c.createBuffer(1, len, c.sampleRate);
+      var data = buf.getChannelData(0);
+      for(var i = 0; i < len; i++){ data[i] = Math.random() * 2 - 1; }
+      return buf;
+    }
+
+    function distortionCurve(amount){
+      var n = 4096;
+      var curve = new Float32Array(n);
+      for(var i = 0; i < n; i++){
+        var x = (i * 2) / n - 1;
+        curve[i] = (3 + amount) * x * 20 * (Math.PI / 180) / (Math.PI + amount * Math.abs(x));
+      }
+      return curve;
+    }
+
+    function play(realmKey){
+      if(muted) return;
+      var c = ensureCtx();
+      if(!c) return;
+      var p = PROFILES[realmKey] || PROFILES.earth;
+      var now = c.currentTime;
+      var dur = 1.1;
+
+      var master = c.createGain();
+      master.gain.setValueAtTime(0, now);
+      master.gain.linearRampToValueAtTime(0.5, now + 0.06);
+      master.gain.linearRampToValueAtTime(0.3, now + dur * 0.55);
+      master.gain.linearRampToValueAtTime(0, now + dur);
+      master.connect(c.destination);
+
+      var osc = c.createOscillator();
+      osc.type = p.wave;
+      osc.frequency.setValueAtTime(p.base, now);
+      osc.frequency.exponentialRampToValueAtTime(Math.max(20, p.sweepTo), now + dur * 0.85);
+
+      var oscFilter = c.createBiquadFilter();
+      oscFilter.type = "lowpass";
+      oscFilter.frequency.setValueAtTime(p.base * 1.5, now);
+      oscFilter.frequency.linearRampToValueAtTime(p.sweepTo * 4, now + dur * 0.7);
+      oscFilter.Q.value = 0.7;
+
+      if(p.drive > 0){
+        var shaper = c.createWaveShaper();
+        shaper.curve = distortionCurve(p.drive);
+        osc.connect(shaper);
+        shaper.connect(oscFilter);
+      }else{
+        osc.connect(oscFilter);
+      }
+      oscFilter.connect(master);
+
+      var noise = c.createBufferSource();
+      noise.buffer = noiseBuffer(c, dur);
+      var noiseFilter = c.createBiquadFilter();
+      noiseFilter.type = "bandpass";
+      noiseFilter.frequency.setValueAtTime(p.noiseColor * 0.4, now);
+      noiseFilter.frequency.linearRampToValueAtTime(p.noiseColor, now + dur * 0.6);
+      noiseFilter.Q.value = 0.9;
+      var noiseGain = c.createGain();
+      noiseGain.gain.setValueAtTime(0, now);
+      noiseGain.gain.linearRampToValueAtTime(0.22, now + 0.08);
+      noiseGain.gain.linearRampToValueAtTime(0, now + dur);
+
+      noise.connect(noiseFilter);
+      noiseFilter.connect(noiseGain);
+      noiseGain.connect(master);
+
+      osc.start(now);
+      osc.stop(now + dur + 0.05);
+      noise.start(now);
+      noise.stop(now + dur + 0.05);
+    }
+
+    return {
+      play: play,
+      unlock: function(){ ensureCtx(); },
+      isMuted: function(){ return muted; },
+      setMuted: function(v){
+        muted = v;
+        try{ localStorage.setItem("doors_muted", v ? "1" : "0"); }catch(e){}
+      }
+    };
+  })();
+
   function getDb(){
     return new Promise(function(resolve){
       if(window.doorsDb){ resolve(window.doorsDb); return; }
@@ -533,6 +662,15 @@
     var chosen = props.myChoice === d.key;
     var opened = props.myChoice !== null;
     var locked = opened && !chosen;
+    var wasChosen = useRef(false);
+
+    useEffect(function(){
+      if(chosen && !wasChosen.current){
+        DoorSound.play(d.key);
+      }
+      wasChosen.current = chosen;
+    }, [chosen, d.key]);
+
     return h("div", { className:"door-well" },
       h("button", {
           className:"door" + (chosen ? " chosen" : ""),
@@ -872,8 +1010,16 @@
     var gamePhase = _g[0], setGamePhase = _g[1];
     var _a = useState(null);
     var account = _a[0], setAccount = _a[1];
+    var _snd = useState(function(){ return DoorSound.isMuted(); });
+    var muted = _snd[0], setMuted = _snd[1];
     var doors = useDoorsDb(account ? account.id : null);
     var redirectTimer = useRef(null);
+
+    function toggleSound(){
+      var next = !muted;
+      DoorSound.setMuted(next);
+      setMuted(next);
+    }
 
     useEffect(function(){
       if(phase === "hall" && doors.state.ready && doors.state.myChoice){
@@ -907,14 +1053,24 @@
     function handleBackToCharacter(){ setGamePhase("character"); }
 
     var showBadge = !!account && (phase === "hall" || phase === "game");
+    var showControls = phase !== "threshold";
 
     return h(React.Fragment, null,
       h("div", { className:"stars" }),
+      h("button", {
+          className:"sound-toggle" + (showControls ? " show" : ""),
+          type:"button", onClick: toggleSound
+        },
+        muted ? "sound: off" : "sound: on"
+      ),
       h("div", { className:"account-badge" + (showBadge ? " show" : "") },
         account ? h("span", { className:"name" }, "signed in as " + account.displayName) : null,
         account ? h("button", { className:"link-btn", onClick: handleSignOut }, "not you?") : null
       ),
-      h(Threshold, { leaving: phase !== "threshold", onEnter: function(){ setPhase("signin"); } }),
+      h(Threshold, {
+        leaving: phase !== "threshold",
+        onEnter: function(){ DoorSound.unlock(); setPhase("signin"); }
+      }),
       h(SignIn, { active: phase === "signin", onSignedIn: handleSignedIn }),
       h(Hall, { active: phase === "hall", dbState: doors.state, onChoose: handleChooseDoor }),
       h(GameScreen, {
