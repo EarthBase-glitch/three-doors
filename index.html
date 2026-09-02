@@ -363,6 +363,28 @@
   .feedback-input:focus-visible{ outline:2px solid var(--threshold-glow); outline-offset:1px; }
   .feedback-form .q-btn{ margin-top:10px; width:100%; }
 
+  /* Hidden by default (desktop keeps the readable top realm-stats bar);
+     the mobile media query below turns this on and hides that bar instead. */
+  .soul-stats-btn{ display:none; }
+
+  .soul-stats-overlay{
+    position:fixed; inset:0; z-index:20; background:rgba(5,4,9,0.72);
+    display:flex; align-items:center; justify-content:center; padding:20px;
+  }
+  .soul-stats-card{
+    width:min(92vw,360px); max-height:80vh; overflow-y:auto;
+    background:var(--void-2); border:1px solid var(--hairline); border-radius:20px;
+    padding:22px; box-shadow:0 30px 80px -20px rgba(0,0,0,0.8);
+  }
+  .soul-stats-head{
+    display:flex; align-items:center; justify-content:space-between;
+    font-family:'Cinzel',serif; font-weight:600; font-size:1.05rem; color:var(--ink);
+  }
+  .soul-stats-you{ margin-top:16px; font-size:0.9rem; color:var(--ink-dim); line-height:1.5; }
+  .soul-stats-list{ margin-top:18px; display:flex; flex-direction:column; gap:10px; }
+  .soul-stats-row{ display:flex; align-items:center; gap:8px; font-size:0.85rem; color:var(--ink-dim); }
+  .soul-stats-row .n{ margin-left:auto; color:var(--ink); font-weight:600; font-variant-numeric:tabular-nums; }
+
   /* Placed last on purpose: later source order beats the earlier
      component rules above at equal specificity, so these reliably win on
      small screens without needing !important anywhere. */
@@ -393,14 +415,27 @@
       display:flex; flex-direction:column; align-items:center; gap:6px;
       width:94vw; max-width:360px;
     }
-    .account-badge, .sound-toggle, .realm-stats{
+    .account-badge, .sound-toggle{
       position:static; top:auto; left:auto; right:auto; transform:none;
-      width:auto; max-width:100%;
+      width:auto; max-width:100%; font-size:0.6rem; padding:5px 10px;
     }
-    .account-badge, .sound-toggle{ font-size:0.6rem; padding:5px 10px; }
-    .realm-stats{ gap:4px; align-items:center; }
-    .realm-stats-you, .realm-stats-row{ font-size:0.58rem; padding:4px 9px; }
-    .realm-stat{ gap:3px; }
+    /* Too small to read at this width no matter how it's shrunk — replaced
+       by the Soul Stats button + pop-out sheet below. */
+    .realm-stats{ display:none; }
+
+    .soul-stats-btn{
+      display:block;
+      position:fixed; bottom:16px; left:50%; z-index:6;
+      opacity:0; visibility:hidden; transform:translateX(-50%) translateY(6px);
+      transition:opacity 400ms ease, transform 400ms ease, visibility 0s linear 400ms;
+      font-family:'JetBrains Mono',ui-monospace,monospace; font-size:0.68rem;
+      background:rgba(13,10,23,0.82); color:var(--ink-dim); border:1px solid var(--hairline);
+      border-radius:999px; padding:8px 18px; cursor:pointer;
+    }
+    .soul-stats-btn.show{
+      opacity:1; visibility:visible; transform:translateX(-50%) translateY(0);
+      transition:opacity 400ms ease, transform 400ms ease;
+    }
 
     .char-avatar{ width:110px; height:154px; }
     .char-layout{ gap:16px; margin-top:20px; }
@@ -1106,6 +1141,49 @@
     );
   }
 
+  // Mobile-only stand-in for RealmStats: the top bar reads too small on
+  // small screens, so on mobile it's hidden entirely (see CSS) and this
+  // button + pop-out sheet takes over instead, at full readable size.
+  function SoulStatsButton(props){
+    return h("button", {
+      className:"soul-stats-btn bi" + (props.show ? " show" : ""),
+      type:"button", onClick: props.onOpen
+    }, biLabel("Soul Stats", "魂の統計", "영혼 통계"));
+  }
+
+  function SoulStatsSheet(props){
+    if(!props.open) return null;
+    var counts = props.counts;
+    var myRealm = props.myRealm;
+    var withYou = myRealm ? Math.max(0, (counts[myRealm] || 0) - 1) : null;
+
+    return h("div", { className:"soul-stats-overlay", onClick: props.onClose },
+      h("div", { className:"soul-stats-card", onClick: function(e){ e.stopPropagation(); } },
+        h("div", { className:"soul-stats-head" },
+          h("span", null, "Soul Stats"),
+          h("button", { type:"button", className:"feedback-close", "aria-label":"Close", onClick: props.onClose }, "×")
+        ),
+        h(Sub, { ja:"魂の統計", ko:"영혼 통계" }),
+        myRealm ? h("p", { className:"soul-stats-you" },
+          withYou + (withYou === 1 ? " other soul behind this door with you" : " other souls behind this door with you")
+        ) : null,
+        myRealm ? h(Sub, {
+          ja: withYou + "人の魂がこの扉の向こうであなたと共にいる",
+          ko: withYou + "명의 영혼이 이 문 너머에 당신과 함께 있다"
+        }) : null,
+        h("div", { className:"soul-stats-list" },
+          DOORS.map(function(d){
+            return h("div", { className:"soul-stats-row", key: d.key },
+              h("span", { className:"realm-stat-dot", style:{ background:"var(--" + d.key + ")" } }),
+              h("span", null, d.label + " · " + d.labelJa + " · " + d.labelKo),
+              h("span", { className:"n" }, counts[d.key])
+            );
+          })
+        )
+      )
+    );
+  }
+
   function AvatarPreview(props){
     var skin = props.skin, outfit = props.outfit;
     return h("svg", { className:"char-avatar", viewBox:"0 0 160 220", role:"img", "aria-label":"Character preview" },
@@ -1616,9 +1694,13 @@
     var account = _a[0], setAccount = _a[1];
     var _snd = useState(function(){ return DoorSound.isMuted(); });
     var muted = _snd[0], setMuted = _snd[1];
+    var _ss = useState(false);
+    var soulStatsOpen = _ss[0], setSoulStatsOpen = _ss[1];
     var doors = useDoorsDb(account ? account.id : null);
     var dailyTasks = useDailyTasks(account ? account.id : null);
     var redirectTimer = useRef(null);
+
+    useEffect(function(){ setSoulStatsOpen(false); }, [phase]);
 
     function toggleSound(){
       var next = !muted;
@@ -1709,6 +1791,13 @@
           account ? h("button", { className:"link-btn", onClick: handleSignOut }, "not you?") : null
         )
       ),
+      h(SoulStatsButton, { show: showStats, onOpen: function(){ setSoulStatsOpen(true); } }),
+      h(SoulStatsSheet, {
+        open: soulStatsOpen,
+        counts: doors.state.counts,
+        myRealm: phase === "game" ? doors.state.myChoice : null,
+        onClose: function(){ setSoulStatsOpen(false); }
+      }),
       h(Threshold, {
         leaving: phase !== "threshold",
         onEnter: function(){ DoorSound.unlock(); setPhase("signin"); }
