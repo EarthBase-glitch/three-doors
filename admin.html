@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Three Doors — Review Queue</title>
+<style>
+  :root{
+    --void:#07060b; --void-2:#0d0a17; --void-3:#150f24;
+    --ink:#ece7f7; --ink-dim:#a89bc4; --ink-faint:#5f5578;
+    --accent:#c9b6ff; --hairline: rgba(236,231,247,0.12);
+    --ok:#7fc26a; --bad:#ff6a3d;
+  }
+  *{ box-sizing:border-box; }
+  body{ margin:0; min-height:100vh; background:var(--void); color:var(--ink); font-family: ui-sans-serif, system-ui, sans-serif; padding:24px; }
+  h1{ font-size:1.3rem; margin:0 0 4px; }
+  .sub{ color:var(--ink-dim); font-size:0.9rem; margin:0 0 24px; }
+
+  #signin{ max-width:360px; margin:60px auto; background:var(--void-2); border:1px solid var(--hairline); border-radius:16px; padding:28px; }
+  #signin label{ display:block; font-size:0.72rem; letter-spacing:0.08em; text-transform:uppercase; color:var(--ink-faint); margin-top:14px; }
+  #signin input{ width:100%; margin-top:6px; padding:0.6em 0.8em; background:var(--void-3); border:1px solid var(--hairline); border-radius:8px; color:var(--ink); font-size:0.95rem; }
+  #signin button{ width:100%; margin-top:20px; background:var(--accent); color:#0b0810; border:none; border-radius:999px; padding:0.7em 1.2em; font-weight:600; cursor:pointer; }
+  #error{ color:var(--bad); font-size:0.85rem; min-height:1.2em; }
+
+  #app{ display:none; max-width:760px; margin:0 auto; }
+  #signout{ float:right; background:none; border:1px solid var(--hairline); color:var(--ink-dim); border-radius:999px; padding:0.4em 1em; cursor:pointer; font-size:0.8rem; }
+
+  .card{ background:var(--void-2); border:1px solid var(--hairline); border-radius:14px; padding:18px 20px; margin-bottom:14px; }
+  .card .realm{ font-size:0.7rem; text-transform:uppercase; letter-spacing:0.12em; color:var(--ink-faint); }
+  .card p{ margin:8px 0 12px; line-height:1.5; white-space:pre-wrap; }
+  .card .meta{ font-size:0.78rem; color:var(--ink-dim); margin-bottom:12px; }
+  .row{ display:flex; gap:10px; }
+  .row button{ cursor:pointer; border:none; border-radius:999px; padding:0.6em 1.2em; font-size:0.85rem; font-weight:600; }
+  .approve{ background:var(--ok); color:#0b120a; }
+  .reject{ background:var(--bad); color:#1a0705; }
+  .empty{ color:var(--ink-faint); font-size:0.9rem; }
+</style>
+</head>
+<body>
+  <div id="signin">
+    <h1>Review queue</h1>
+    <p class="sub">Sign in with the admin account created in Firebase Authentication.</p>
+    <div id="error"></div>
+    <form id="signin-form">
+      <label for="email">Email</label>
+      <input type="email" id="email" autocomplete="username" required>
+      <label for="password">Password</label>
+      <input type="password" id="password" autocomplete="current-password" required>
+      <button type="submit">Sign in</button>
+    </form>
+  </div>
+
+  <div id="app">
+    <button id="signout">Sign out</button>
+    <h1>Pending submissions</h1>
+    <p class="sub" id="count"></p>
+    <div id="list"></div>
+  </div>
+
+  <script src="firebase-config.js"></script>
+  <script type="module" src="firebase-adapter.js"></script>
+  <script type="module">
+    var REALM_NAMES = { heaven:"Heaven", earth:"Reincarnation", hell:"Hell" };
+
+    function ready(){
+      var signinEl = document.getElementById("signin");
+      var appEl = document.getElementById("app");
+      var errorEl = document.getElementById("error");
+      var listEl = document.getElementById("list");
+      var countEl = document.getElementById("count");
+      var unsub = null;
+
+      window.doorsAuth.onChange(function(user){
+        if(user){
+          signinEl.style.display = "none";
+          appEl.style.display = "block";
+          subscribe();
+        }else{
+          signinEl.style.display = "block";
+          appEl.style.display = "none";
+          if(unsub){ unsub(); unsub = null; }
+        }
+      });
+
+      document.getElementById("signin-form").addEventListener("submit", function(e){
+        e.preventDefault();
+        errorEl.textContent = "";
+        var email = document.getElementById("email").value.trim();
+        var password = document.getElementById("password").value;
+        window.doorsAuth.signIn(email, password).catch(function(){
+          errorEl.textContent = "Sign-in failed — check the email and password.";
+        });
+      });
+
+      document.getElementById("signout").addEventListener("click", function(){
+        window.doorsAuth.signOut();
+      });
+
+      function subscribe(){
+        unsub = window.doorsDb.collection("submissions")
+          .where("status", "==", "pending")
+          .onSnapshot(function(snap){ render(snap.docs); });
+      }
+
+      function render(docs){
+        countEl.textContent = docs.length + (docs.length === 1 ? " submission waiting." : " submissions waiting.");
+        listEl.innerHTML = "";
+        if(docs.length === 0){
+          listEl.innerHTML = '<p class="empty">Nothing waiting for review.</p>';
+          return;
+        }
+        docs.sort(function(a,b){ return (a.data().createdAt||0) - (b.data().createdAt||0); });
+        docs.forEach(function(d){
+          var data = d.data();
+          var realmName = REALM_NAMES[data.realm] || data.realm;
+          var when = data.createdAt ? new Date(data.createdAt).toLocaleString() : "";
+
+          var card = document.createElement("div");
+          card.className = "card";
+
+          var realmEl = document.createElement("div");
+          realmEl.className = "realm";
+          realmEl.textContent = realmName;
+
+          var textEl = document.createElement("p");
+          textEl.textContent = data.text || "";
+
+          var metaEl = document.createElement("div");
+          metaEl.className = "meta";
+          metaEl.textContent = "from " + (data.authorName || "anonymous") + (when ? " · " + when : "");
+
+          var rowEl = document.createElement("div");
+          rowEl.className = "row";
+
+          var approveBtn = document.createElement("button");
+          approveBtn.className = "approve";
+          approveBtn.textContent = "Approve";
+          approveBtn.addEventListener("click", function(){
+            window.doorsDb.doc("submissions/" + d.id).update({ status:"approved", reviewedAt: Date.now() });
+          });
+
+          var rejectBtn = document.createElement("button");
+          rejectBtn.className = "reject";
+          rejectBtn.textContent = "Reject";
+          rejectBtn.addEventListener("click", function(){
+            window.doorsDb.doc("submissions/" + d.id).update({ status:"rejected", reviewedAt: Date.now() });
+          });
+
+          rowEl.appendChild(approveBtn);
+          rowEl.appendChild(rejectBtn);
+
+          card.appendChild(realmEl);
+          card.appendChild(textEl);
+          card.appendChild(metaEl);
+          card.appendChild(rowEl);
+          listEl.appendChild(card);
+        });
+      }
+    }
+
+    if(window.doorsAuth){ ready(); }
+    else{ window.addEventListener("doorsFirebaseReady", ready, { once:true }); }
+  </script>
+</body>
+</html>

@@ -1,0 +1,40 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Door choices — no real auth backs these, so both directions stay open,
+    // matching the "handle + passphrase" identity model in the app.
+    match /votes/{id} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Sign-in records (display name + hashed passphrase). Not real auth —
+    // see the in-app disclaimer. Open so the app can create/check accounts.
+    match /accounts/{id} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    match /characters/{id} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Community lore submissions. Anyone can propose one (status forced to
+    // "pending" and lightly validated); only an authenticated admin
+    // (Firebase Authentication -> Email/Password, set up in the console)
+    // can approve, reject, or edit one. Only approved entries are publicly
+    // readable — pending/rejected ones are visible to the signed-in admin
+    // only, via admin.html.
+    match /submissions/{id} {
+      allow read: if resource.data.status == 'approved' || request.auth != null;
+      allow create: if request.resource.data.status == 'pending'
+                    && request.resource.data.realm in ['heaven', 'earth', 'hell']
+                    && request.resource.data.text is string
+                    && request.resource.data.text.size() > 0
+                    && request.resource.data.text.size() <= 600;
+      allow update, delete: if request.auth != null;
+    }
+  }
+}
