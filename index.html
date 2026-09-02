@@ -385,10 +385,20 @@
     .q-btn{ font-size:0.82rem; padding:0.7em 1.1em; }
     button.bi .btn-sub{ font-size:0.68em; }
 
-    .account-badge, .sound-toggle{ font-size:0.6rem; padding:5px 10px; top:8px; }
-    .account-badge{ right:8px; }
-    .sound-toggle{ left:8px; }
-    .realm-stats{ top:8px; gap:4px; max-width:94vw; }
+    /* Stack the three top bars in one column instead of scattering them
+       left/center/right — the wrapper takes over fixed positioning and
+       the children fall back into normal flow inside it. */
+    .top-bars{
+      position:fixed; top:8px; left:50%; transform:translateX(-50%); z-index:5;
+      display:flex; flex-direction:column; align-items:center; gap:6px;
+      width:94vw; max-width:360px;
+    }
+    .account-badge, .sound-toggle, .realm-stats{
+      position:static; top:auto; left:auto; right:auto; transform:none;
+      width:auto; max-width:100%;
+    }
+    .account-badge, .sound-toggle{ font-size:0.6rem; padding:5px 10px; }
+    .realm-stats{ gap:4px; align-items:center; }
     .realm-stats-you, .realm-stats-row{ font-size:0.58rem; padding:4px 9px; }
     .realm-stat{ gap:3px; }
 
@@ -1680,22 +1690,24 @@
 
     return h(React.Fragment, null,
       h("div", { className:"stars" }),
-      h("button", {
-          className:"sound-toggle" + (showControls ? " show" : ""),
-          type:"button", onClick: toggleSound
-        },
-        muted ? "sound: off  ·  音：オフ  ·  소리: 꺼짐" : "sound: on  ·  音：オン  ·  소리: 켜짐"
-      ),
-      h(RealmStats, {
-        show: showStats,
-        counts: doors.state.counts,
-        myRealm: phase === "game" ? doors.state.myChoice : null
-      }),
-      h("div", { className:"account-badge" + (showBadge ? " show" : "") },
-        account ? h("span", { className:"name" },
-          "signed in as " + account.displayName + " · " + dailyTasks.state.points + " pts"
-        ) : null,
-        account ? h("button", { className:"link-btn", onClick: handleSignOut }, "not you?") : null
+      h("div", { className:"top-bars" },
+        h("button", {
+            className:"sound-toggle" + (showControls ? " show" : ""),
+            type:"button", onClick: toggleSound
+          },
+          muted ? "sound: off  ·  音：オフ  ·  소리: 꺼짐" : "sound: on  ·  音：オン  ·  소리: 켜짐"
+        ),
+        h(RealmStats, {
+          show: showStats,
+          counts: doors.state.counts,
+          myRealm: phase === "game" ? doors.state.myChoice : null
+        }),
+        h("div", { className:"account-badge" + (showBadge ? " show" : "") },
+          account ? h("span", { className:"name" },
+            "signed in as " + account.displayName + " · " + dailyTasks.state.points + " pts"
+          ) : null,
+          account ? h("button", { className:"link-btn", onClick: handleSignOut }, "not you?") : null
+        )
       ),
       h(Threshold, {
         leaving: phase !== "threshold",
