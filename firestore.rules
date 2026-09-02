@@ -27,6 +27,14 @@ service cloud.firestore {
       allow write: if true;
     }
 
+    // Daily task checklists + streaks. Same identity model as the above —
+    // not gated to "your own" account at the database level, since there's
+    // no real per-account auth to check against.
+    match /dailytasks/{id} {
+      allow read: if true;
+      allow write: if true;
+    }
+
     // Community lore submissions. Anyone can propose one (status forced to
     // "pending" and lightly validated); only an authenticated admin
     // (Firebase Authentication -> Email/Password, set up in the console)

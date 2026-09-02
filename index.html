@@ -264,7 +264,33 @@
   .char-save-row{ display:flex; align-items:center; gap:14px; margin-top:4px; min-height:1.4em; }
   .save-toast{ font-family:'JetBrains Mono',ui-monospace,monospace; font-size:0.72rem; letter-spacing:0.08em; color:var(--realm-color); opacity:0; transition:opacity 300ms ease; }
   .save-toast.show{ opacity:1; }
-  .char-lore-link{ margin-top:8px; }
+  .char-lore-link{ margin-top:8px; display:flex; gap:10px; flex-wrap:wrap; }
+  .char-lore-link .q-btn{ width:auto; }
+
+  .streak-chip{
+    display:inline-block; margin-top:16px;
+    font-family:'JetBrains Mono',ui-monospace,monospace; font-size:0.72rem; letter-spacing:0.06em;
+    color:var(--realm-color); border:1px solid var(--hairline); padding:0.35em 0.9em; border-radius:999px;
+  }
+  .task-list{ list-style:none; margin:24px 0 0; padding:0; display:flex; flex-direction:column; gap:10px; max-width:420px; }
+  .task-item{
+    width:100%; display:flex; align-items:center; gap:12px; text-align:left;
+    background:rgba(255,255,255,0.03); border:1px solid var(--hairline); border-radius:12px;
+    padding:0.75em 1em; cursor:pointer; color:var(--ink-dim); font-family:'Work Sans',sans-serif; font-size:0.92rem;
+    transition:border-color 160ms ease, color 160ms ease, background 160ms ease;
+  }
+  .task-item:hover{ border-color:var(--realm-color); }
+  .task-item:focus-visible{ outline:2px solid var(--realm-color); outline-offset:2px; }
+  .task-item.done{ color:var(--ink); background:rgba(255,255,255,0.05); }
+  .task-check{
+    flex:0 0 auto; width:18px; height:18px; border-radius:5px; border:1.5px solid var(--hairline);
+    position:relative; transition:background 160ms ease, border-color 160ms ease;
+  }
+  .task-item.done .task-check{ background:var(--realm-color); border-color:var(--realm-color); }
+  .task-item.done .task-check::after{
+    content:""; position:absolute; left:5px; top:1px; width:5px; height:9px;
+    border-right:2px solid #0b0810; border-bottom:2px solid #0b0810; transform:rotate(40deg);
+  }
 
   .lore-form{ margin-top:26px; }
   .lore-input{
@@ -325,6 +351,41 @@
   ];
 
   var GENDERS = ["Male","Female","Non-binary","Other"];
+
+  // Daily tasks, themed per realm — a private checklist that resets each
+  // day, kept in Firestore so the streak follows an account across devices.
+  var DAILY_TASKS = {
+    heaven: [
+      { id:"silence",   label:"Sit in silence for one minute" },
+      { id:"gratitude", label:"Name one thing you're grateful for" },
+      { id:"forgive",   label:"Forgive someone — even yourself" },
+      { id:"breathe",   label:"Breathe slowly, three times" },
+      { id:"light",     label:"Watch the light change, just once" }
+    ],
+    earth: [
+      { id:"teeth",   label:"Brush your teeth" },
+      { id:"shower",  label:"Take a shower" },
+      { id:"hair",    label:"Wash your hair" },
+      { id:"water",   label:"Drink a glass of water" },
+      { id:"stretch", label:"Stretch for a minute" }
+    ],
+    hell: [
+      { id:"confess",  label:"Confess something small" },
+      { id:"carry",    label:"Carry the weight a little longer" },
+      { id:"stoke",    label:"Stoke the fire" },
+      { id:"remember", label:"Remember what you did" },
+      { id:"sit",      label:"Sit with the heat" }
+    ]
+  };
+
+  function dateKey(offsetDays){
+    var d = new Date();
+    if(offsetDays) d.setDate(d.getDate() + offsetDays);
+    var y = d.getFullYear();
+    var m = String(d.getMonth() + 1).padStart(2, "0");
+    var day = String(d.getDate()).padStart(2, "0");
+    return y + "-" + m + "-" + day;
+  }
 
   // Door-opening sound, synthesized entirely with the Web Audio API — no
   // audio files to host. Each realm gets its own tonal character: a rising
@@ -869,6 +930,8 @@
             h("span", { className:"save-toast" + (toast ? " show" : "") }, "Saved")
           ),
           h("div", { className:"char-lore-link" },
+            h("button", { className:"q-btn ghost", type:"button", onClick: props.onOpenTasks },
+              "Today's tasks"),
             h("button", { className:"q-btn ghost", type:"button", onClick: props.onOpenLore },
               "Read & add to " + realm.name + " lore →")
           )
@@ -959,6 +1022,105 @@
     );
   }
 
+  function DailyTasks(props){
+    var accountId = props.accountId;
+    var realmKey = props.doorKey;
+    var realm = REALMS[realmKey] || REALMS.earth;
+    var tasks = DAILY_TASKS[realmKey] || DAILY_TASKS.earth;
+    var dbRef = useRef(null);
+    var _d = useState({ date: dateKey(0), checked: [], streak: 0, lastCompletedDate: null, loaded: false });
+    var data = _d[0], setData = _d[1];
+
+    useEffect(function(){
+      var cancelled = false;
+      (async function(){
+        var ns = await getDb();
+        dbRef.current = ns;
+        var found = null;
+        if(ns && accountId){
+          try{
+            var snap = await ns.doc("dailytasks/" + accountId).get();
+            if(snap.exists) found = snap.data();
+          }catch(e){}
+        }
+        if(cancelled) return;
+        var today = dateKey(0);
+        var sameDay = found && found.date === today;
+        setData({
+          date: today,
+          checked: sameDay ? (found.checked || []) : [],
+          streak: (found && found.streak) || 0,
+          lastCompletedDate: (found && found.lastCompletedDate) || null,
+          loaded: true
+        });
+      })();
+      return function(){ cancelled = true; };
+    }, [accountId]);
+
+    function persist(next){
+      setData(next);
+      var ns = dbRef.current;
+      if(ns && accountId){
+        ns.doc("dailytasks/" + accountId).set({
+          realm: realmKey,
+          date: next.date,
+          checked: next.checked,
+          streak: next.streak,
+          lastCompletedDate: next.lastCompletedDate
+        }).catch(function(){});
+      }
+    }
+
+    function toggle(taskId){
+      if(!data.loaded) return;
+      var already = data.checked.indexOf(taskId) !== -1;
+      var nextChecked = already
+        ? data.checked.filter(function(t){ return t !== taskId; })
+        : data.checked.concat([taskId]);
+      var next = Object.assign({}, data, { checked: nextChecked });
+
+      var allDone = nextChecked.length === tasks.length;
+      if(allDone && data.lastCompletedDate !== data.date){
+        var wasYesterday = data.lastCompletedDate === dateKey(-1);
+        next.streak = wasYesterday ? data.streak + 1 : 1;
+        next.lastCompletedDate = data.date;
+      }
+      persist(next);
+    }
+
+    var allDone = data.loaded && data.checked.length === tasks.length;
+
+    return h("div", null,
+      h("div", { className:"q-eyebrow" }, realm.name + " · today"),
+      h("h2", { className:"q-heading" }, "Small tasks, kept."),
+      h("p", { className:"q-tagline" },
+        allDone ? "Done for today. Come back tomorrow." : "Check them off as you go — resets each day."
+      ),
+      h("div", { className:"streak-chip" },
+        data.streak > 0 ? (data.streak + (data.streak === 1 ? " day streak" : " day streak")) : "no streak yet"
+      ),
+      h("ul", { className:"task-list" },
+        tasks.map(function(t){
+          var done = data.checked.indexOf(t.id) !== -1;
+          return h("li", { key: t.id },
+            h("button", {
+              type:"button",
+              className:"task-item" + (done ? " done" : ""),
+              "aria-pressed": done,
+              onClick: function(){ toggle(t.id); }
+            },
+              h("span", { className:"task-check" }),
+              h("span", null, t.label)
+            )
+          );
+        })
+      ),
+      h("div", { className:"lore-actions" },
+        h("button", { className:"q-btn ghost", type:"button", onClick: props.onBack }, "Back")
+      )
+    );
+  }
+
   function QuestionScreen(props){
     var realm = REALMS[props.doorKey] || REALMS.earth;
     var others = DOORS.filter(function(d){ return d.key !== props.doorKey; });
@@ -992,13 +1154,21 @@
         key: "char-" + props.accountId,
         accountId: props.accountId,
         doorKey: key,
-        onOpenLore: props.onOpenLore
+        onOpenLore: props.onOpenLore,
+        onOpenTasks: props.onOpenTasks
       });
     }else if(props.gamePhase === "lore"){
       content = h(LoreScreen, {
         key: "lore-" + key,
         doorKey: key,
         authorName: props.authorName,
+        onBack: props.onBackToCharacter
+      });
+    }else if(props.gamePhase === "tasks"){
+      content = h(DailyTasks, {
+        key: "tasks-" + props.accountId,
+        accountId: props.accountId,
+        doorKey: key,
         onBack: props.onBackToCharacter
       });
     }else{
@@ -1074,6 +1244,7 @@
     function handleEscape(newKey){ doors.choose(newKey); setGamePhase("question"); }
     function handleExit(){ setPhase("threshold"); setGamePhase("question"); }
     function handleOpenLore(){ setGamePhase("lore"); }
+    function handleOpenTasks(){ setGamePhase("tasks"); }
     function handleBackToCharacter(){ setGamePhase("character"); }
 
     var showBadge = !!account && (phase === "hall" || phase === "game");
@@ -1107,6 +1278,7 @@
         onEscape: handleEscape,
         onExit: handleExit,
         onOpenLore: handleOpenLore,
+        onOpenTasks: handleOpenTasks,
         onBackToCharacter: handleBackToCharacter
       })
     );
