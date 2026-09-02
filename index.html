@@ -272,25 +272,6 @@
     font-family:'JetBrains Mono',ui-monospace,monospace; font-size:0.72rem; letter-spacing:0.06em;
     color:var(--realm-color); border:1px solid var(--hairline); padding:0.35em 0.9em; border-radius:999px;
   }
-  .task-list{ list-style:none; margin:24px 0 0; padding:0; display:flex; flex-direction:column; gap:10px; max-width:420px; }
-  .task-item{
-    width:100%; display:flex; align-items:center; gap:12px; text-align:left;
-    background:rgba(255,255,255,0.03); border:1px solid var(--hairline); border-radius:12px;
-    padding:0.75em 1em; cursor:pointer; color:var(--ink-dim); font-family:'Work Sans',sans-serif; font-size:0.92rem;
-    transition:border-color 160ms ease, color 160ms ease, background 160ms ease;
-  }
-  .task-item:hover{ border-color:var(--realm-color); }
-  .task-item:focus-visible{ outline:2px solid var(--realm-color); outline-offset:2px; }
-  .task-item.done{ color:var(--ink); background:rgba(255,255,255,0.05); }
-  .task-check{
-    flex:0 0 auto; width:18px; height:18px; border-radius:5px; border:1.5px solid var(--hairline);
-    position:relative; transition:background 160ms ease, border-color 160ms ease;
-  }
-  .task-item.done .task-check{ background:var(--realm-color); border-color:var(--realm-color); }
-  .task-item.done .task-check::after{
-    content:""; position:absolute; left:5px; top:1px; width:5px; height:9px;
-    border-right:2px solid #0b0810; border-bottom:2px solid #0b0810; transform:rotate(40deg);
-  }
 
   .lore-form{ margin-top:26px; }
   .lore-input{
@@ -352,29 +333,47 @@
 
   var GENDERS = ["Male","Female","Non-binary","Other"];
 
-  // Daily tasks, themed per realm — a private checklist that resets each
-  // day, kept in Firestore so the streak follows an account across devices.
+  // Daily tasks, themed per realm. One task is shown per day, the same for
+  // every visitor that day, picked deterministically from the pool below —
+  // so it visibly changes tomorrow without needing any server-side cron.
+  // Only whether *this account* marked it done, plus their streak, is
+  // private and kept in Firestore.
   var DAILY_TASKS = {
     heaven: [
-      { id:"silence",   label:"Sit in silence for one minute" },
-      { id:"gratitude", label:"Name one thing you're grateful for" },
-      { id:"forgive",   label:"Forgive someone — even yourself" },
-      { id:"breathe",   label:"Breathe slowly, three times" },
-      { id:"light",     label:"Watch the light change, just once" }
+      "Step outside and feel the air for a minute",
+      "Drink a full glass of water, slowly",
+      "Write down one thing you're grateful for",
+      "Send someone a kind message",
+      "Tidy one small space",
+      "Sit quietly for two minutes with your eyes closed",
+      "Stretch your arms overhead and breathe out slowly",
+      "Forgive yourself for one small thing",
+      "Look at the sky for thirty seconds",
+      "Let go of a grudge, just for today"
     ],
     earth: [
-      { id:"teeth",   label:"Brush your teeth" },
-      { id:"shower",  label:"Take a shower" },
-      { id:"hair",    label:"Wash your hair" },
-      { id:"water",   label:"Drink a glass of water" },
-      { id:"stretch", label:"Stretch for a minute" }
+      "Brush your teeth",
+      "Take a shower",
+      "Wash your hair",
+      "Drink a glass of water",
+      "Stretch for a minute",
+      "Make your bed",
+      "Eat something that isn't from a bag",
+      "Step outside for five minutes",
+      "Wash your face",
+      "Clip your nails"
     ],
     hell: [
-      { id:"confess",  label:"Confess something small" },
-      { id:"carry",    label:"Carry the weight a little longer" },
-      { id:"stoke",    label:"Stoke the fire" },
-      { id:"remember", label:"Remember what you did" },
-      { id:"sit",      label:"Sit with the heat" }
+      "Confess something small to yourself",
+      "Do the task you've been avoiding",
+      "Sit with an uncomfortable feeling for one minute, without fixing it",
+      "Apologize for something, even quietly",
+      "Face the mess you've been ignoring",
+      "Write down what you did wrong",
+      "Do one thing the hard way, on purpose",
+      "Sit in the dark for a minute",
+      "Name what's been eating at you",
+      "Finish the thing you started"
     ]
   };
 
@@ -385,6 +384,17 @@
     var m = String(d.getMonth() + 1).padStart(2, "0");
     var day = String(d.getDate()).padStart(2, "0");
     return y + "-" + m + "-" + day;
+  }
+
+  function dayOfYear(d){
+    var start = new Date(d.getFullYear(), 0, 0);
+    var diff = d - start;
+    return Math.floor(diff / 86400000);
+  }
+
+  function taskOfTheDay(realmKey){
+    var pool = DAILY_TASKS[realmKey] || DAILY_TASKS.earth;
+    return pool[dayOfYear(new Date()) % pool.length];
   }
 
   // Door-opening sound, synthesized entirely with the Web Audio API — no
@@ -1026,10 +1036,16 @@
     var accountId = props.accountId;
     var realmKey = props.doorKey;
     var realm = REALMS[realmKey] || REALMS.earth;
-    var tasks = DAILY_TASKS[realmKey] || DAILY_TASKS.earth;
+    var today = dateKey(0);
+    var todaysTask = taskOfTheDay(realmKey);
+
     var dbRef = useRef(null);
-    var _d = useState({ date: dateKey(0), checked: [], streak: 0, lastCompletedDate: null, loaded: false });
+    var _d = useState({ streak: 0, lastCompletedDate: null, loaded: false });
     var data = _d[0], setData = _d[1];
+    var _saving = useState(false);
+    var saving = _saving[0], setSaving = _saving[1];
+    var _err = useState(false);
+    var err = _err[0], setErr = _err[1];
 
     useEffect(function(){
       var cancelled = false;
@@ -1044,11 +1060,7 @@
           }catch(e){}
         }
         if(cancelled) return;
-        var today = dateKey(0);
-        var sameDay = found && found.date === today;
         setData({
-          date: today,
-          checked: sameDay ? (found.checked || []) : [],
           streak: (found && found.streak) || 0,
           lastCompletedDate: (found && found.lastCompletedDate) || null,
           loaded: true
@@ -1057,65 +1069,52 @@
       return function(){ cancelled = true; };
     }, [accountId]);
 
-    function persist(next){
-      setData(next);
+    var completedToday = data.lastCompletedDate === today;
+
+    async function markDone(){
+      if(!data.loaded || completedToday || saving) return;
+      var wasYesterday = data.lastCompletedDate === dateKey(-1);
+      var nextStreak = wasYesterday ? data.streak + 1 : 1;
       var ns = dbRef.current;
+      setSaving(true);
+      setErr(false);
       if(ns && accountId){
-        ns.doc("dailytasks/" + accountId).set({
-          realm: realmKey,
-          date: next.date,
-          checked: next.checked,
-          streak: next.streak,
-          lastCompletedDate: next.lastCompletedDate
-        }).catch(function(){});
+        try{
+          await ns.doc("dailytasks/" + accountId).set({
+            realm: realmKey,
+            streak: nextStreak,
+            lastCompletedDate: today
+          });
+          setData({ streak: nextStreak, lastCompletedDate: today, loaded: true });
+        }catch(e){
+          // Surfaced to the visitor instead of swallowed — the usual cause
+          // is the dailytasks Firestore rule not having been published yet.
+          setErr(true);
+        }
+      }else{
+        // No db (offline/local session): still reflect it for this visit.
+        setData({ streak: nextStreak, lastCompletedDate: today, loaded: true });
       }
+      setSaving(false);
     }
-
-    function toggle(taskId){
-      if(!data.loaded) return;
-      var already = data.checked.indexOf(taskId) !== -1;
-      var nextChecked = already
-        ? data.checked.filter(function(t){ return t !== taskId; })
-        : data.checked.concat([taskId]);
-      var next = Object.assign({}, data, { checked: nextChecked });
-
-      var allDone = nextChecked.length === tasks.length;
-      if(allDone && data.lastCompletedDate !== data.date){
-        var wasYesterday = data.lastCompletedDate === dateKey(-1);
-        next.streak = wasYesterday ? data.streak + 1 : 1;
-        next.lastCompletedDate = data.date;
-      }
-      persist(next);
-    }
-
-    var allDone = data.loaded && data.checked.length === tasks.length;
 
     return h("div", null,
-      h("div", { className:"q-eyebrow" }, realm.name + " · today"),
-      h("h2", { className:"q-heading" }, "Small tasks, kept."),
+      h("div", { className:"q-eyebrow" }, realm.name + " · today's task"),
+      h("h2", { className:"q-heading" }, todaysTask),
       h("p", { className:"q-tagline" },
-        allDone ? "Done for today. Come back tomorrow." : "Check them off as you go — resets each day."
+        completedToday ? "Done for today. A new task arrives here tomorrow." : "A new task arrives here every day."
       ),
       h("div", { className:"streak-chip" },
         data.streak > 0 ? (data.streak + (data.streak === 1 ? " day streak" : " day streak")) : "no streak yet"
       ),
-      h("ul", { className:"task-list" },
-        tasks.map(function(t){
-          var done = data.checked.indexOf(t.id) !== -1;
-          return h("li", { key: t.id },
-            h("button", {
-              type:"button",
-              className:"task-item" + (done ? " done" : ""),
-              "aria-pressed": done,
-              onClick: function(){ toggle(t.id); }
-            },
-              h("span", { className:"task-check" }),
-              h("span", null, t.label)
-            )
-          );
-        })
-      ),
-      h("div", { className:"lore-actions" },
+      h("div", { className:"q-actions", style:{ marginTop:"24px" } },
+        h("button", {
+          className:"q-btn primary",
+          type:"button",
+          disabled: completedToday || saving || !data.loaded,
+          onClick: markDone
+        }, completedToday ? "Done ✓" : (saving ? "Saving…" : "Mark as done")),
+        err ? h("p", { className:"lore-note error" }, "Couldn't save that — check your connection and try again.") : null,
         h("button", { className:"q-btn ghost", type:"button", onClick: props.onBack }, "Back")
       )
     );
