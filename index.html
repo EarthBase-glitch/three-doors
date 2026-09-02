@@ -464,8 +464,12 @@
   function useDoorsDb(accountId){
     var dbRef = useRef(null);
     var unsubRef = useRef(null);
-    var _s = useState({ ready:false, offline:false, counts:{heaven:0, earth:0, hell:0}, myChoice:null });
+    var _s = useState({ ready:false, offline:false, counts:{heaven:0, earth:0, hell:0}, myChoice:null, resolvedFor:null });
     var state = _s[0], setState = _s[1];
+    // Derived fresh every render (not tracked as its own async-set flag) so
+    // there's no one-render lag where a stale ready/myChoice from a
+    // different (or no) account briefly looks valid for the new one.
+    var myChoiceReady = !accountId || state.resolvedFor === accountId;
 
     useEffect(function(){
       var cancelled = false;
@@ -504,21 +508,26 @@
 
     useEffect(function(){
       if(!accountId){
-        setState(function(s){ return Object.assign({}, s, {myChoice:null}); });
+        setState(function(s){ return Object.assign({}, s, {myChoice:null, resolvedFor:null}); });
         return;
       }
       var cancelled = false;
       (async function(){
         var ns = dbRef.current || await getDb();
         dbRef.current = ns;
-        if(!ns) return;
+        if(!ns){
+          if(!cancelled) setState(function(s){ return Object.assign({}, s, {resolvedFor:accountId}); });
+          return;
+        }
         try{
           var mine = await ns.doc("votes/" + accountId).get();
           var myChoice = (mine.exists && mine.data() && mine.data().door) ? mine.data().door : null;
           if(!cancelled){
-            setState(function(s){ return Object.assign({}, s, {myChoice: myChoice}); });
+            setState(function(s){ return Object.assign({}, s, {myChoice: myChoice, resolvedFor: accountId}); });
           }
-        }catch(e){}
+        }catch(e){
+          if(!cancelled) setState(function(s){ return Object.assign({}, s, {resolvedFor: accountId}); });
+        }
       })();
       return function(){ cancelled = true; };
     }, [accountId, state.ready]);
@@ -530,7 +539,7 @@
       ns.doc("votes/" + accountId).set({ door: doorKey, ts: Date.now() }).catch(function(){});
     }
 
-    return { state: state, choose: choose };
+    return { state: Object.assign({}, state, { myChoiceReady: myChoiceReady }), choose: choose };
   }
 
   function Threshold(props){
@@ -1021,6 +1030,8 @@
       setMuted(next);
     }
 
+    // First-time choice: let the door swing open on the Hall screen, then
+    // carry the visitor into the game.
     useEffect(function(){
       if(phase === "hall" && doors.state.ready && doors.state.myChoice){
         redirectTimer.current = setTimeout(function(){
@@ -1031,9 +1042,22 @@
       }
     }, [phase, doors.state.ready, doors.state.myChoice]);
 
+    // Returning visitor: once we know (not just assume) whether this account
+    // already has a door, route straight there — the Hall/doors screen is
+    // skipped entirely, not just auto-advanced past.
+    useEffect(function(){
+      if(phase === "signin" && account && doors.state.myChoiceReady){
+        if(doors.state.myChoice){
+          setGamePhase("question");
+          setPhase("game");
+        }else{
+          setPhase("hall");
+        }
+      }
+    }, [phase, account, doors.state.myChoiceReady, doors.state.myChoice]);
+
     function handleSignedIn(id, displayName){
       setAccount({ id: id, displayName: displayName });
-      setPhase("hall");
     }
 
     function handleSignOut(){
