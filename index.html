@@ -297,10 +297,10 @@
   .q-btn.ghost{ background:rgba(255,255,255,0.03); color:var(--ink-dim); border:1px solid var(--hairline); }
   .q-btn.ghost:hover{ border-color:var(--realm-color); color:var(--ink); }
   .q-btn.exit{ background:none; border:none; color:var(--ink-faint); text-decoration:underline; padding:0.4em 0; margin-top:6px; font-size:0.82rem; }
-  .q-btn.tiny{ width:auto; padding:0.4em 1em; font-size:0.82rem; }
+  .q-btn.tiny{ width:auto; padding:0.4em 1em; font-size:0.78rem; }
+  .q-btn.tiny.bi .btn-sub{ font-size:0.68em; }
 
-  .char-tip-row{ margin-top:8px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
-  .char-tip-label{ font-size:0.82rem; color:var(--ink-faint); }
+  .char-tip-label{ font-size:0.78rem; color:var(--ink-faint); align-self:center; }
 
   .char-layout{ display:flex; gap:clamp(20px,4vw,44px); align-items:flex-start; flex-wrap:wrap; margin-top:28px; }
   .char-preview{ flex:0 0 auto; display:flex; flex-direction:column; align-items:center; gap:12px; }
@@ -329,7 +329,7 @@
   .char-save-row{ display:flex; align-items:center; gap:14px; margin-top:4px; min-height:1.4em; }
   .save-toast{ font-family:'JetBrains Mono',ui-monospace,monospace; font-size:0.72rem; letter-spacing:0.08em; color:var(--realm-color); opacity:0; transition:opacity 300ms ease; }
   .save-toast.show{ opacity:1; }
-  .char-lore-link{ margin-top:8px; display:flex; gap:10px; flex-wrap:wrap; }
+  .char-lore-link{ margin-top:8px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
   .char-lore-link .q-btn{ width:auto; }
 
   .streak-row{ display:flex; gap:8px; flex-wrap:wrap; margin-top:16px; }
@@ -1551,16 +1551,13 @@
         ) : null
       ),
       h("div", { className:"char-lore-link" },
-        h("button", { className:"q-btn ghost bi", type:"button", onClick: props.onOpenTasks },
+        h("button", { className:"q-btn ghost tiny bi", type:"button", onClick: props.onOpenTasks },
           biLabel("Today's tasks", "今日の課題", "오늘의 과제")),
-        h("button", { className:"q-btn ghost bi", type:"button", onClick: props.onOpenLore },
-          biLabel("Read & add to " + realm.name + " lore →", realm.nameJa + "の伝承を読む・追加する →", realm.nameKo + "의 전승을 읽고 추가하기 →")),
-        h("button", { className:"q-btn ghost bi", type:"button", onClick: props.onDonate },
-          biLabel("Support Three Doors — $3/mo", "サポートする — 月3ドル", "후원하기 — 월 $3"))
-      ),
-      h("div", { className:"char-tip-row" },
-        h("span", { className:"char-tip-label bi" },
-          biLabel("Or leave a one-time tip:", "または一回限りのチップ：", "또는 일회성 팁:")),
+        h("button", { className:"q-btn ghost tiny bi", type:"button", onClick: props.onOpenLore },
+          biLabel(realm.name + " lore →", realm.nameJa + "の伝承 →", realm.nameKo + "의 전승 →")),
+        h("button", { className:"q-btn ghost tiny bi", type:"button", onClick: props.onDonate },
+          biLabel("Support — $3/mo", "サポート — 月3ドル", "후원 — 월 $3")),
+        h("span", { className:"char-tip-label" }, "or tip:"),
         [3, 5, 10].map(function(amt){
           return h("button", {
             className:"q-btn ghost tiny", type:"button", key:"tip-" + amt,
