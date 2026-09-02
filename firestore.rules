@@ -85,5 +85,16 @@ service cloud.firestore {
       allow read: if request.auth != null;
       allow write: if true;
     }
+
+    // Donation totals, one aggregate doc per account (id = accountId).
+    // Public read — this is the visible "who supported the world, and how
+    // much" leaderboard. Writes are blocked for every client entirely:
+    // only the stripeWebhook Cloud Function writes here, using the Admin
+    // SDK, which bypasses these rules by design. Nobody — not even a
+    // signed-in visitor — can write or fake a donation record directly.
+    match /donations/{id} {
+      allow read: if true;
+      allow write: if false;
+    }
   }
 }

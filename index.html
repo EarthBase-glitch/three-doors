@@ -412,6 +412,8 @@
   }
   .soul-stats-you{ margin-top:16px; font-size:0.9rem; color:var(--ink-dim); line-height:1.5; }
   .soul-stats-list{ margin-top:18px; display:flex; flex-direction:column; gap:10px; }
+  .soul-stats-supporters{ margin-top:22px; padding-top:18px; border-top:1px solid var(--hairline); display:flex; flex-direction:column; gap:8px; }
+  .soul-stats-supporters .soul-stats-row{ font-size:0.82rem; }
   .soul-stats-row{ display:flex; align-items:center; gap:8px; font-size:0.85rem; color:var(--ink-dim); }
   .soul-stats-row .n{ margin-left:auto; color:var(--ink); font-weight:600; font-variant-numeric:tabular-nums; }
 
@@ -643,6 +645,10 @@
 
   var POINTS_PER_TASK = 10;
   var MOVE_DOOR_COST = 50;
+
+  // Cloud Function that creates the Stripe Checkout session for the
+  // $3/month "support the world" subscription. Deployed from ./functions.
+  var CHECKOUT_FUNCTION_URL = "https://us-central1-earthbase-f863b.cloudfunctions.net/createCheckoutSession";
 
   // Shared with App (not just the Tasks screen) so points earned here can
   // actually pay for moving to a different door.
@@ -1223,6 +1229,25 @@
   }
 
   function SoulStatsSheet(props){
+    var _d = useState([]);
+    var donations = _d[0], setDonations = _d[1];
+
+    useEffect(function(){
+      if(!props.open) return;
+      var cancelled = false;
+      (async function(){
+        var ns = await getDb();
+        if(!ns || cancelled) return;
+        try{
+          var snap = await ns.collection("donations").get();
+          var list = snap.docs.map(function(d){ return Object.assign({ id: d.id }, d.data()); });
+          list.sort(function(a, b){ return (b.totalCents || 0) - (a.totalCents || 0); });
+          if(!cancelled) setDonations(list.slice(0, 10));
+        }catch(e){}
+      })();
+      return function(){ cancelled = true; };
+    }, [props.open]);
+
     if(!props.open) return null;
     var counts = props.counts;
     var myRealm = props.myRealm;
@@ -1250,7 +1275,16 @@
               h("span", { className:"n" }, counts[d.key])
             );
           })
-        )
+        ),
+        donations.length > 0 ? h("div", { className:"soul-stats-supporters" },
+          h("div", { className:"field-label" }, "Supporters  ·  支援者  ·  후원자"),
+          donations.map(function(d){
+            return h("div", { className:"soul-stats-row", key: d.id },
+              h("span", null, d.displayName || d.id),
+              h("span", { className:"n" }, "$" + ((d.totalCents || 0) / 100).toFixed(2))
+            );
+          })
+        ) : null
       )
     );
   }
@@ -1516,7 +1550,9 @@
         h("button", { className:"q-btn ghost bi", type:"button", onClick: props.onOpenTasks },
           biLabel("Today's tasks", "今日の課題", "오늘의 과제")),
         h("button", { className:"q-btn ghost bi", type:"button", onClick: props.onOpenLore },
-          biLabel("Read & add to " + realm.name + " lore →", realm.nameJa + "の伝承を読む・追加する →", realm.nameKo + "의 전승을 읽고 추가하기 →"))
+          biLabel("Read & add to " + realm.name + " lore →", realm.nameJa + "の伝承を読む・追加する →", realm.nameKo + "의 전승을 읽고 추가하기 →")),
+        h("button", { className:"q-btn ghost bi", type:"button", onClick: props.onDonate },
+          biLabel("Support Three Doors — $3/mo", "サポートする — 月3ドル", "후원하기 — 월 $3"))
       ),
       h(FeedbackWidget, { authorName: props.authorName, doorKey: props.doorKey })
     );
@@ -1770,7 +1806,8 @@
         doorKey: key,
         authorName: props.authorName,
         onOpenLore: props.onOpenLore,
-        onOpenTasks: props.onOpenTasks
+        onOpenTasks: props.onOpenTasks,
+        onDonate: props.onDonate
       });
     }else if(props.gamePhase === "lore"){
       content = h(LoreScreen, {
@@ -1914,6 +1951,22 @@
       return { ok:true };
     }
 
+    async function handleDonate(){
+      if(!account) return;
+      try{
+        var res = await fetch(CHECKOUT_FUNCTION_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ accountId: account.id, displayName: account.displayName })
+        });
+        var data = await res.json();
+        if(data && data.url){
+          trackEvent("begin_checkout", { door: doors.state.myChoice });
+          window.location.href = data.url;
+        }
+      }catch(e){}
+    }
+
     var showBadge = !!account && (phase === "hall" || phase === "game");
     var showControls = phase !== "threshold";
     var showStats = phase === "hall" || phase === "game";
@@ -1968,7 +2021,8 @@
         onOpenTasks: handleOpenTasks,
         onBackToCharacter: handleBackToCharacter,
         onMarkDone: handleMarkDone,
-        onMove: handleMoveDoor
+        onMove: handleMoveDoor,
+        onDonate: handleDonate
       })
     );
   }
