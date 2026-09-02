@@ -129,6 +129,9 @@
   .threshold h1{ margin:0; font-family:'Cinzel',serif; font-weight:600; letter-spacing:0.08em;
     font-size:clamp(1.4rem,3.4vw,2.1rem); color:var(--ink); text-wrap:balance; }
   .threshold p{ margin:0; max-width:46ch; color:var(--ink-dim); font-size:clamp(0.95rem,1.6vw,1.05rem); line-height:1.6; }
+  .threshold-note{
+    margin:0; max-width:44ch; color:var(--ink-faint); font-size:0.8rem; font-style:italic;
+  }
   .enter-btn{
     appearance:none; border:1px solid var(--threshold-glow); background:rgba(141,111,224,0.12); color:var(--ink);
     font-family:'Work Sans',sans-serif; font-size:0.95rem; letter-spacing:0.04em;
@@ -255,7 +258,7 @@
   .q-heading{ margin:0.5em 0 0; font-family:'Cinzel',serif; font-weight:600; font-size:clamp(1.3rem,3vw,1.8rem); color:var(--ink); text-wrap:balance; }
   .q-tagline{ margin:0.7em 0 0; color:var(--ink-dim); font-style:italic; font-size:0.95rem; max-width:44ch; }
 
-  .i18n-sub{ margin:0.35em 0 0; color:var(--ink-faint); font-size:0.78rem; max-width:46ch; line-height:1.5; }
+  .i18n-sub{ margin:0.35em 0 0; color:var(--ink-dim); font-size:0.86rem; max-width:46ch; line-height:1.6; letter-spacing:normal; }
   button.bi{ display:flex; flex-direction:column; gap:2px; line-height:1.25; }
   button.bi .btn-en{ display:block; }
   button.bi .btn-sub{ display:block; font-size:0.72em; opacity:0.72; font-weight:400; }
@@ -328,6 +331,37 @@
   .lore-item{ border:1px solid var(--hairline); border-radius:14px; padding:16px 18px; background:rgba(255,255,255,0.02); }
   .lore-item p{ margin:0; color:var(--ink); line-height:1.6; font-size:0.92rem; }
   .lore-author{ display:block; margin-top:10px; font-size:0.72rem; color:var(--ink-faint); }
+
+  .feedback-widget{ position:fixed; bottom:16px; right:16px; z-index:6; max-width:min(88vw,320px); }
+  .feedback-toggle{
+    font-family:'JetBrains Mono',ui-monospace,monospace; font-size:0.68rem;
+    background:rgba(13,10,23,0.75); color:var(--ink-dim); border:1px solid var(--hairline);
+    border-radius:999px; padding:9px 16px; cursor:pointer;
+    transition:border-color 160ms ease, color 160ms ease, background 160ms ease;
+  }
+  .feedback-toggle:hover{ border-color:var(--threshold-glow); color:var(--ink); }
+  .feedback-toggle:focus-visible{ outline:2px solid var(--threshold-glow); outline-offset:2px; }
+  .feedback-form{
+    width:min(88vw,300px);
+    background:var(--void-2); border:1px solid var(--hairline); border-radius:16px;
+    padding:16px; box-shadow:0 20px 60px -20px rgba(0,0,0,0.75);
+  }
+  .feedback-head{
+    display:flex; align-items:center; justify-content:space-between;
+    font-family:'JetBrains Mono',ui-monospace,monospace; font-size:0.72rem; color:var(--ink-dim);
+  }
+  .feedback-close{
+    background:none; border:none; color:var(--ink-faint); cursor:pointer;
+    font-size:1.1rem; line-height:1; padding:0 2px;
+  }
+  .feedback-close:hover{ color:var(--ink); }
+  .feedback-input{
+    width:100%; margin-top:10px; resize:vertical; min-height:70px;
+    background:var(--void-3); border:1px solid var(--hairline); border-radius:10px;
+    padding:0.6em 0.8em; color:var(--ink); font-family:'Work Sans',sans-serif; font-size:0.85rem; line-height:1.5;
+  }
+  .feedback-input:focus-visible{ outline:2px solid var(--threshold-glow); outline-offset:1px; }
+  .feedback-form .q-btn{ margin-top:10px; width:100%; }
 
   @media (prefers-reduced-motion:reduce){ *{ transition-duration:1ms !important; animation-duration:1ms !important; } }
   .visually-hidden{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; padding:0; margin:-1px; }
@@ -769,7 +803,14 @@
         ja:"その先には三つの扉が待っている。あなたを呼ぶ扉を選べ——一度開けば、開くのはその扉だけだ。",
         ko:"그 너머에 세 개의 문이 기다린다. 당신을 부르는 문을 선택하라 — 한 번 열리면, 열리는 문은 그것뿐이다."
       }),
-      h("button", { className:"enter-btn bi", onClick: props.onEnter }, biLabel("Step through", "扉をくぐる", "문을 통과하다"))
+      h("button", { className:"enter-btn bi", onClick: props.onEnter }, biLabel("Step through", "扉をくぐる", "문을 통과하다")),
+      h("p", { className:"threshold-note" },
+        "This world grows daily — new things arrive here every day."
+      ),
+      h(Sub, {
+        ja:"この世界は日々育つ——毎日、新しいものがここに届く。",
+        ko:"이 세계는 매일 자란다 — 매일 새로운 것이 이곳에 도착한다."
+      })
     );
   }
 
@@ -1019,6 +1060,69 @@
     );
   }
 
+  // Fixed bottom-right contact form — visitors can message the creator
+  // directly with suggestions. Read by the creator in admin.html, not
+  // shown to other visitors.
+  function FeedbackWidget(props){
+    var _open = useState(false);
+    var open = _open[0], setOpen = _open[1];
+    var _text = useState("");
+    var text = _text[0], setText = _text[1];
+    var _status = useState("idle");
+    var status = _status[0], setStatus = _status[1];
+
+    async function submit(e){
+      e.preventDefault();
+      var trimmed = text.trim();
+      if(!trimmed) return;
+      setStatus("sending");
+      try{
+        var ns = await getDb();
+        if(!ns){ setStatus("error"); return; }
+        await ns.collection("feedback").add({
+          text: trimmed.slice(0, 800),
+          authorName: props.authorName || "anonymous",
+          realm: props.doorKey || null,
+          createdAt: Date.now()
+        });
+        setText("");
+        setStatus("sent");
+      }catch(err){
+        setStatus("error");
+      }
+    }
+
+    if(!open){
+      return h("div", { className:"feedback-widget" },
+        h("button", { className:"feedback-toggle bi", type:"button", onClick: function(){ setOpen(true); setStatus("idle"); } },
+          biLabel("Suggest an improvement", "改善を提案する", "개선 제안하기"))
+      );
+    }
+
+    return h("div", { className:"feedback-widget" },
+      h("form", { className:"feedback-form", onSubmit: submit },
+        h("div", { className:"feedback-head" },
+          h("span", null, "Message the creator"),
+          h("button", { type:"button", className:"feedback-close", "aria-label":"Close", onClick: function(){ setOpen(false); } }, "×")
+        ),
+        h(Sub, { ja:"制作者にメッセージを送る", ko:"제작자에게 메시지 보내기" }),
+        h("textarea", {
+          className:"feedback-input", maxLength:800, rows:3,
+          placeholder: "What would you change or add? / 何を変えたい、加えたいですか？ / 무엇을 바꾸거나 추가하고 싶나요?",
+          value: text, onChange: function(e){ setText(e.target.value); }
+        }),
+        h("button", { className:"q-btn primary bi", type:"submit", disabled: status === "sending" || !text.trim() },
+          status === "sending" ? biLabel("Sending…", "送信中…", "전송 중…") : biLabel("Send", "送信", "보내기")),
+        status === "sent" ? h("p", { className:"lore-note" },
+          "Thanks — sent to the creator.  ·  ありがとう——制作者に送信されました。  ·  감사합니다 — 제작자에게 전송되었습니다."
+        ) : null,
+        status === "error" ? h("p", { className:"lore-note error" },
+          "Couldn't send that — try again.  ·  送信できませんでした——もう一度お試しください。  ·  전송할 수 없었습니다 — 다시 시도해주세요."
+        ) : null
+      )
+    );
+  }
+
   function CharacterCreator(props){
     var accountId = props.accountId;
     var dbRef = useRef(null);
@@ -1080,7 +1184,8 @@
     var realm = REALMS[props.doorKey] || REALMS.earth;
 
     return h("div", null,
-      h("div", { className:"q-eyebrow" }, "Character  ·  キャラクター  ·  캐릭터"),
+      h("div", { className:"q-eyebrow" }, "Character"),
+      h(Sub, { ja:"キャラクター", ko:"캐릭터" }),
       h("h2", { className:"q-heading" }, "Who are you, here?"),
       h(Sub, { ja:"ここでは、あなたは誰か？", ko:"여기서, 당신은 누구인가?" }),
       h("p", { className:"q-tagline" }, "This is who walks with you from here on. Signed in, so it follows you anywhere."),
@@ -1100,7 +1205,8 @@
         ),
         h("div", { className:"char-controls" },
           h("div", null,
-            h("span", { className:"field-label" }, "Skin tone  ·  肌の色  ·  피부색"),
+            h("span", { className:"field-label" }, "Skin tone"),
+            h(Sub, { ja:"肌の色", ko:"피부색" }),
             h("div", { className:"swatch-row" },
               SKIN_TONES.map(function(tone){
                 return h("button", {
@@ -1115,7 +1221,8 @@
             )
           ),
           h("div", null,
-            h("span", { className:"field-label" }, "Outfit  ·  衣装  ·  복장"),
+            h("span", { className:"field-label" }, "Outfit"),
+            h(Sub, { ja:"衣装", ko:"복장" }),
             h("div", { className:"outfit-grid" },
               OUTFITS.map(function(o){
                 return h("button", {
@@ -1132,7 +1239,8 @@
             )
           ),
           h("div", null,
-            h("span", { className:"field-label" }, "Gender  ·  性別  ·  성별"),
+            h("span", { className:"field-label" }, "Gender"),
+            h(Sub, { ja:"性別", ko:"성별" }),
             h("div", { className:"gender-row" },
               GENDERS.map(function(g){
                 return h("button", {
@@ -1154,7 +1262,8 @@
               biLabel("Read & add to " + realm.name + " lore →", realm.nameJa + "の伝承を読む・追加する →", realm.nameKo + "의 전승을 읽고 추가하기 →"))
           )
         )
-      )
+      ),
+      h(FeedbackWidget, { authorName: props.authorName, doorKey: props.doorKey })
     );
   }
 
@@ -1211,7 +1320,8 @@
     }
 
     return h("div", null,
-      h("div", { className:"q-eyebrow" }, realm.name + " · community lore  ·  " + realm.nameJa + "・共同の伝承  ·  " + realm.nameKo + " · 공동 전승"),
+      h("div", { className:"q-eyebrow" }, realm.name + " · community lore"),
+      h(Sub, { ja: realm.nameJa + "・共同の伝承", ko: realm.nameKo + " · 공동 전승" }),
       h("h2", { className:"q-heading" }, "What did you find here?"),
       h(Sub, { ja:"ここで何を見つけた？", ko:"여기서 무엇을 발견했는가?" }),
       h("p", { className:"q-tagline" }, "Add your own scene of " + realm.name + ". Reviewed before it's shown to others."),
@@ -1299,7 +1409,8 @@
     var task = props.todaysTask || { en:"", ja:"", ko:"" };
 
     return h("div", null,
-      h("div", { className:"q-eyebrow" }, realm.name + " · today's task  ·  " + realm.nameJa + "・今日の課題  ·  " + realm.nameKo + " · 오늘의 과제"),
+      h("div", { className:"q-eyebrow" }, realm.name + " · today's task"),
+      h(Sub, { ja: realm.nameJa + "・今日の課題", ko: realm.nameKo + " · 오늘의 과제" }),
       h("h2", { className:"q-heading" }, task.en),
       h(Sub, { ja: task.ja, ko: task.ko }),
       h("p", { className:"q-tagline" },
@@ -1368,7 +1479,8 @@
     var realm = REALMS[props.doorKey] || REALMS.earth;
     var others = DOORS.filter(function(d){ return d.key !== props.doorKey; });
     return h("div", null,
-      h("div", { className:"q-eyebrow" }, "You are in " + realm.name + "  ·  " + realm.nameJa + "  ·  " + realm.nameKo),
+      h("div", { className:"q-eyebrow" }, "You are in " + realm.name),
+      h(Sub, { ja: realm.nameJa, ko: realm.nameKo }),
       h("h2", { className:"q-heading" }, "Are you satisfied with your choice of door?"),
       h(Sub, { ja:"その扉の選択に満足しているか？", ko:"그 문의 선택에 만족하는가?" }),
       h("p", { className:"q-tagline" }, realm.tagline),
@@ -1400,6 +1512,7 @@
         key: "char-" + props.accountId,
         accountId: props.accountId,
         doorKey: key,
+        authorName: props.authorName,
         onOpenLore: props.onOpenLore,
         onOpenTasks: props.onOpenTasks
       });

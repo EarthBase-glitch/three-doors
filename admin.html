@@ -34,6 +34,8 @@
   .approve{ background:var(--ok); color:#0b120a; }
   .reject{ background:var(--bad); color:#1a0705; }
   .empty{ color:var(--ink-faint); font-size:0.9rem; }
+  .dismiss{ background:none; border:1px solid var(--hairline); color:var(--ink-dim); }
+  section + section{ margin-top:36px; }
 </style>
 </head>
 <body>
@@ -52,9 +54,16 @@
 
   <div id="app">
     <button id="signout">Sign out</button>
-    <h1>Pending submissions</h1>
-    <p class="sub" id="count"></p>
-    <div id="list"></div>
+    <section>
+      <h1>Pending submissions</h1>
+      <p class="sub" id="count"></p>
+      <div id="list"></div>
+    </section>
+    <section>
+      <h1>Suggestions</h1>
+      <p class="sub" id="feedback-count"></p>
+      <div id="feedback-list"></div>
+    </section>
   </div>
 
   <script src="firebase-config.js"></script>
@@ -68,17 +77,22 @@
       var errorEl = document.getElementById("error");
       var listEl = document.getElementById("list");
       var countEl = document.getElementById("count");
+      var feedbackListEl = document.getElementById("feedback-list");
+      var feedbackCountEl = document.getElementById("feedback-count");
       var unsub = null;
+      var feedbackUnsub = null;
 
       window.doorsAuth.onChange(function(user){
         if(user){
           signinEl.style.display = "none";
           appEl.style.display = "block";
           subscribe();
+          subscribeFeedback();
         }else{
           signinEl.style.display = "block";
           appEl.style.display = "none";
           if(unsub){ unsub(); unsub = null; }
+          if(feedbackUnsub){ feedbackUnsub(); feedbackUnsub = null; }
         }
       });
 
@@ -154,6 +168,58 @@
           card.appendChild(metaEl);
           card.appendChild(rowEl);
           listEl.appendChild(card);
+        });
+      }
+
+      function subscribeFeedback(){
+        feedbackUnsub = window.doorsDb.collection("feedback")
+          .onSnapshot(function(snap){ renderFeedback(snap.docs); });
+      }
+
+      function renderFeedback(docs){
+        feedbackCountEl.textContent = docs.length + (docs.length === 1 ? " suggestion." : " suggestions.");
+        feedbackListEl.innerHTML = "";
+        if(docs.length === 0){
+          feedbackListEl.innerHTML = '<p class="empty">No suggestions yet.</p>';
+          return;
+        }
+        docs.sort(function(a,b){ return (b.data().createdAt||0) - (a.data().createdAt||0); });
+        docs.forEach(function(d){
+          var data = d.data();
+          var realmName = REALM_NAMES[data.realm] || data.realm || "unknown realm";
+          var when = data.createdAt ? new Date(data.createdAt).toLocaleString() : "";
+
+          var card = document.createElement("div");
+          card.className = "card";
+
+          var realmEl = document.createElement("div");
+          realmEl.className = "realm";
+          realmEl.textContent = realmName;
+
+          var textEl = document.createElement("p");
+          textEl.textContent = data.text || "";
+
+          var metaEl = document.createElement("div");
+          metaEl.className = "meta";
+          metaEl.textContent = "from " + (data.authorName || "anonymous") + (when ? " · " + when : "");
+
+          var rowEl = document.createElement("div");
+          rowEl.className = "row";
+
+          var dismissBtn = document.createElement("button");
+          dismissBtn.className = "dismiss";
+          dismissBtn.textContent = "Dismiss";
+          dismissBtn.addEventListener("click", function(){
+            window.doorsDb.doc("feedback/" + d.id).delete();
+          });
+
+          rowEl.appendChild(dismissBtn);
+
+          card.appendChild(realmEl);
+          card.appendChild(textEl);
+          card.appendChild(metaEl);
+          card.appendChild(rowEl);
+          feedbackListEl.appendChild(card);
         });
       }
     }

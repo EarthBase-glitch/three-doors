@@ -50,5 +50,16 @@ service cloud.firestore {
                     && request.resource.data.text.size() <= 600;
       allow update, delete: if request.auth != null;
     }
+
+    // Contact-the-creator messages from the bottom-right form on the
+    // character page. Anyone can send one; only the authenticated admin
+    // can read or clear them, via admin.html — never shown to other
+    // visitors.
+    match /feedback/{id} {
+      allow read, update, delete: if request.auth != null;
+      allow create: if request.resource.data.text is string
+                    && request.resource.data.text.size() > 0
+                    && request.resource.data.text.size() <= 800;
+    }
   }
 }
