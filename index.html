@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Three Doors</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600&family=Work+Sans:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@500;600&display=swap');
@@ -332,7 +332,11 @@
   .lore-item p{ margin:0; color:var(--ink); line-height:1.6; font-size:0.92rem; }
   .lore-author{ display:block; margin-top:10px; font-size:0.72rem; color:var(--ink-faint); }
 
-  .feedback-widget{ position:fixed; bottom:16px; right:16px; z-index:6; max-width:min(88vw,320px); }
+  .feedback-widget{
+    position:fixed; z-index:6; max-width:min(88vw,320px);
+    bottom:calc(16px + env(safe-area-inset-bottom));
+    right:calc(16px + env(safe-area-inset-right));
+  }
   .feedback-toggle{
     font-family:'JetBrains Mono',ui-monospace,monospace; font-size:0.68rem;
     background:rgba(13,10,23,0.75); color:var(--ink-dim); border:1px solid var(--hairline);
@@ -411,7 +415,8 @@
        left/center/right — the wrapper takes over fixed positioning and
        the children fall back into normal flow inside it. */
     .top-bars{
-      position:fixed; top:8px; left:50%; transform:translateX(-50%); z-index:5;
+      position:fixed; left:50%; transform:translateX(-50%); z-index:5;
+      top:calc(8px + env(safe-area-inset-top));
       display:flex; flex-direction:column; align-items:center; gap:6px;
       width:94vw; max-width:360px;
     }
@@ -423,17 +428,22 @@
        by the Soul Stats button + pop-out sheet below. */
     .realm-stats{ display:none; }
 
+    /* Bottom-left, not centered — the feedback widget owns bottom-right,
+       and centering made the two collide on wider phones (e.g. iPhone 16
+       Pro Max's 430px width). Safe-area-aware so it clears the home
+       indicator instead of sitting under it. */
     .soul-stats-btn{
       display:block;
-      position:fixed; bottom:16px; left:50%; z-index:6;
-      opacity:0; visibility:hidden; transform:translateX(-50%) translateY(6px);
+      position:fixed; left:calc(16px + env(safe-area-inset-left)); z-index:6;
+      bottom:calc(16px + env(safe-area-inset-bottom));
+      opacity:0; visibility:hidden; transform:translateY(6px);
       transition:opacity 400ms ease, transform 400ms ease, visibility 0s linear 400ms;
       font-family:'JetBrains Mono',ui-monospace,monospace; font-size:0.68rem;
       background:rgba(13,10,23,0.82); color:var(--ink-dim); border:1px solid var(--hairline);
       border-radius:999px; padding:8px 18px; cursor:pointer;
     }
     .soul-stats-btn.show{
-      opacity:1; visibility:visible; transform:translateX(-50%) translateY(0);
+      opacity:1; visibility:visible; transform:translateY(0);
       transition:opacity 400ms ease, transform 400ms ease;
     }
 
@@ -450,7 +460,12 @@
     .lore-item{ padding:12px 14px; }
     .lore-item p{ font-size:0.85rem; }
 
-    .feedback-widget{ right:8px; bottom:8px; max-width:90vw; }
+    .feedback-widget{
+      right:calc(8px + env(safe-area-inset-right));
+      bottom:calc(8px + env(safe-area-inset-bottom));
+      max-width:90vw;
+    }
+    .soul-stats-btn{ left:calc(8px + env(safe-area-inset-left)); }
     .feedback-form{ width:min(90vw,270px); padding:14px; }
     .feedback-toggle{ font-size:0.62rem; padding:8px 14px; }
 
@@ -798,6 +813,16 @@
     s = s.replace(/\s+/g, "-");
     s = s.replace(/[^a-z0-9_\-.~:@+]/g, "");
     return s.slice(0, 40);
+  }
+
+  // Email addresses are already valid Firestore path segments (letters,
+  // digits, @ . _ - are all allowed) — this just normalizes and strips
+  // anything outside that set, so the address itself is the doc id and
+  // resubmitting the same email updates one record instead of duplicating.
+  function sanitizeEmailKey(raw){
+    var s = (raw || "").trim().toLowerCase();
+    s = s.replace(/[^a-z0-9_\-.~:@+]/g, "");
+    return s.slice(0, 200);
   }
 
   async function sha256Hex(str){
@@ -1203,29 +1228,47 @@
   // Fixed bottom-right contact form — visitors can message the creator
   // directly with suggestions. Read by the creator in admin.html, not
   // shown to other visitors.
+  var EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
   function FeedbackWidget(props){
     var _open = useState(false);
     var open = _open[0], setOpen = _open[1];
     var _text = useState("");
     var text = _text[0], setText = _text[1];
+    var _email = useState("");
+    var email = _email[0], setEmail = _email[1];
     var _status = useState("idle");
     var status = _status[0], setStatus = _status[1];
+
+    var emailValid = EMAIL_RE.test(email.trim());
 
     async function submit(e){
       e.preventDefault();
       var trimmed = text.trim();
+      var trimmedEmail = email.trim();
       if(!trimmed) return;
+      if(!EMAIL_RE.test(trimmedEmail)){ setStatus("bademail"); return; }
       setStatus("sending");
       try{
         var ns = await getDb();
         if(!ns){ setStatus("error"); return; }
         await ns.collection("feedback").add({
           text: trimmed.slice(0, 800),
+          email: trimmedEmail,
           authorName: props.authorName || "anonymous",
           realm: props.doorKey || null,
           createdAt: Date.now()
         });
+        var emailKey = sanitizeEmailKey(trimmedEmail);
+        if(emailKey){
+          ns.doc("emails/" + emailKey).set({
+            email: trimmedEmail,
+            source: "feedback",
+            lastMessageAt: Date.now()
+          }).catch(function(){});
+        }
         setText("");
+        setEmail("");
         setStatus("sent");
       }catch(err){
         setStatus("error");
@@ -1251,8 +1294,16 @@
           placeholder: "What would you change or add? / 何を変えたい、加えたいですか？ / 무엇을 바꾸거나 추가하고 싶나요?",
           value: text, onChange: function(e){ setText(e.target.value); }
         }),
-        h("button", { className:"q-btn primary bi", type:"submit", disabled: status === "sending" || !text.trim() },
+        h("input", {
+          className:"feedback-input", type:"email", required:true, style:{ marginTop:"8px" },
+          placeholder: "Email, required / メールアドレス（必須） / 이메일 (필수)",
+          value: email, onChange: function(e){ setEmail(e.target.value); if(status === "bademail") setStatus("idle"); }
+        }),
+        h("button", { className:"q-btn primary bi", type:"submit", disabled: status === "sending" || !text.trim() || !emailValid },
           status === "sending" ? biLabel("Sending…", "送信中…", "전송 중…") : biLabel("Send", "送信", "보내기")),
+        status === "bademail" ? h("p", { className:"lore-note error" },
+          "Enter a valid email — it's required to send a suggestion.  ·  有効なメールアドレスを入力してください——提案の送信には必須です。  ·  유효한 이메일을 입력하세요 — 제안을 보내려면 필수입니다."
+        ) : null,
         status === "sent" ? h("p", { className:"lore-note" },
           "Thanks — sent to the creator.  ·  ありがとう——制作者に送信されました。  ·  감사합니다 — 제작자에게 전송되었습니다."
         ) : null,
@@ -1274,6 +1325,11 @@
     var _t = useState(false);
     var toast = _t[0], setToast = _t[1];
     var toastTimer = useRef(null);
+    // Building the character shows every control at once; once it's built,
+    // collapse to a compact view (avatar + Edit button) instead of leaving
+    // skin/outfit/gender pickers on screen permanently.
+    var _e = useState(true);
+    var editing = _e[0], setEditing = _e[1];
 
     useEffect(function(){
       var cancelled = false;
@@ -1297,6 +1353,7 @@
           if(found){
             skipNextSave.current = true;
             setCharacter(function(c){ return Object.assign({}, c, found); });
+            setEditing(false);
           }
           setLoaded(true);
         }
@@ -1341,9 +1398,13 @@
               var g = GENDERS.filter(function(x){ return x.en === character.gender; })[0];
               return g ? (g.en + " · " + g.ja + " · " + g.ko) : character.gender;
             })()
-          ) : null
+          ) : null,
+          !editing ? h("button", {
+            className:"q-btn ghost bi", type:"button",
+            onClick: function(){ setEditing(true); }
+          }, biLabel("Edit character", "キャラクターを編集", "캐릭터 편집")) : null
         ),
-        h("div", { className:"char-controls" },
+        editing ? h("div", { className:"char-controls" },
           h("div", null,
             h("span", { className:"field-label" }, "Skin tone"),
             h(Sub, { ja:"肌の色", ko:"피부색" }),
@@ -1395,13 +1456,17 @@
           h("div", { className:"char-save-row" },
             h("span", { className:"save-toast" + (toast ? " show" : "") }, "Saved  ·  保存済み  ·  저장됨")
           ),
-          h("div", { className:"char-lore-link" },
-            h("button", { className:"q-btn ghost bi", type:"button", onClick: props.onOpenTasks },
-              biLabel("Today's tasks", "今日の課題", "오늘의 과제")),
-            h("button", { className:"q-btn ghost bi", type:"button", onClick: props.onOpenLore },
-              biLabel("Read & add to " + realm.name + " lore →", realm.nameJa + "の伝承を読む・追加する →", realm.nameKo + "의 전승을 읽고 추가하기 →"))
-          )
-        )
+          h("button", {
+            className:"q-btn primary bi", type:"button", style:{ marginTop:"6px" },
+            onClick: function(){ setEditing(false); }
+          }, biLabel("Save & continue", "保存して進む", "저장하고 계속하기"))
+        ) : null
+      ),
+      h("div", { className:"char-lore-link" },
+        h("button", { className:"q-btn ghost bi", type:"button", onClick: props.onOpenTasks },
+          biLabel("Today's tasks", "今日の課題", "오늘의 과제")),
+        h("button", { className:"q-btn ghost bi", type:"button", onClick: props.onOpenLore },
+          biLabel("Read & add to " + realm.name + " lore →", realm.nameJa + "の伝承を読む・追加する →", realm.nameKo + "의 전승을 읽고 추가하기 →"))
       ),
       h(FeedbackWidget, { authorName: props.authorName, doorKey: props.doorKey })
     );

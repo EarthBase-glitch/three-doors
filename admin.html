@@ -201,7 +201,9 @@
 
           var metaEl = document.createElement("div");
           metaEl.className = "meta";
-          metaEl.textContent = "from " + (data.authorName || "anonymous") + (when ? " · " + when : "");
+          metaEl.textContent = "from " + (data.authorName || "anonymous") +
+            (data.email ? " · " + data.email : "") +
+            (when ? " · " + when : "");
 
           var rowEl = document.createElement("div");
           rowEl.className = "row";
