@@ -708,6 +708,66 @@
     ]
   };
 
+  // Deterministic, not random — the same account always lands on the same
+  // confession acknowledgment / past-life fragment, so a returning visitor
+  // sees a consistent piece of their own story rather than a new one every
+  // time they reload.
+  function hashAccountId(id){
+    var h = 0;
+    for(var i = 0; i < id.length; i++){ h = ((h * 31) + id.charCodeAt(i)) >>> 0; }
+    return h;
+  }
+
+  // Hell — "Confess to the Fire" (see DailyTasks). A one-time, text-free
+  // confession: nothing typed is ever stored, only the fact that it
+  // happened, so the fire "answers" with one of these lines instead of
+  // repeating anything back.
+  var HELL_CONFESSION_LINES = [
+    { en: "The fire goes quiet for exactly as long as it takes. Then it starts again, aimed a little more carefully than before.",
+      ja: "炎は、それにかかるだけの時間、静かになる。そして再び燃え始める——前より、少しだけ丁寧に狙いを定めて。",
+      ko: "불꽃은 그것에 걸리는 만큼의 시간 동안 조용해진다. 그리고 다시 타오르기 시작한다 — 전보다 조금 더 신중하게 겨냥하며." },
+    { en: "Nothing answers. But something that was listening stops pretending it wasn't.",
+      ja: "何も答えない。だが、聞いていた何かが、聞いていなかったふりをやめる。",
+      ko: "아무것도 대답하지 않는다. 하지만 듣고 있던 무언가가, 듣지 않은 척하기를 그만둔다." },
+    { en: "You expected it to hurt more, saying it. It didn't. That, itself, is worth noticing.",
+      ja: "口にすれば、もっと痛むと思っていた。そうではなかった。そのこと自体に、気づく価値がある。",
+      ko: "말하면 더 아플 거라 예상했다. 그렇지 않았다. 그 사실 자체가 눈여겨볼 만하다." },
+    { en: "The fire doesn't forgive. It just stops asking you to carry this one alone.",
+      ja: "炎は赦さない。ただ、これをひとりで抱えろと求めるのをやめるだけだ。",
+      ko: "불꽃은 용서하지 않는다. 다만 이것을 혼자 짊어지라고 요구하기를 멈출 뿐이다." }
+  ];
+
+  // Reincarnation/Earth — "A Body You Inherited" (see CharacterCreator).
+  // One fragment of an unremembered past life, revealed once and kept
+  // forever after — which fragment is picked from this pool is decided by
+  // hashAccountId, so it stays the same fragment for that account.
+  var EARTH_PAST_LIVES = [
+    { title: "A Rope-Maker's Apprentice", titleJa: "縄職人の弟子", titleKo: "밧줄 장인의 도제",
+      en: "Your hands remember the twist before your mind does — three strands, always three, over and under until it holds. You never learned why three. You just know two isn't enough.",
+      ja: "手はいつも、頭より先に撚り方を覚えている——三本、必ず三本、上へ下へと絡めれば結べる。なぜ三本なのかは学ばなかった。ただ、二本では足りないと知っているだけだ。",
+      ko: "당신의 손은 마음보다 먼저 꼬는 법을 기억한다 — 세 가닥, 언제나 세 가닥, 위아래로 엮으면 단단해진다. 왜 세 가닥인지는 배운 적 없다. 다만 두 가닥으로는 부족하다는 것만 알 뿐이다." },
+    { title: "A Lighthouse Keeper's Wife", titleJa: "灯台守の妻", titleKo: "등대지기의 아내",
+      en: "You wake at the same hour every night, certain a lamp needs tending, before remembering there is no lamp here, and no lighthouse, and the dark you're checking on doesn't need you anymore.",
+      ja: "毎晩同じ時刻に目が覚め、ランプの手入れが必要だという確信に駆られる——ここにはランプなどなく、灯台もなく、あなたが気にかけているその闇はもうあなたを必要としていないと思い出すまでの、ほんの一瞬。",
+      ko: "매일 밤 같은 시각에 눈을 뜨며, 램프를 손봐야 한다는 확신에 사로잡힌다 — 여기엔 램프도, 등대도 없으며, 당신이 살피던 그 어둠은 더 이상 당신을 필요로 하지 않는다는 것을 떠올리기 전까지는." },
+    { title: "A Boy Who Counted Things", titleJa: "物を数えていた少年", titleKo: "무언가를 세던 소년",
+      en: "Stairs, birds, the seconds between lightning and thunder — you counted everything, once, as if a number could keep a thing from disappearing. Some of that habit is still in you. You just don't call it fear anymore.",
+      ja: "階段、鳥、雷と雷鳴の間の秒数——かつてあなたはすべてを数えた。まるで数字が何かを消えないよう留めておけるかのように。その癖はまだあなたの中に残っている。ただもう、それを恐れとは呼ばない。",
+      ko: "계단, 새, 번개와 천둥 사이의 초 — 한때 당신은 모든 것을 셌다, 마치 숫자가 무언가를 사라지지 않게 붙잡아 둘 수 있다는 듯이. 그 버릇은 아직 당신 안에 남아 있다. 다만 이제는 그것을 두려움이라 부르지 않을 뿐이다." },
+    { title: "A Woman Who Buried the Harvest Herself", titleJa: "収穫を自らの手で埋めた女", titleKo: "수확물을 손수 묻은 여인",
+      en: "You know, without being taught, how deep is deep enough, and which root vegetables keep through winter if you don't wash the dirt off first. Some kinds of knowing outlast the life that earned them.",
+      ja: "教わらなくても、どれほど深く埋めれば十分か、土を洗い落とさなければどの根菜が冬を越せるかを知っている。ある種の知恵は、それを得た人生よりも長く残る。",
+      ko: "배운 적 없어도, 얼마나 깊이 묻어야 충분한지, 흙을 씻어내지 않으면 어떤 뿌리채소가 겨울을 나는지 알고 있다. 어떤 종류의 앎은 그것을 얻은 삶보다 오래 남는다." },
+    { title: "A Deckhand Who Never Learned to Swim", titleJa: "泳ぎを知らなかった甲板員", titleKo: "수영을 배운 적 없는 갑판원",
+      en: "You flinch near deep water for reasons the body kept and the mind didn't. You're not afraid of drowning, exactly. You're afraid of a particular kind of cold that this life has never once given you.",
+      ja: "深い水の近くで身がすくむのは、体が覚えていて頭は覚えていない理由による。溺れることそのものが怖いわけではない。この生では一度も経験していない、ある種の冷たさが怖いのだ。",
+      ko: "깊은 물 근처에서 몸이 움츠러드는 것은, 몸이 기억하고 마음은 기억하지 못하는 이유 때문이다. 정확히는 익사가 두려운 것이 아니다. 이 삶에서는 단 한 번도 겪은 적 없는 특정한 종류의 냉기가 두려운 것이다." },
+    { title: "Someone Who Was Loved Quietly", titleJa: "静かに愛された誰か", titleKo: "조용히 사랑받았던 누군가",
+      en: "Not everything the soil kept was hard to carry. Sometimes, for no reason you can name, you feel certain that once, a long time before this, someone was glad just to see you come home.",
+      ja: "土が留めていたものすべてが、担うのに辛いものだったわけではない。理由もなく、ふとこう確信することがある——ずっと以前、誰かがただあなたが家に帰ってくるのを見て、嬉しかったのだと。",
+      ko: "흙이 간직해온 모든 것이 짊어지기 힘든 것만은 아니었다. 이유 없이, 문득 이런 확신이 들 때가 있다 — 아주 오래전, 누군가는 그저 당신이 집에 돌아오는 모습을 보는 것만으로도 기뻤다고." }
+  ];
+
   function dateKey(offsetDays){
     var d = new Date();
     if(offsetDays) d.setDate(d.getDate() + offsetDays);
@@ -748,13 +808,13 @@
   // actually pay for moving to a different door.
   function useDailyTasks(accountId){
     var dbRef = useRef(null);
-    var _s = useState({ streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], resolvedFor:null });
+    var _s = useState({ streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], hellConfessed:false, hellConfessionIdx:0, earthPastLifeRevealed:false, earthPastLifeIdx:0, resolvedFor:null });
     var state = _s[0], setState = _s[1];
     var loaded = !accountId || state.resolvedFor === accountId;
 
     useEffect(function(){
       if(!accountId){
-        setState(function(s){ return Object.assign({}, s, { streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], resolvedFor:null }); });
+        setState(function(s){ return Object.assign({}, s, { streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], hellConfessed:false, hellConfessionIdx:0, earthPastLifeRevealed:false, earthPastLifeIdx:0, resolvedFor:null }); });
         return;
       }
       var cancelled = false;
@@ -774,6 +834,10 @@
             points: (found && found.points) || 0,
             lastCompletedDate: (found && found.lastCompletedDate) || null,
             unlockedVisions: (found && found.unlockedVisions) || [],
+            hellConfessed: !!(found && found.hellConfessed),
+            hellConfessionIdx: (found && found.hellConfessionIdx) || 0,
+            earthPastLifeRevealed: !!(found && found.earthPastLifeRevealed),
+            earthPastLifeIdx: (found && found.earthPastLifeIdx) || 0,
             resolvedFor: accountId
           });
         }
@@ -800,9 +864,12 @@
         try{
           // A full set(), not update() — matches the existing shape of this
           // doc, so every field this doc holds has to be listed here or it
-          // gets dropped, unlockedVisions included.
+          // gets dropped, unlockedVisions and the hell/earth reveal flags
+          // included.
           await ns.doc("dailytasks/" + accountId).set({
-            realm: realmKey, streak: nextStreak, points: nextPoints, lastCompletedDate: today, unlockedVisions: nextUnlocked
+            realm: realmKey, streak: nextStreak, points: nextPoints, lastCompletedDate: today, unlockedVisions: nextUnlocked,
+            hellConfessed: state.hellConfessed, hellConfessionIdx: state.hellConfessionIdx,
+            earthPastLifeRevealed: state.earthPastLifeRevealed, earthPastLifeIdx: state.earthPastLifeIdx
           });
         }catch(e){
           return { ok:false };
@@ -827,7 +894,49 @@
       return { ok:true };
     }
 
-    return { state: Object.assign({}, state, { loaded:loaded }), markDone: markDone, spend: spend };
+    // Hell's "Confess to the Fire" and Earth's "A Body You Inherited" —
+    // one-time, permanent reveals, same shape as markDone's writes: a
+    // merge:true set() so it creates dailytasks/{accountId} if this is the
+    // visitor's very first write to it (they may not have completed a
+    // daily task yet), without disturbing whatever fields already exist.
+    async function revealHellConfession(){
+      if(state.hellConfessed) return { ok:true, idx: state.hellConfessionIdx };
+      if(!accountId) return { ok:false };
+      var idx = hashAccountId(accountId) % HELL_CONFESSION_LINES.length;
+      var ns = dbRef.current;
+      if(ns){
+        try{
+          await ns.doc("dailytasks/" + accountId).set({ hellConfessed:true, hellConfessionIdx: idx }, { merge:true });
+        }catch(e){
+          return { ok:false };
+        }
+      }
+      setState(function(s){ return Object.assign({}, s, { hellConfessed:true, hellConfessionIdx: idx }); });
+      return { ok:true, idx: idx };
+    }
+
+    async function revealEarthPastLife(){
+      if(state.earthPastLifeRevealed) return { ok:true, idx: state.earthPastLifeIdx };
+      if(!accountId) return { ok:false };
+      var idx = hashAccountId(accountId) % EARTH_PAST_LIVES.length;
+      var ns = dbRef.current;
+      if(ns){
+        try{
+          await ns.doc("dailytasks/" + accountId).set({ earthPastLifeRevealed:true, earthPastLifeIdx: idx }, { merge:true });
+        }catch(e){
+          return { ok:false };
+        }
+      }
+      setState(function(s){ return Object.assign({}, s, { earthPastLifeRevealed:true, earthPastLifeIdx: idx }); });
+      return { ok:true, idx: idx };
+    }
+
+    return {
+      state: Object.assign({}, state, { loaded:loaded }),
+      markDone: markDone, spend: spend,
+      revealHellConfession: revealHellConfession,
+      revealEarthPastLife: revealEarthPastLife
+    };
   }
 
   // Door-opening sound, synthesized entirely with the Web Audio API — no
@@ -1518,7 +1627,7 @@
     var accountId = props.accountId;
     var dbRef = useRef(null);
     var skipNextSave = useRef(true);
-    var _c = useState({ skin: SKIN_TONES[5], outfit: OUTFITS[0].id, gender: null });
+    var _c = useState({ skin: SKIN_TONES[5], outfit: OUTFITS[0].id, gender: null, oldName: null });
     var character = _c[0], setCharacter = _c[1];
     var _l = useState(false);
     var loaded = _l[0], setLoaded = _l[1];
@@ -1534,6 +1643,28 @@
     var manageStatus = _ms[0], setManageStatus = _ms[1];
     var _mb = useState(false);
     var manageBusy = _mb[0], setManageBusy = _mb[1];
+    // Heaven's "The Name You Left" — a one-time, visitor-authored line kept
+    // on the character doc itself (not dailytasks): once given, an old
+    // name is permanent and the light never asks again.
+    var _on = useState("");
+    var oldNameInput = _on[0], setOldNameInput = _on[1];
+    var _sn = useState(false);
+    var savingOldName = _sn[0], setSavingOldName = _sn[1];
+
+    async function handleSaveOldName(ev){
+      if(ev) ev.preventDefault();
+      var trimmed = oldNameInput.trim().slice(0, 40);
+      if(!trimmed || savingOldName) return;
+      setSavingOldName(true);
+      var ns = dbRef.current || await getDb();
+      dbRef.current = ns;
+      if(ns && accountId){
+        try{ await ns.doc("characters/" + accountId).set({ oldName: trimmed }, { merge:true }); }catch(err){}
+      }
+      trackEvent("leave_old_name", {});
+      update({ oldName: trimmed });
+      setSavingOldName(false);
+    }
 
     async function handleManageClick(){
       setManageStatus(null);
@@ -1677,6 +1808,38 @@
           }, biLabel("Save & continue", "保存して進む", "저장하고 계속하기"))
         ) : null
       ),
+      props.doorKey === "heaven" ? h("div", { className:"escape-block" },
+        h("span", { className:"field-label" }, "The name you left behind"),
+        h(Sub, { ja:"あなたが置いてきた名前", ko:"당신이 두고 온 이름" }),
+        character.oldName
+          ? [
+              h("p", { key:"p", className:"q-tagline", style:{ marginTop:"0.4em" } },
+                "The light keeps “" + character.oldName + "” now. You don't have to answer to it here — but it remembers."),
+              h(Sub, { key:"s",
+                ja: "光は今、「" + character.oldName + "」を保っている。ここで答える必要はない——けれど、光は覚えている。",
+                ko: "빛은 이제 “" + character.oldName + "”을(를) 간직하고 있다. 여기서 그 이름에 답할 필요는 없다 — 하지만 빛은 기억한다."
+              })
+            ]
+          : [
+              h("p", { key:"p", className:"q-tagline", style:{ marginTop:"0.4em" } },
+                "The light asks what they called you, before."),
+              h(Sub, { key:"s", ja:"光は、以前あなたが何と呼ばれていたかを尋ねる。", ko:"빛은 예전에 당신이 무엇이라 불렸는지 묻는다." }),
+              h("form", { key:"f", onSubmit: handleSaveOldName, style:{ display:"flex", gap:"10px", flexWrap:"wrap", marginTop:"14px", alignItems:"center" } },
+                h("input", {
+                  className:"lore-input", style:{ minHeight:"auto", width:"220px", maxWidth:"100%" },
+                  type:"text", maxLength:40,
+                  placeholder: "A name, if you remember one…",
+                  value: oldNameInput,
+                  onChange: function(e){ setOldNameInput(e.target.value); }
+                }),
+                h("button", {
+                  type:"submit", className:"q-btn ghost bi", disabled: !oldNameInput.trim() || savingOldName
+                }, savingOldName
+                  ? biLabel("…", "…", "…")
+                  : biLabel("Leave it with the light", "光に預ける", "빛에게 맡기다"))
+              )
+            ]
+      ) : null,
       h("div", { className:"char-lore-link" },
         h("button", { className:"q-btn ghost tiny bi", type:"button", onClick: props.onOpenTasks },
           biLabel("Today's tasks", "今日の課題", "오늘의 과제")),
@@ -1819,6 +1982,10 @@
     var moving = _moving[0], setMoving = _moving[1];
     var _moveErr = useState("");
     var moveErr = _moveErr[0], setMoveErr = _moveErr[1];
+    var _confessing = useState(false);
+    var confessing = _confessing[0], setConfessing = _confessing[1];
+    var _revealingPastLife = useState(false);
+    var revealingPastLife = _revealingPastLife[0], setRevealingPastLife = _revealingPastLife[1];
 
     async function handleMarkDone(){
       if(!s.loaded || completedToday || saving) return;
@@ -1842,6 +2009,20 @@
           : "Couldn't move right now — try again.  ·  今は移動できませんでした——もう一度お試しください。  ·  지금은 이동할 수 없었습니다 — 다시 시도해주세요.");
       }
       setMoving(null);
+    }
+
+    async function handleConfess(){
+      if(confessing || s.hellConfessed) return;
+      setConfessing(true);
+      await props.onRevealConfession();
+      setConfessing(false);
+    }
+
+    async function handleRevealPastLife(){
+      if(revealingPastLife || s.earthPastLifeRevealed) return;
+      setRevealingPastLife(true);
+      await props.onRevealPastLife();
+      setRevealingPastLife(false);
     }
 
     var task = props.todaysTask || { en:"", ja:"", ko:"" };
@@ -1907,6 +2088,66 @@
         ),
         moveErr ? h("p", { className:"lore-note error" }, moveErr) : null
       ),
+      props.doorKey === "hell" ? h("div", { className:"escape-block" },
+        h("span", { className:"field-label" }, "Confess to the fire"),
+        h(Sub, { ja:"炎に告白する", ko:"불꽃에게 고백하다" }),
+        s.hellConfessed
+          ? (function(){
+              var line = HELL_CONFESSION_LINES[s.hellConfessionIdx] || HELL_CONFESSION_LINES[0];
+              return h(React.Fragment, null,
+                h("p", { className:"q-tagline", style:{ marginTop:"0.4em" } }, line.en),
+                h(Sub, { ja: line.ja, ko: line.ko })
+              );
+            })()
+          : h(React.Fragment, null,
+              h("p", { className:"q-tagline", style:{ marginTop:"0.4em" } },
+                "You don't have to write it down. Just decide it's true, and let the fire have it."
+              ),
+              h(Sub, {
+                ja:"書き出す必要はない。ただそれが本当だと認め、炎に渡せばいい。",
+                ko:"적어둘 필요는 없다. 그것이 사실이라고 인정하고, 불꽃에게 넘겨주면 된다."
+              }),
+              h("div", { className:"escape-actions" },
+                h("button", {
+                  type:"button", className:"q-btn ghost bi", disabled: confessing,
+                  onClick: handleConfess
+                }, confessing
+                  ? biLabel("…", "…", "…")
+                  : biLabel("Confess", "告白する", "고백하다"))
+              )
+            )
+      ) : null,
+      props.doorKey === "earth" ? h("div", { className:"escape-block" },
+        h("span", { className:"field-label" }, "A body you inherited"),
+        h(Sub, { ja:"あなたが受け継いだ体", ko:"당신이 물려받은 몸" }),
+        s.earthPastLifeRevealed
+          ? (function(){
+              var life = EARTH_PAST_LIVES[s.earthPastLifeIdx] || EARTH_PAST_LIVES[0];
+              return h(React.Fragment, null,
+                h("p", { className:"q-tagline", style:{ marginTop:"0.4em" } }, life.title),
+                h(Sub, { ja: life.titleJa, ko: life.titleKo }),
+                h("p", { className:"i18n-sub", style:{ marginTop:"0.6em", color:"var(--ink)" } }, life.en),
+                h(Sub, { ja: life.ja, ko: life.ko })
+              );
+            })()
+          : h(React.Fragment, null,
+              h("p", { className:"q-tagline", style:{ marginTop:"0.4em" } },
+                "The soil doesn't forget on purpose — sometimes it just slips through."
+              ),
+              h(Sub, {
+                ja:"土はわざと忘れるわけではない——時々、それが漏れ出るだけだ。",
+                ko:"흙은 일부러 잊는 것이 아니다 — 가끔 그저 새어 나올 뿐이다."
+              }),
+              h("div", { className:"escape-actions" },
+                h("button", {
+                  type:"button", className:"q-btn ghost bi", disabled: revealingPastLife,
+                  onClick: handleRevealPastLife
+                }, revealingPastLife
+                  ? biLabel("…", "…", "…")
+                  : biLabel("Remember", "思い出す", "기억해내다"))
+              )
+            )
+      ) : null,
       h("div", { className:"q-actions", style:{ marginTop:"18px" } },
         h("button", { className:"q-btn ghost bi", type:"button", onClick: props.onBack }, biLabel("Back", "戻る", "뒤로"))
       )
@@ -2038,6 +2279,8 @@
         state: props.dailyTasksState,
         onMarkDone: props.onMarkDone,
         onMove: props.onMove,
+        onRevealConfession: props.onRevealConfession,
+        onRevealPastLife: props.onRevealPastLife,
         onBack: props.onBackToCharacter
       });
     }else{
@@ -2247,6 +2490,17 @@
       return { ok:true };
     }
 
+    async function handleRevealConfession(){
+      var result = await dailyTasks.revealHellConfession();
+      if(result && result.ok) trackEvent("reveal_hell_confession", {});
+      return result;
+    }
+    async function handleRevealPastLife(){
+      var result = await dailyTasks.revealEarthPastLife();
+      if(result && result.ok) trackEvent("reveal_earth_past_life", {});
+      return result;
+    }
+
     async function handleDonate(){
       if(!account) return;
       try{
@@ -2360,6 +2614,8 @@
         onBackToCharacter: handleBackToCharacter,
         onMarkDone: handleMarkDone,
         onMove: handleMoveDoor,
+        onRevealConfession: handleRevealConfession,
+        onRevealPastLife: handleRevealPastLife,
         onDonate: handleDonate,
         onTip: handleTip,
         onManageSubscription: handleManageSubscription
