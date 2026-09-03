@@ -1,0 +1,89 @@
+<style>
+  :root{
+    --bg:#100c18; --bg-panel:#1c1626; --ink:#f3eef9; --ink-dim:#c3b9d1; --ink-faint:#8d8298;
+    --hairline:#372e46; --hell:#ff8562; --earth:#6cc27a; --heaven:#7fb4e8;
+    --accent:#b09dff;
+  }
+
+  @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  *{ box-sizing:border-box; }
+  body{ background:var(--bg); color:var(--ink); font-family:'Source Serif 4',Georgia,serif; margin:0; }
+
+  .wrap{ max-width:680px; margin:0 auto; padding:64px 24px 120px; }
+
+  .kicker{ font-family:'JetBrains Mono',ui-monospace,monospace; font-size:0.72rem; letter-spacing:0.2em; text-transform:uppercase; color:var(--accent); text-align:center; }
+  .postdate{ font-family:'JetBrains Mono',ui-monospace,monospace; font-size:0.72rem; letter-spacing:0.1em; color:var(--ink-faint); text-align:center; margin-top:8px; }
+
+  h1{ font-family:'Cinzel',serif; font-weight:600; font-size:clamp(2rem,5vw,2.8rem); text-align:center; margin:18px 0 6px; text-wrap:balance; letter-spacing:0.01em; }
+  h2{ font-family:'Cinzel',serif; font-weight:600; font-size:1.4rem; margin:48px 0 14px; text-wrap:balance; }
+
+  .lede{ font-size:1.15rem; color:var(--ink-dim); text-align:center; max-width:52ch; margin:20px auto 0; line-height:1.6; }
+
+  p{ font-size:1.05rem; line-height:1.75; color:var(--ink); }
+  a{ color:var(--accent); }
+
+  .realm-dot{ display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:8px; }
+  .realm-dot.hell{ background:var(--hell); }
+  .realm-dot.earth{ background:var(--earth); }
+  .realm-dot.heaven{ background:var(--heaven); }
+
+  figure{ margin:32px 0; }
+  figure img{ width:100%; display:block; border-radius:14px; border:1px solid var(--hairline); box-shadow:0 30px 60px -30px rgba(0,0,0,0.35); }
+  figcaption{ font-family:'JetBrains Mono',ui-monospace,monospace; font-size:0.74rem; letter-spacing:0.05em; color:var(--ink-faint); text-align:center; margin-top:10px; }
+
+  .divider{ border:none; border-top:1px solid var(--hairline); margin:56px 0; }
+
+  .milestone-row{ display:flex; gap:12px; margin:28px 0; flex-wrap:wrap; justify-content:center; }
+  .milestone{ flex:1 1 140px; background:var(--bg-panel); border:1px solid var(--hairline); border-radius:14px; padding:18px; text-align:center; }
+  .milestone .day{ font-family:'JetBrains Mono',ui-monospace,monospace; font-size:0.7rem; letter-spacing:0.16em; text-transform:uppercase; color:var(--accent); }
+  .milestone .what{ margin-top:8px; font-size:0.92rem; color:var(--ink-dim); }
+
+  .no-spoilers{ background:var(--bg-panel); border:1px solid var(--hairline); border-radius:16px; padding:22px 26px; margin:32px 0; }
+  .no-spoilers .label{ font-family:'JetBrains Mono',ui-monospace,monospace; font-size:0.7rem; letter-spacing:0.16em; text-transform:uppercase; color:var(--accent); margin-bottom:8px; }
+  .no-spoilers p:last-child{ margin-bottom:0; }
+
+  .cta{ text-align:center; margin-top:56px; }
+  .cta a.btn{ display:inline-block; font-family:'JetBrains Mono',ui-monospace,monospace; font-size:0.85rem; letter-spacing:0.05em; text-decoration:none; color:var(--bg); background:var(--accent); padding:14px 28px; border-radius:999px; }
+  .cta p{ margin-top:14px; color:var(--ink-faint); font-size:0.9rem; }
+</style>
+
+<div class="wrap">
+  <div class="kicker">Three Doors &middot; dev log</div>
+  <h1>Three Doors Has a Story Now</h1>
+  <p class="postdate">September 2, 2026</p>
+  <p class="lede">Today's update gives the game its first real narrative — something earned, not clicked into. Here's what changed, without spoiling it.</p>
+
+  <hr class="divider">
+
+  <p>Since it launched, Three Doors has been mostly infrastructure: pick a door, build a character, do a small daily task, keep a streak. All of that stays exactly as it was. What's new is that <strong>staying behind a door now means something</strong>.</p>
+
+  <h2>What actually shipped</h2>
+  <p>Every realm now has its own three-part story, unlocked by the same streak counter that was already tracking your daily task. Reach one of three milestones in a realm, and you get a short, one-time piece of narrative — a "vision" — written for that realm alone. It happens once, it's permanent, and it's yours to revisit afterward from a new <strong>Memories</strong> screen sitting next to Lore and Today's tasks.</p>
+
+  <div class="milestone-row">
+    <div class="milestone"><div class="day">day 3</div><div class="what">first vision</div></div>
+    <div class="milestone"><div class="day">day 7</div><div class="what">second vision</div></div>
+    <div class="milestone"><div class="day">day 30</div><div class="what">third vision</div></div>
+  </div>
+
+  <p>Each realm's three visions build on each other — Heaven's, Hell's, and Reincarnation's are each their own small arc, in the same terse, second-person voice the rest of the site already speaks in. Miss a day and your streak resets, same as always, so reaching one of these is a real marker of having stuck with a door, not something you can rush.</p>
+
+  <figure>
+    <img src="https://earthbase-glitch.github.io/three-doors/blog-screenshots/memories-locked.png" alt="The Memories screen, showing locked visions at day 3, 7, and 30 for each realm, marked Not yet reached.">
+    <figcaption>the Memories screen — nothing unlocked yet</figcaption>
+  </figure>
+
+  <div class="no-spoilers">
+    <div class="label">No spoilers here</div>
+    <p>We're not going to paste the actual text in a blog post — reaching it is the point. What we'll say: it's short, it's specific to the realm you're in, and it reads like it belongs in this world rather than bolted onto it. If you've been sitting on a streak, this is the update that makes it worth checking on.</p>
+  </div>
+
+  <h2>Why this, and why now</h2>
+  <p>Three Doors has always had mechanics — tasks, points, streaks, a leaderboard — but no throughline connecting them. This is the first update that gives the game an actual story to follow instead of just more things to click. Lore submissions, daily tasks, and everything else built so far are still there and untouched; this sits alongside them.</p>
+
+  <div class="cta">
+    <a class="btn" href="https://earthbase-glitch.github.io/three-doors/" target="_blank" rel="noopener">Go build a streak &rarr;</a>
+    <p>Three doors. One of them is already keeping something for you.</p>
+  </div>
+</div>

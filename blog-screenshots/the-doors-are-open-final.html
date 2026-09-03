@@ -1,0 +1,136 @@
+<style>
+  :root{
+    --bg:#100c18; --bg-panel:#1c1626; --ink:#f3eef9; --ink-dim:#c3b9d1; --ink-faint:#8d8298;
+    --hairline:#372e46; --hell:#ff8562; --earth:#6cc27a; --heaven:#7fb4e8;
+    --accent:#b09dff;
+  }
+
+  @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  *{ box-sizing:border-box; }
+  body{ background:var(--bg); color:var(--ink); font-family:'Source Serif 4',Georgia,serif; margin:0; }
+
+  .wrap{ max-width:680px; margin:0 auto; padding:64px 24px 120px; }
+
+  .kicker{ font-family:'JetBrains Mono',ui-monospace,monospace; font-size:0.72rem; letter-spacing:0.2em; text-transform:uppercase; color:var(--accent); text-align:center; }
+  .postdate{ font-family:'JetBrains Mono',ui-monospace,monospace; font-size:0.72rem; letter-spacing:0.1em; color:var(--ink-faint); text-align:center; margin-top:8px; }
+
+  h1{ font-family:'Cinzel',serif; font-weight:600; font-size:clamp(2rem,5vw,2.8rem); text-align:center; margin:18px 0 6px; text-wrap:balance; letter-spacing:0.01em; }
+  h2{ font-family:'Cinzel',serif; font-weight:600; font-size:1.4rem; margin:56px 0 14px; text-wrap:balance; }
+
+  .lede{ font-size:1.15rem; color:var(--ink-dim); text-align:center; max-width:52ch; margin:20px auto 0; line-height:1.6; }
+
+  p{ font-size:1.05rem; line-height:1.75; color:var(--ink); }
+  a{ color:var(--accent); }
+
+  .realm-dot{ display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:8px; }
+  .realm-dot.hell{ background:var(--hell); }
+  .realm-dot.earth{ background:var(--earth); }
+  .realm-dot.heaven{ background:var(--heaven); }
+
+  figure{ margin:32px 0; }
+  figure img{ width:100%; display:block; border-radius:14px; border:1px solid var(--hairline); box-shadow:0 30px 60px -30px rgba(0,0,0,0.35); }
+  figcaption{ font-family:'JetBrains Mono',ui-monospace,monospace; font-size:0.74rem; letter-spacing:0.05em; color:var(--ink-faint); text-align:center; margin-top:10px; }
+
+  .two-up{ display:grid; grid-template-columns:1fr 1fr; gap:16px; margin:32px 0; }
+  .two-up figure{ margin:0; }
+  @media (max-width:600px){ .two-up{ grid-template-columns:1fr; } }
+
+  .divider{ border:none; border-top:1px solid var(--hairline); margin:56px 0; }
+
+  .callout{ background:var(--bg-panel); border:1px solid var(--hairline); border-radius:16px; padding:24px 28px; margin:32px 0; }
+  .callout .label{ font-family:'JetBrains Mono',ui-monospace,monospace; font-size:0.7rem; letter-spacing:0.16em; text-transform:uppercase; color:var(--accent); margin-bottom:8px; }
+  .callout p:last-child{ margin-bottom:0; }
+
+  .cta{ text-align:center; margin-top:56px; }
+  .cta a.btn{ display:inline-block; font-family:'JetBrains Mono',ui-monospace,monospace; font-size:0.85rem; letter-spacing:0.05em; text-decoration:none; color:var(--bg); background:var(--accent); padding:14px 28px; border-radius:999px; }
+  .cta p{ margin-top:14px; color:var(--ink-faint); font-size:0.9rem; }
+</style>
+
+<div class="wrap">
+  <div class="kicker">Three Doors &middot; dev log</div>
+  <h1>The Doors Are Open</h1>
+  <p class="postdate">September 2, 2026</p>
+  <p class="lede">A progress update on the small web game where you pick a door — Heaven, Hell, or Reincarnation — and build a life behind it. Screenshots included, straight from the live site.</p>
+
+  <hr class="divider">
+
+  <p>A little while back we posted about building <a href="https://earthbase-glitch.github.io/three-doors/" target="_blank" rel="noopener">Three Doors</a> from nothing — a static site, no backend framework, just a single HTML file talking to Firebase. Since then it hasn't stopped moving. Here's where things stand now, in screenshots.</p>
+
+  <h2>The walk in</h2>
+  <p>Nothing's changed about the first few seconds — you land on the threshold, step through, and give yourself a name.</p>
+
+  <div class="two-up">
+    <figure>
+      <img src="https://earthbase-glitch.github.io/three-doors/blog-screenshots/threshold.png" alt="The Three Doors threshold screen, with the tagline You are standing in the present.">
+      <figcaption>the threshold</figcaption>
+    </figure>
+    <figure>
+      <img src="https://earthbase-glitch.github.io/three-doors/blog-screenshots/signin.png" alt="The sign-in screen, asking Who are you?">
+      <figcaption>naming yourself</figcaption>
+    </figure>
+  </div>
+
+  <p>Then the doors. Each one shows how many other visitors are already behind it, live.</p>
+
+  <div class="two-up">
+    <figure>
+      <img src="https://earthbase-glitch.github.io/three-doors/blog-screenshots/hall.png" alt="The three doors: Hell, Reincarnate, and Heaven, each with a live visitor count.">
+      <figcaption><span class="realm-dot hell"></span><span class="realm-dot earth"></span><span class="realm-dot heaven"></span>choose a door</figcaption>
+    </figure>
+    <figure>
+      <img src="https://earthbase-glitch.github.io/three-doors/blog-screenshots/door-open.png" alt="A chosen door swinging open.">
+      <figcaption>it opens once, and only for you</figcaption>
+    </figure>
+  </div>
+
+  <h2>What's grown since</h2>
+  <p>The character screen used to be the whole game. Now it's the hub — your avatar, your daily task and streak, the realm's community lore, and (new) a way to support the project, all in reach without scrolling.</p>
+
+  <figure>
+    <img src="https://earthbase-glitch.github.io/three-doors/blog-screenshots/character-new.png" alt="The character screen, showing an avatar, streak stats, and a compact row of action buttons.">
+    <figcaption>the character screen, current version</figcaption>
+  </figure>
+
+  <p>Every realm rotates its own daily task. Show up, complete it, keep the streak alive — miss a day and it resets.</p>
+
+  <figure>
+    <img src="https://earthbase-glitch.github.io/three-doors/blog-screenshots/daily-task.png" alt="The daily task screen, showing a task, streak count, and points.">
+    <figcaption>today's task, streak, and points</figcaption>
+  </figure>
+
+  <p>And every realm has its own growing body of lore — short pieces submitted by visitors, reviewed before they go public, building out the mythology of each door one entry at a time.</p>
+
+  <figure>
+    <img src="https://earthbase-glitch.github.io/three-doors/blog-screenshots/lore.png" alt="The community lore screen for a realm, showing submitted entries and a form to add one.">
+    <figcaption>community lore, realm by realm</figcaption>
+  </figure>
+
+  <h2>The newest piece: keeping it running</h2>
+  <p>Hosting and daily development aren't free, so Three Doors now has a quiet way to support it — entirely optional, never required to play. A one-time tip ($3, $5, or $10) or a $3/month subscription, either one manageable (and cancellable) right from the character screen. Every supporter shows up on a public leaderboard inside Soul Stats.</p>
+
+  <figure>
+    <img src="https://earthbase-glitch.github.io/three-doors/blog-screenshots/soul-stats.png" alt="The Soul Stats sheet, showing realm population counts and a Supporters leaderboard.">
+    <figcaption>realm counts and the supporters leaderboard</figcaption>
+  </figure>
+
+  <p>One-time tips are non-refundable; subscriptions can be cancelled anytime, with the current billing period standing. Full details are in the site's <a href="https://earthbase-glitch.github.io/three-doors/terms.html" target="_blank" rel="noopener">Terms of Service</a>.</p>
+
+  <h2>It works on your phone too</h2>
+  <p>The whole site is responsive — same character, same streak, same doors, laid out for a smaller screen.</p>
+
+  <figure style="max-width:320px;margin-left:auto;margin-right:auto;">
+    <img src="https://earthbase-glitch.github.io/three-doors/blog-screenshots/mobile.png" alt="The character screen on a phone-sized viewport.">
+    <figcaption>mobile layout</figcaption>
+  </figure>
+
+  <div class="callout">
+    <div class="label">Happening today</div>
+    <p>Three Doors gets a small, meaningful addition to its story <strong>every single day</strong> — an automated process reads the whole codebase each morning and adds one new piece of narrative content to each realm, reviewed before it goes live. Today's addition lands at <strong>9:00am ET</strong> — behind the doors within the hour of this post going up. Nothing to do but go check what's new once it's there.</p>
+  </div>
+
+  <div class="cta">
+    <a class="btn" href="https://earthbase-glitch.github.io/three-doors/" target="_blank" rel="noopener">Step through &rarr;</a>
+    <p>Heaven, Hell, or Reincarnation. The fire remembers your name.</p>
+  </div>
+</div>
