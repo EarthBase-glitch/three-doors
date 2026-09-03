@@ -382,6 +382,48 @@
   .vision-day{ font-family:'JetBrains Mono',ui-monospace,monospace; font-size:0.64rem; letter-spacing:0.1em; color:var(--ink-faint); text-transform:uppercase; }
   .vision-nav-dot{ display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--threshold-glow); margin-left:6px; box-shadow:0 0 8px var(--threshold-glow); vertical-align:middle; }
 
+  .explore-stage{
+    margin-top:20px; position:relative; width:100%; max-width:480px; border-radius:16px; overflow:hidden;
+    border:1px solid var(--hairline); background:#000; aspect-ratio:20/14;
+  }
+  .explore-stage canvas{ display:block; width:100%; height:100%; image-rendering:pixelated; outline:none; }
+  .explore-hint{
+    position:absolute; left:0; right:0; top:0; padding:8px 12px; font-family:'JetBrains Mono',ui-monospace,monospace;
+    font-size:0.66rem; letter-spacing:0.08em; color:var(--ink-faint); background:linear-gradient(180deg, rgba(0,0,0,0.55), transparent);
+    pointer-events:none;
+  }
+  .explore-caption{
+    position:absolute; left:0; right:0; bottom:0; padding:12px 14px; font-size:0.86rem; line-height:1.5; color:var(--ink);
+    background:linear-gradient(0deg, rgba(0,0,0,0.75), transparent); min-height:1.4em; opacity:0; transform:translateY(6px);
+    transition:opacity 220ms ease, transform 220ms ease; pointer-events:none;
+  }
+  .explore-caption.show{ opacity:1; transform:translateY(0); }
+  .explore-loading{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    background:#000; color:var(--ink-faint); font-size:0.82rem;
+  }
+
+  /* On-screen D-pad for touch devices — WASD/arrows already cover
+     keyboards, so this stays hidden whenever a fine (mouse/trackpad)
+     pointer is available and shows only for coarse (touch) ones. */
+  .explore-dpad{
+    position:absolute; right:10px; bottom:10px; width:132px; height:132px;
+    display:grid; grid-template-columns:44px 44px 44px; grid-template-rows:44px 44px 44px;
+  }
+  .explore-dpad button{
+    appearance:none; border:1px solid rgba(255,255,255,0.28); background:rgba(0,0,0,0.4); color:var(--ink);
+    font-size:1.05rem; line-height:1; display:flex; align-items:center; justify-content:center; padding:0;
+    cursor:pointer; touch-action:none; -webkit-tap-highlight-color:transparent; user-select:none;
+  }
+  .explore-dpad button:active{ background:rgba(255,255,255,0.3); }
+  .explore-dpad .d-up{ grid-column:2; grid-row:1; border-radius:8px 8px 0 0; }
+  .explore-dpad .d-left{ grid-column:1; grid-row:2; border-radius:8px 0 0 8px; }
+  .explore-dpad .d-right{ grid-column:3; grid-row:2; border-radius:0 8px 8px 0; }
+  .explore-dpad .d-down{ grid-column:2; grid-row:3; border-radius:0 0 8px 8px; }
+  @media (hover:hover) and (pointer:fine){
+    .explore-dpad{ display:none; }
+  }
+
   .feedback-widget{
     position:fixed; z-index:6; max-width:min(88vw,320px);
     bottom:calc(16px + env(safe-area-inset-bottom));
@@ -1680,6 +1722,8 @@
       h("div", { className:"char-lore-link" },
         h("button", { className:"q-btn ghost tiny bi", type:"button", onClick: props.onOpenTasks },
           biLabel("Today's tasks", "今日の課題", "오늘의 과제")),
+        h("button", { className:"q-btn ghost tiny bi", type:"button", onClick: props.onOpenExplore },
+          biLabel("Explore →", "探索する →", "탐험하기 →")),
         h("button", { className:"q-btn ghost tiny bi", type:"button", onClick: props.onOpenLore },
           biLabel(realm.name + " lore →", realm.nameJa + "の伝承 →", realm.nameKo + "의 전승 →")),
         h("button", { className:"q-btn ghost tiny bi", type:"button", onClick: props.onOpenVisions },
@@ -1913,6 +1957,124 @@
     );
   }
 
+  // The compiled explore.js (Emscripten MODULARIZE output) defines a
+  // single global factory, window.ExploreModule — fetched once and
+  // cached here; each visit to the Explore screen then calls that
+  // factory again to get its own WASM instance bound to that mount's
+  // <canvas> (see ExploreScreen below).
+  var exploreScriptPromise = null;
+  function loadExploreScript(){
+    if(exploreScriptPromise) return exploreScriptPromise;
+    exploreScriptPromise = new Promise(function(resolve, reject){
+      if(window.ExploreModule){ resolve(window.ExploreModule); return; }
+      var s = document.createElement("script");
+      s.src = "game/explore.js";
+      s.onload = function(){
+        window.ExploreModule ? resolve(window.ExploreModule) : reject(new Error("ExploreModule missing"));
+      };
+      s.onerror = function(){ reject(new Error("explore.js failed to load")); };
+      document.head.appendChild(s);
+    });
+    return exploreScriptPromise;
+  }
+
+  // A small top-down area per realm, compiled from C++ (game/explore.cpp)
+  // to WebAssembly. Movement and collision live entirely in the wasm
+  // module; this component's job is just to mount a canvas, hand it a
+  // fresh module instance, and surface the marker captions the C++ side
+  // pushes back up through Module.onExploreCaption.
+  function ExploreScreen(props){
+    var realm = REALMS[props.doorKey] || REALMS.earth;
+    var canvasRef = useRef(null);
+    var moduleRef = useRef(null);
+    var _caption = useState("");
+    var caption = _caption[0], setCaption = _caption[1];
+    var _loading = useState(true);
+    var loading = _loading[0], setLoading = _loading[1];
+    var _err = useState(false);
+    var err = _err[0], setErr = _err[1];
+
+    useEffect(function(){
+      var cancelled = false;
+      setLoading(true);
+      setErr(false);
+      setCaption("");
+      loadExploreScript().then(function(ExploreModule){
+        if(cancelled) return null;
+        return ExploreModule({ canvas: canvasRef.current });
+      }).then(function(mod){
+        if(cancelled || !mod) return;
+        moduleRef.current = mod;
+        mod.onExploreCaption = function(text){
+          if(!cancelled) setCaption(text || "");
+        };
+        mod.ccall("explore_start", null, ["string"], [props.doorKey]);
+        setLoading(false);
+        if(canvasRef.current) canvasRef.current.focus();
+      }).catch(function(){
+        if(!cancelled) setErr(true);
+      });
+      return function(){
+        cancelled = true;
+        var mod = moduleRef.current;
+        if(mod){
+          mod.onExploreCaption = null;
+          try{ mod.ccall("explore_pause", null, [], []); }catch(e){}
+        }
+        moduleRef.current = null;
+      };
+    }, [props.doorKey]);
+
+    // On-screen D-pad for touch devices (see .explore-dpad — CSS hides
+    // it whenever a fine/mouse pointer is available). Pointer capture
+    // keeps the "up" reliable even if a finger drags off the button
+    // before lifting; pointercancel is a second safety net for gesture
+    // interruptions some mobile browsers fire instead.
+    function setTouchDir(dir, down){
+      return function(e){
+        e.preventDefault();
+        if(down){
+          try{ e.currentTarget.setPointerCapture(e.pointerId); }catch(ignored){}
+        }
+        var mod = moduleRef.current;
+        if(mod) mod.ccall("explore_set_touch", null, ["number", "number"], [dir, down ? 1 : 0]);
+      };
+    }
+    function dpadButton(cls, dir, glyph){
+      return h("button", {
+        type:"button", className:"d-" + cls,
+        onPointerDown: setTouchDir(dir, true),
+        onPointerUp: setTouchDir(dir, false),
+        onPointerCancel: setTouchDir(dir, false)
+      }, glyph);
+    }
+
+    return h("div", null,
+      h("div", { className:"q-eyebrow" }, realm.name + " · explore"),
+      h(Sub, { ja: realm.nameJa + "・探索", ko: realm.nameKo + " · 탐험" }),
+      h("h2", { className:"q-heading" }, "Walk around for a while."),
+      h(Sub, { ja:"少しの間、歩き回ってみよう。", ko:"잠시 걸어 다녀보세요." }),
+      h("div", { className:"explore-stage" },
+        h("canvas", { id:"explore-canvas", ref:canvasRef, width:320, height:224, tabIndex:0 }),
+        loading ? h("div", { className:"explore-loading" }, "Loading…  ·  読み込み中…  ·  로딩 중…") : null,
+        !loading ? h("div", { className:"explore-hint" }, "WASD / arrow keys to move  ·  WASD／矢印キーで移動  ·  WASD·화살표 키로 이동") : null,
+        h("div", { className:"explore-caption" + (caption ? " show" : "") }, caption),
+        !loading ? h("div", { className:"explore-dpad" },
+          dpadButton("up", 2, "▲"),
+          dpadButton("left", 0, "◀"),
+          dpadButton("right", 1, "▶"),
+          dpadButton("down", 3, "▼")
+        ) : null
+      ),
+      err ? h("p", { className:"lore-note error" },
+        "Couldn't load the explore area — check your connection and try again.  ·  探索エリアを読み込めませんでした——接続を確認してもう一度お試しください。  ·  탐험 지역을 불러올 수 없었습니다 — 연결을 확인하고 다시 시도해주세요."
+      ) : null,
+      h("div", { className:"q-actions", style:{ marginTop:"18px" } },
+        h("button", { className:"q-btn ghost bi", type:"button", onClick: props.onBack }, biLabel("Back", "戻る", "뒤로"))
+      )
+    );
+  }
+
   // Milestone-vision journal: one section per realm's ladder of streak
   // milestones (see VISION_MILESTONES). Unlocked entries show their full
   // text permanently; locked ones stay dimmed teasers. Shows every realm,
@@ -2009,6 +2171,7 @@
         authorName: props.authorName,
         onOpenLore: props.onOpenLore,
         onOpenTasks: props.onOpenTasks,
+        onOpenExplore: props.onOpenExplore,
         onOpenVisions: props.onOpenVisions,
         hasNewVision: props.hasNewVision,
         onDonate: props.onDonate,
@@ -2038,6 +2201,12 @@
         state: props.dailyTasksState,
         onMarkDone: props.onMarkDone,
         onMove: props.onMove,
+        onBack: props.onBackToCharacter
+      });
+    }else if(props.gamePhase === "explore"){
+      content = h(ExploreScreen, {
+        key: "explore-" + key,
+        doorKey: key,
         onBack: props.onBackToCharacter
       });
     }else{
@@ -2225,6 +2394,7 @@
     function handleExit(){ setPhase("threshold"); setGamePhase("question"); }
     function handleOpenLore(){ setGamePhase("lore"); }
     function handleOpenTasks(){ setGamePhase("tasks"); }
+    function handleOpenExplore(){ trackEvent("open_explore", { door: doors.state.myChoice }); setGamePhase("explore"); }
     function handleOpenVisions(){ setHasNewVision(false); setGamePhase("visions"); }
     function handleBackToCharacter(){ setGamePhase("character"); }
     async function handleMarkDone(){
@@ -2356,6 +2526,7 @@
         onExit: handleExit,
         onOpenLore: handleOpenLore,
         onOpenTasks: handleOpenTasks,
+        onOpenExplore: handleOpenExplore,
         onOpenVisions: handleOpenVisions,
         onBackToCharacter: handleBackToCharacter,
         onMarkDone: handleMarkDone,
