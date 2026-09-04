@@ -3152,6 +3152,15 @@
     useEffect(function(){
       if((phase === "signin" || phase === "resuming") && account && doors.state.myChoiceReady){
         if(doors.state.myChoice){
+          // Skipping the satisfied/escape question here means it's the
+          // only place a returning account would ever confirm — every
+          // account that chose its door before the realm chat feature
+          // shipped (or that simply closed the tab right after choosing,
+          // before answering the question) would otherwise never get a
+          // confirmed:true written at all. Reaching the character screen
+          // through either path means they're playing with that door, so
+          // both count as confirmed.
+          doors.confirm();
           setGamePhase("character");
           setPhase("game");
         }else{
