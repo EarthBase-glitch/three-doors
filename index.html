@@ -1497,24 +1497,38 @@
     var text = _text[0], setText = _text[1];
     var _email = useState("");
     var email = _email[0], setEmail = _email[1];
+    var _firstName = useState("");
+    var firstName = _firstName[0], setFirstName = _firstName[1];
+    var _lastName = useState("");
+    var lastName = _lastName[0], setLastName = _lastName[1];
+    var _phone = useState("");
+    var phone = _phone[0], setPhone = _phone[1];
     var _status = useState("idle");
     var status = _status[0], setStatus = _status[1];
 
     var emailValid = EMAIL_RE.test(email.trim());
+    var nameValid = !!firstName.trim() && !!lastName.trim();
 
     async function submit(e){
       e.preventDefault();
       var trimmed = text.trim();
       var trimmedEmail = email.trim();
+      var trimmedFirstName = firstName.trim();
+      var trimmedLastName = lastName.trim();
+      var trimmedPhone = phone.trim();
       if(!trimmed) return;
       if(!EMAIL_RE.test(trimmedEmail)){ setStatus("bademail"); return; }
+      if(!trimmedFirstName || !trimmedLastName){ setStatus("badname"); return; }
       setStatus("sending");
       try{
         var ns = await getDb();
         if(!ns){ setStatus("error"); return; }
         await ns.collection("feedback").add({
-          text: trimmed.slice(0, 800),
           email: trimmedEmail,
+          firstName: trimmedFirstName,
+          lastName: trimmedLastName,
+          phone: trimmedPhone || null,
+          text: trimmed.slice(0, 800),
           authorName: props.authorName || "anonymous",
           realm: props.doorKey || null,
           createdAt: Date.now()
@@ -1523,6 +1537,9 @@
         if(emailKey){
           ns.doc("emails/" + emailKey).set({
             email: trimmedEmail,
+            firstName: trimmedFirstName,
+            lastName: trimmedLastName,
+            phone: trimmedPhone || null,
             source: "feedback",
             lastMessageAt: Date.now()
           }).catch(function(){});
@@ -1530,6 +1547,9 @@
         trackEvent("submit_feedback", { door: props.doorKey || "unknown" });
         setText("");
         setEmail("");
+        setFirstName("");
+        setLastName("");
+        setPhone("");
         setStatus("sent");
       }catch(err){
         setStatus("error");
@@ -1560,10 +1580,28 @@
           placeholder: "Email, required / メールアドレス（必須） / 이메일 (필수)",
           value: email, onChange: function(e){ setEmail(e.target.value); if(status === "bademail") setStatus("idle"); }
         }),
-        h("button", { className:"q-btn primary bi", type:"submit", disabled: status === "sending" || !text.trim() || !emailValid },
+        h("input", {
+          className:"feedback-input", type:"text", required:true, style:{ marginTop:"8px" },
+          placeholder: "First name, required / 名（必須） / 이름 (필수)",
+          value: firstName, onChange: function(e){ setFirstName(e.target.value); if(status === "badname") setStatus("idle"); }
+        }),
+        h("input", {
+          className:"feedback-input", type:"text", required:true, style:{ marginTop:"8px" },
+          placeholder: "Last name, required / 姓（必須） / 성 (필수)",
+          value: lastName, onChange: function(e){ setLastName(e.target.value); if(status === "badname") setStatus("idle"); }
+        }),
+        h("input", {
+          className:"feedback-input", type:"tel", style:{ marginTop:"8px" },
+          placeholder: "Phone, optional / 電話番号（任意） / 전화번호 (선택 사항)",
+          value: phone, onChange: function(e){ setPhone(e.target.value); }
+        }),
+        h("button", { className:"q-btn primary bi", type:"submit", disabled: status === "sending" || !text.trim() || !emailValid || !nameValid },
           status === "sending" ? biLabel("Sending…", "送信中…", "전송 중…") : biLabel("Send", "送信", "보내기")),
         status === "bademail" ? h("p", { className:"lore-note error" },
           "Enter a valid email — it's required to send a suggestion.  ·  有効なメールアドレスを入力してください——提案の送信には必須です。  ·  유효한 이메일을 입력하세요 — 제안을 보내려면 필수입니다."
+        ) : null,
+        status === "badname" ? h("p", { className:"lore-note error" },
+          "First and last name are required.  ·  名と姓は必須です。  ·  이름과 성은 필수입니다."
         ) : null,
         status === "sent" ? h("p", { className:"lore-note" },
           "Thanks — sent to the creator.  ·  ありがとう——制作者に送信されました。  ·  감사합니다 — 제작자에게 전송되었습니다."
