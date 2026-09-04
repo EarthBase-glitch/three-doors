@@ -479,6 +479,100 @@
   .feedback-input:focus-visible{ outline:2px solid var(--threshold-glow); outline-offset:1px; }
   .feedback-form .q-btn{ margin-top:10px; width:100%; }
 
+  /* Realm chat — deliberately built as plain DOM/vanilla JS outside the
+     React tree (see the script block near the end of <body>), not a React
+     component. Desktop: a docked panel on the right side of the viewport,
+     always visible once a realm is known (no toggle needed — this app's
+     screens run roughly viewport-centered, so a right-edge, vertically
+     centered dock reads as "next to the character" across every screen,
+     not just the character page specifically). Mobile (<=760px, matching
+     the site's existing breakpoint): collapses to a small toggle tab that
+     pops out a full-screen overlay, the same pattern soul-stats-overlay
+     already uses below. */
+  .realm-chat-widget{ display:none; }
+  .realm-chat-widget.ready{ display:block; }
+
+  .realm-chat-toggle{ display:none; } /* desktop: panel is always visible, no toggle */
+
+  .realm-chat-overlay{
+    position:fixed; z-index:6;
+    top:50%; right:calc(20px + env(safe-area-inset-right));
+    transform:translateY(-50%);
+  }
+  .realm-chat-close{ display:none; } /* desktop: nothing to close */
+
+  .realm-chat-panel{
+    width:280px;
+    background:var(--void-2); border:1px solid var(--hairline); border-radius:16px;
+    padding:14px; box-shadow:0 20px 60px -20px rgba(0,0,0,0.75);
+    display:flex; flex-direction:column;
+  }
+  .realm-chat-head{
+    display:flex; align-items:center; justify-content:space-between;
+    font-family:'JetBrains Mono',ui-monospace,monospace; font-size:0.72rem; color:var(--ink-dim);
+    margin-bottom:8px;
+  }
+  .realm-chat-head .realm-name{ color:var(--realm-chat-glow,var(--ink)); text-transform:uppercase; letter-spacing:0.08em; }
+  .realm-chat-close{
+    background:none; border:none; color:var(--ink-faint); cursor:pointer;
+    font-size:1.1rem; line-height:1; padding:0 2px;
+  }
+  .realm-chat-close:hover{ color:var(--ink); }
+  .realm-chat-messages{
+    max-height:320px; overflow-y:auto; display:flex; flex-direction:column; gap:8px;
+    padding-right:2px; margin-bottom:10px;
+  }
+  .realm-chat-msg{ font-size:0.82rem; line-height:1.4; color:var(--ink); }
+  .realm-chat-msg .author{ color:var(--realm-chat-glow,var(--ink-dim)); font-weight:600; }
+  .realm-chat-msg .author::after{ content:":"; margin-right:0.35em; }
+  .realm-chat-empty{ color:var(--ink-faint); font-size:0.8rem; }
+  .realm-chat-error{ color:var(--hell-glow); font-size:0.78rem; margin:8px 0 0; }
+  .realm-chat-row{ display:flex; gap:8px; }
+  .realm-chat-text{
+    flex:1; background:var(--void-3); border:1px solid var(--hairline); border-radius:10px;
+    padding:0.5em 0.7em; color:var(--ink); font-family:'Work Sans',sans-serif; font-size:0.85rem;
+  }
+  .realm-chat-text:focus-visible{ outline:2px solid var(--realm-chat-glow,var(--threshold-glow)); outline-offset:1px; }
+  .realm-chat-send{
+    background:var(--realm-chat-glow,var(--accent)); color:#0b0810; border:none; border-radius:10px;
+    padding:0 14px; font-weight:600; cursor:pointer; font-size:0.85rem;
+  }
+  .realm-chat-send:disabled{ opacity:0.5; cursor:default; }
+
+  @media (max-width:760px){
+    /* Pop-out tab, stacked above the feedback widget so the two don't
+       collide at the bottom-right corner. */
+    .realm-chat-toggle{
+      display:block; position:fixed; z-index:6;
+      right:calc(16px + env(safe-area-inset-right));
+      bottom:calc(72px + env(safe-area-inset-bottom));
+      font-family:'JetBrains Mono',ui-monospace,monospace; font-size:0.68rem;
+      background:rgba(13,10,23,0.75); color:var(--ink-dim); border:1px solid var(--hairline);
+      border-radius:999px; padding:9px 16px; cursor:pointer;
+      transition:border-color 160ms ease, color 160ms ease, background 160ms ease;
+    }
+    .realm-chat-toggle:hover{ border-color:var(--realm-chat-glow,var(--threshold-glow)); color:var(--ink); }
+    .realm-chat-toggle .dot{
+      display:inline-block; width:7px; height:7px; border-radius:50%;
+      background:var(--realm-chat-glow,var(--threshold-glow)); margin-right:7px; vertical-align:middle;
+    }
+
+    .realm-chat-overlay{
+      position:fixed; inset:0; top:auto; right:auto; transform:none;
+      z-index:20; background:rgba(5,4,9,0.72);
+      display:none; align-items:center; justify-content:center; padding:20px;
+    }
+    .realm-chat-overlay.open{ display:flex; }
+    .realm-chat-close{ display:block; }
+    .realm-chat-panel{ width:min(90vw,320px); }
+    .realm-chat-messages{ max-height:220px; }
+  }
+  @media (max-width:480px){
+    .realm-chat-toggle{ bottom:calc(64px + env(safe-area-inset-bottom)); font-size:0.62rem; padding:8px 14px; }
+    .realm-chat-panel{ width:min(90vw,300px); padding:12px; }
+    .realm-chat-messages{ max-height:180px; }
+  }
+
   /* Hidden by default (desktop keeps the readable top realm-stats bar);
      the mobile media query below turns this on and hides that bar instead. */
   .soul-stats-btn.bi{ display:none; }
@@ -599,6 +693,7 @@
 </head>
 <body>
 <div id="root"></div>
+<div id="realm-chat" class="realm-chat-widget"></div>
 
 <script src="firebase-config.js"></script>
 <script type="module" src="firebase-adapter.js"></script>
@@ -1124,7 +1219,18 @@
       ns.doc("votes/" + accountId).set({ door: doorKey, ts: Date.now() }).catch(function(){});
     }
 
-    return { state: Object.assign({}, state, { myChoiceReady: myChoiceReady }), choose: choose };
+    // Picking a door (choose, above) only records the door itself — the
+    // realm chat script (outside this React tree, near the end of <body>)
+    // needs a separate, persisted signal for "they've actually confirmed
+    // this one," since the satisfied/escape question below is otherwise
+    // pure transient UI state with nothing written anywhere until now.
+    function confirm(){
+      var ns = dbRef.current;
+      if(!ns || !accountId) return;
+      ns.doc("votes/" + accountId).set({ confirmed: true }, { merge: true }).catch(function(){});
+    }
+
+    return { state: Object.assign({}, state, { myChoiceReady: myChoiceReady }), choose: choose, confirm: confirm };
   }
 
   function Threshold(props){
@@ -3057,9 +3163,18 @@
     function handleSignedIn(id, displayName){
       setAccount({ id: id, displayName: displayName });
       setCheckoutStatus(null);
+      // The realm chat script (outside this React tree) needs to know the
+      // moment a real sign-in happens *this session* — it deliberately
+      // doesn't read localStorage itself, since that key just pre-fills
+      // the name field and persists across visits long after any given
+      // browser tab has signed out, which isn't the same thing as "signed
+      // in right now."
+      window.dispatchEvent(new CustomEvent("doors:identity", { detail: { accountId: id, authorName: displayName } }));
     }
 
     function handleSignOut(){
+      try{ localStorage.removeItem("doors_last_handle"); }catch(e){}
+      window.dispatchEvent(new CustomEvent("doors:identity", { detail: null }));
       setAccount(null);
       setPhase("signin");
     }
@@ -3074,6 +3189,7 @@
 
     function handleSatisfied(){
       trackEvent("satisfied_choice", { door: doors.state.myChoice });
+      doors.confirm();
       setGamePhase("character");
     }
     function handleEscape(newKey){
@@ -3238,6 +3354,352 @@
   }
 
   ReactDOM.createRoot(document.getElementById("root")).render(h(App));
+})();
+</script>
+
+<!-- Realm chat: deliberately plain DOM/vanilla JS, not a React component.
+     Lives outside #root. Identity (accountId/authorName) arrives via a
+     "doors:identity" CustomEvent dispatched from handleSignedIn()/
+     handleSignOut() in the React app below — the one deliberate bridge
+     between the two, since "signed in this session" only actually exists
+     as React state (localStorage's doors_last_handle just pre-fills the
+     sign-in form and persists whether or not anyone's currently signed
+     in, so reading it directly here showed chat from stale past sessions).
+     Realm and confirmation are still read straight from Firestore
+     (votes/{accountId}), independent of React.
+
+     Ephemeral by design: messages exist only as long as their author is
+     actively present. Presence is a heartbeat doc (presence/{accountId})
+     refreshed every 15s while a realm is resolved; a message is hidden
+     from every viewer the moment its author's presence goes stale (45s
+     with no heartbeat), and is actually deleted from Firestore either by
+     a best-effort cleanup on page-hide (normal tab close/navigate away)
+     or, if that never fires (crash, force-quit, lost network), by the
+     next viewer's periodic sweep — so a message never outlives its author
+     by more than about 45s-1min even in the worst case, and disappears
+     for other viewers immediately in the normal case. -->
+<script>
+(function(){
+  "use strict";
+
+  var REALM_META = {
+    heaven: { name: "Heaven", glow: "#8fd4ff", jp: "天国", ko: "천국" },
+    earth:  { name: "Reincarnation", glow: "#7fc26a", jp: "輪廻", ko: "환생" },
+    hell:   { name: "Hell", glow: "#ff6a3d", jp: "地獄", ko: "지옥" }
+  };
+  var MAX_LEN = 300;
+  var SEND_COOLDOWN_MS = 2000;
+  var HEARTBEAT_MS = 15000;
+  var STALE_MS = 45000;
+  var SWEEP_MS = 20000;
+  var TICK_MS = 5000;
+
+  var root = document.getElementById("realm-chat");
+  if(!root) return;
+
+  var state = {
+    accountId: null,
+    authorName: "",
+    realm: null,
+    open: false,
+    messages: [],       // raw docs from Firestore for the current realm
+    presence: {},        // accountId -> lastSeen (ms) for the current realm
+    sending: false,
+    error: null,
+    lastSentAt: 0
+  };
+  var voteUnsub = null;
+  var msgUnsub = null;
+  var presenceUnsub = null;
+  var heartbeatTimer = null;
+  var sweepTimer = null;
+  var tickTimer = null;
+  var els = {};
+
+  function isPresent(accountId){
+    var seen = state.presence[accountId];
+    return !!seen && (Date.now() - seen) < STALE_MS;
+  }
+
+  function visibleMessages(){
+    return state.messages.filter(function(m){ return isPresent(m.accountId); });
+  }
+
+  function build(){
+    // .realm-chat-overlay is the panel's positioning wrapper: on desktop
+    // it's a plain fixed right-side dock (always shown, see CSS), on
+    // mobile (<=760px) it becomes a full-screen pop-out that only shows
+    // while .open is set — one DOM structure, two very different layouts
+    // driven entirely by CSS so this script doesn't need to branch on
+    // viewport size itself.
+    root.innerHTML =
+      '<button type="button" class="realm-chat-toggle bi"></button>' +
+      '<div class="realm-chat-overlay">' +
+        '<div class="realm-chat-panel">' +
+          '<div class="realm-chat-head">' +
+            '<span><span class="realm-name"></span> chat</span>' +
+            '<button type="button" class="realm-chat-close" aria-label="Close">×</button>' +
+          '</div>' +
+          '<div class="realm-chat-messages"></div>' +
+          '<div class="realm-chat-row">' +
+            '<input type="text" class="realm-chat-text" maxlength="' + MAX_LEN + '">' +
+            '<button type="button" class="realm-chat-send">Send</button>' +
+          '</div>' +
+          '<p class="realm-chat-error" hidden></p>' +
+        '</div>' +
+      '</div>';
+    els.toggle = root.querySelector(".realm-chat-toggle");
+    els.overlay = root.querySelector(".realm-chat-overlay");
+    els.realmName = root.querySelector(".realm-name");
+    els.messages = root.querySelector(".realm-chat-messages");
+    els.input = root.querySelector(".realm-chat-text");
+    els.send = root.querySelector(".realm-chat-send");
+    els.close = root.querySelector(".realm-chat-close");
+    els.error = root.querySelector(".realm-chat-error");
+
+    els.toggle.addEventListener("click", function(){ state.open = true; render(); });
+    els.close.addEventListener("click", function(){ state.open = false; render(); });
+    els.send.addEventListener("click", function(){ send(els.input.value); });
+    els.input.addEventListener("keydown", function(e){
+      if(e.key === "Enter"){ e.preventDefault(); send(els.input.value); }
+    });
+  }
+
+  function render(){
+    var meta = state.realm ? REALM_META[state.realm] : null;
+    root.classList.toggle("ready", !!state.realm);
+    if(!meta){ return; }
+
+    root.style.setProperty("--realm-chat-glow", meta.glow);
+    els.toggle.innerHTML = '<span class="dot"></span>' + meta.name + ' chat · ' + meta.jp + 'チャット · ' + meta.ko + ' 채팅';
+    // .open only affects the mobile pop-out (CSS ignores it on desktop,
+    // where the dock is always visible) — see the media query above.
+    els.overlay.classList.toggle("open", state.open);
+    els.realmName.textContent = meta.name;
+
+    var visible = visibleMessages();
+    els.messages.innerHTML = "";
+    if(visible.length === 0){
+      var empty = document.createElement("p");
+      empty.className = "realm-chat-empty";
+      empty.textContent = "No one else is here right now. · 今、他に誰もいない。· 지금 여기 아무도 없다.";
+      els.messages.appendChild(empty);
+    }else{
+      visible.forEach(function(m){
+        var row = document.createElement("div");
+        row.className = "realm-chat-msg";
+        var author = document.createElement("span");
+        author.className = "author";
+        author.textContent = m.authorName || "anonymous";
+        row.appendChild(author);
+        row.appendChild(document.createTextNode(m.text || ""));
+        els.messages.appendChild(row);
+      });
+      els.messages.scrollTop = els.messages.scrollHeight;
+    }
+
+    els.send.disabled = state.sending;
+    els.error.textContent = state.error || "";
+    els.error.hidden = !state.error;
+  }
+
+  async function send(raw){
+    var trimmed = (raw || "").trim().slice(0, MAX_LEN);
+    if(!trimmed || !state.accountId || !state.realm || !window.doorsDb) return;
+    var now = Date.now();
+    if(now - state.lastSentAt < SEND_COOLDOWN_MS) return;
+    state.lastSentAt = now;
+    state.sending = true;
+    render();
+    try{
+      await window.doorsDb.collection("chatmessages").add({
+        realm: state.realm,
+        accountId: state.accountId,
+        authorName: state.authorName || "anonymous",
+        text: trimmed,
+        createdAt: now
+      });
+      els.input.value = "";
+      state.error = null;
+      // Sending counts as presence too — no reason to wait for the next
+      // heartbeat tick just because someone spoke right after loading.
+      touchPresence();
+    }catch(e){
+      // Most likely cause during setup: Firestore rules haven't been
+      // published for chatmessages/presence yet (permission-denied).
+      state.error = "Couldn't send — try again. · 送信できませんでした。";
+    }
+    state.sending = false;
+    render();
+  }
+
+  function touchPresence(){
+    if(!state.accountId || !state.realm || !window.doorsDb) return;
+    window.doorsDb.doc("presence/" + state.accountId).set({
+      realm: state.realm,
+      lastSeen: Date.now()
+    }).catch(function(){});
+  }
+
+  function startHeartbeat(){
+    stopHeartbeat();
+    touchPresence();
+    heartbeatTimer = setInterval(touchPresence, HEARTBEAT_MS);
+  }
+  function stopHeartbeat(){
+    if(heartbeatTimer){ clearInterval(heartbeatTimer); heartbeatTimer = null; }
+  }
+
+  // Best-effort: deletes this visitor's own presence + messages when they
+  // leave normally (tab close, navigate away, switch tabs for a while).
+  // pagehide fires far more reliably than beforeunload, including in
+  // mobile Safari's back-forward cache — but no browser guarantees an
+  // async network call finishes after this fires, so a hard crash or a
+  // killed process can still leave the doc behind for the sweep to catch.
+  function cleanupOnLeave(){
+    if(!state.accountId || !window.doorsDb) return;
+    window.doorsDb.doc("presence/" + state.accountId).delete().catch(function(){});
+    window.doorsDb.collection("chatmessages")
+      .where("accountId", "==", state.accountId)
+      .get()
+      .then(function(snap){
+        snap.docs.forEach(function(d){
+          window.doorsDb.doc("chatmessages/" + d.id).delete().catch(function(){});
+        });
+      })
+      .catch(function(){});
+  }
+  window.addEventListener("pagehide", cleanupOnLeave);
+  document.addEventListener("visibilitychange", function(){
+    if(document.visibilityState === "hidden"){ cleanupOnLeave(); }
+  });
+
+  // Runs on whichever clients happen to be viewing a realm's chat — deletes
+  // messages (and stale presence docs) belonging to authors who've gone
+  // quiet for longer than STALE_MS, so an ungracefully-closed tab's words
+  // don't linger in the database forever even though no one ever sees them
+  // past the presence filter above. Harmless if two clients both sweep the
+  // same doc — deleting an already-deleted doc is a no-op.
+  function sweepStale(){
+    if(!state.realm || !window.doorsDb) return;
+    var now = Date.now();
+    var seenAccounts = {};
+    state.messages.forEach(function(m){
+      if(m.accountId) seenAccounts[m.accountId] = true;
+    });
+    Object.keys(state.presence).forEach(function(id){ seenAccounts[id] = true; });
+    Object.keys(seenAccounts).forEach(function(id){
+      var lastSeen = state.presence[id];
+      var stale = !lastSeen || (now - lastSeen) >= STALE_MS;
+      if(!stale) return;
+      window.doorsDb.doc("presence/" + id).delete().catch(function(){});
+      window.doorsDb.collection("chatmessages")
+        .where("accountId", "==", id)
+        .get()
+        .then(function(snap){
+          snap.docs.forEach(function(d){
+            window.doorsDb.doc("chatmessages/" + d.id).delete().catch(function(){});
+          });
+        })
+        .catch(function(){});
+    });
+  }
+
+  function attachMessages(){
+    if(msgUnsub){ msgUnsub(); msgUnsub = null; }
+    state.messages = [];
+    if(!state.realm || !window.doorsDb){ render(); return; }
+    // Sorted client-side rather than via .orderBy("createdAt") specifically
+    // to avoid needing a Firestore composite index (realm ==, createdAt
+    // order-by on two different fields needs one, and it doesn't exist —
+    // this query would otherwise fail outright). No real downside here:
+    // this collection stays small since messages are ephemeral.
+    msgUnsub = window.doorsDb.collection("chatmessages")
+      .where("realm", "==", state.realm)
+      .onSnapshot(function(snap){
+        var docs = snap.docs.map(function(d){ return d.data(); });
+        docs.sort(function(a,b){ return (a.createdAt||0) - (b.createdAt||0); });
+        state.messages = docs.slice(-50);
+        state.error = null;
+        render();
+      }, function(){
+        state.error = "Chat isn't loading — check Firestore rules are published. · Firestoreのルールが公開されているか確認してください。";
+        render();
+      });
+  }
+
+  function attachPresence(){
+    if(presenceUnsub){ presenceUnsub(); presenceUnsub = null; }
+    state.presence = {};
+    if(!state.realm || !window.doorsDb){ return; }
+    presenceUnsub = window.doorsDb.collection("presence")
+      .where("realm", "==", state.realm)
+      .onSnapshot(function(snap){
+        var next = {};
+        snap.docs.forEach(function(d){
+          var data = d.data();
+          next[d.id] = data.lastSeen || 0;
+        });
+        state.presence = next;
+        render();
+      }, function(){
+        state.error = "Chat isn't loading — check Firestore rules are published. · Firestoreのルールが公開されているか確認してください。";
+        render();
+      });
+  }
+
+  function attachVote(){
+    if(voteUnsub){ voteUnsub(); voteUnsub = null; }
+    if(!state.accountId || !window.doorsDb) return;
+    voteUnsub = window.doorsDb.doc("votes/" + state.accountId).onSnapshot(function(snap){
+      var data = snap.data();
+      // Gated on confirmed, not just door — a door pick alone just means
+      // they're looking at the "are you satisfied?" question, written by
+      // doors.confirm() in the React app only once they answer yes.
+      var door = (data && data.confirmed === true) ? data.door : null;
+      if(door !== state.realm){
+        state.realm = door || null;
+        attachMessages();
+        attachPresence();
+        if(state.realm){ startHeartbeat(); } else { stopHeartbeat(); }
+        render();
+      }
+    });
+  }
+
+  // Identity comes from an explicit "doors:identity" event dispatched by
+  // the React app's handleSignedIn()/handleSignOut() — not from polling
+  // localStorage. localStorage's doors_last_handle just pre-fills the sign
+  // in form's name field and persists across visits regardless of whether
+  // anyone is actually signed in right now, so reading it directly here
+  // was showing chat based on stale data from a past session rather than
+  // this one actually being signed in.
+  function onIdentityChange(e){
+    var detail = e.detail;
+    var id = (detail && detail.accountId) || null;
+    if(id === state.accountId) return;
+    // Switching identity mid-session (e.g. someone signs into a different
+    // name in the same tab) — leave the old identity's presence/messages
+    // behind cleanly before adopting the new one.
+    cleanupOnLeave();
+    stopHeartbeat();
+    state.accountId = id;
+    state.authorName = (detail && detail.authorName) || "";
+    state.realm = null;
+    if(voteUnsub){ voteUnsub(); voteUnsub = null; }
+    if(msgUnsub){ msgUnsub(); msgUnsub = null; }
+    if(presenceUnsub){ presenceUnsub(); presenceUnsub = null; }
+    render();
+    if(!id) return;
+    if(window.doorsDb) attachVote();
+    else window.addEventListener("doorsFirebaseReady", attachVote, { once:true });
+  }
+  window.addEventListener("doors:identity", onIdentityChange);
+
+  build();
+  render();
+  sweepTimer = setInterval(sweepStale, SWEEP_MS);
+  tickTimer = setInterval(render, TICK_MS); // ages out stale authors in the UI even with no new snapshot
 })();
 </script>
 </body>
