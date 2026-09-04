@@ -240,7 +240,9 @@ void updateMarkerCaption() {
       if (g_captionMarkerIdx != (int)i) {
         g_captionMarkerIdx = (int)i;
         g_caption = g_map.markers[i].text;
-        EM_ASM({ if (Module.onExploreCaption) Module.onExploreCaption(UTF8ToString($0)); }, g_caption.c_str());
+        // Second arg is the marker index — the JS side uses it to know
+        // which of the three per-realm "Enter game" 3D scenes to load.
+        EM_ASM({ if (Module.onExploreCaption) Module.onExploreCaption(UTF8ToString($0), $1); }, g_caption.c_str(), (int)i);
       }
       return;
     }
@@ -248,7 +250,7 @@ void updateMarkerCaption() {
   if (g_captionMarkerIdx != -1) {
     g_captionMarkerIdx = -1;
     g_caption.clear();
-    EM_ASM({ if (Module.onExploreCaption) Module.onExploreCaption(""); });
+    EM_ASM({ if (Module.onExploreCaption) Module.onExploreCaption("", -1); });
   }
 }
 
