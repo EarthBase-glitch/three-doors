@@ -43,8 +43,11 @@
   .approve{ background:var(--ok); color:#0b120a; }
   .reject{ background:var(--bad); color:#1a0705; }
   .empty{ color:var(--ink-faint); font-size:0.9rem; }
-  .dismiss{ background:none; border:1px solid var(--hairline); color:var(--ink-dim); }
+  .dismiss{ background:none; border:1px solid var(--hairline); color:var(--ink-dim); cursor:pointer; padding:0.6em 1.2em; border-radius:999px; font-size:0.85rem; }
   section + section{ margin-top:36px; }
+  #mailing-list table{ width:100%; border-collapse:collapse; font-size:0.85rem; }
+  #mailing-list th{ text-align:left; color:var(--ink-faint); font-size:0.72rem; text-transform:uppercase; letter-spacing:0.06em; padding:6px 10px; border-bottom:1px solid var(--hairline); }
+  #mailing-list td{ padding:8px 10px; border-bottom:1px solid var(--hairline); }
 </style>
 </head>
 <body>
@@ -73,6 +76,12 @@
       <p class="sub" id="feedback-count"></p>
       <div id="feedback-list"></div>
     </section>
+    <section>
+      <h1>Mailing list</h1>
+      <p class="sub" id="mailing-count"></p>
+      <button id="export-csv" class="dismiss" style="margin-bottom:14px;">Download CSV</button>
+      <div id="mailing-list"></div>
+    </section>
   </div>
 
   <script src="firebase-config.js"></script>
@@ -88,8 +97,13 @@
       var countEl = document.getElementById("count");
       var feedbackListEl = document.getElementById("feedback-list");
       var feedbackCountEl = document.getElementById("feedback-count");
+      var mailingListEl = document.getElementById("mailing-list");
+      var mailingCountEl = document.getElementById("mailing-count");
+      var exportBtn = document.getElementById("export-csv");
       var unsub = null;
       var feedbackUnsub = null;
+      var mailingUnsub = null;
+      var mailingRows = [];
 
       window.doorsAuth.onChange(function(user){
         if(user){
@@ -97,11 +111,13 @@
           appEl.style.display = "block";
           subscribe();
           subscribeFeedback();
+          subscribeMailingList();
         }else{
           signinEl.style.display = "block";
           appEl.style.display = "none";
           if(unsub){ unsub(); unsub = null; }
           if(feedbackUnsub){ feedbackUnsub(); feedbackUnsub = null; }
+          if(mailingUnsub){ mailingUnsub(); mailingUnsub = null; }
         }
       });
 
@@ -208,10 +224,12 @@
           var textEl = document.createElement("p");
           textEl.textContent = data.text || "";
 
+          var fullName = [data.firstName, data.lastName].filter(Boolean).join(" ");
           var metaEl = document.createElement("div");
           metaEl.className = "meta";
-          metaEl.textContent = "from " + (data.authorName || "anonymous") +
+          metaEl.textContent = "from " + (fullName || data.authorName || "anonymous") +
             (data.email ? " · " + data.email : "") +
+            (data.phone ? " · " + data.phone : "") +
             (when ? " · " + when : "");
 
           var rowEl = document.createElement("div");
@@ -233,6 +251,66 @@
           feedbackListEl.appendChild(card);
         });
       }
+
+      function subscribeMailingList(){
+        mailingUnsub = window.doorsDb.collection("emails")
+          .onSnapshot(function(snap){ renderMailingList(snap.docs); });
+      }
+
+      function csvCell(value){
+        var s = (value == null ? "" : String(value));
+        if(/[",\n]/.test(s)){ s = '"' + s.replace(/"/g, '""') + '"'; }
+        return s;
+      }
+
+      function renderMailingList(docs){
+        docs.sort(function(a,b){ return (b.data().lastMessageAt||0) - (a.data().lastMessageAt||0); });
+        mailingRows = docs.map(function(d){ return d.data(); });
+
+        mailingCountEl.textContent = mailingRows.length + (mailingRows.length === 1 ? " contact." : " contacts.");
+        exportBtn.disabled = mailingRows.length === 0;
+
+        if(mailingRows.length === 0){
+          mailingListEl.innerHTML = '<p class="empty">No contacts yet.</p>';
+          return;
+        }
+
+        var table = document.createElement("table");
+        var thead = document.createElement("thead");
+        thead.innerHTML = "<tr><th>Email</th><th>First name</th><th>Last name</th><th>Phone</th></tr>";
+        var tbody = document.createElement("tbody");
+        mailingRows.forEach(function(row){
+          var tr = document.createElement("tr");
+          [row.email, row.firstName, row.lastName, row.phone].forEach(function(val){
+            var td = document.createElement("td");
+            td.textContent = val || "";
+            tr.appendChild(td);
+          });
+          tbody.appendChild(tr);
+        });
+        table.appendChild(thead);
+        table.appendChild(tbody);
+        mailingListEl.innerHTML = "";
+        mailingListEl.appendChild(table);
+      }
+
+      exportBtn.addEventListener("click", function(){
+        var header = ["Email", "First Name", "Last Name", "Phone"];
+        var lines = [header.map(csvCell).join(",")];
+        mailingRows.forEach(function(row){
+          lines.push([row.email, row.firstName, row.lastName, row.phone].map(csvCell).join(","));
+        });
+        var csv = lines.join("\r\n");
+        var blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement("a");
+        a.href = url;
+        a.download = "three-doors-mailing-list-" + new Date().toISOString().slice(0,10) + ".csv";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      });
     }
 
     if(window.doorsAuth){ ready(); }
