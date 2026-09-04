@@ -387,6 +387,12 @@
     border:1px solid var(--hairline); background:#000; aspect-ratio:20/14;
   }
   .explore-stage canvas{ display:block; width:100%; height:100%; image-rendering:pixelated; outline:none; }
+  .explore3d-stage{
+    margin-top:20px; position:relative; width:100%; max-width:480px; border-radius:16px; overflow:hidden;
+    border:1px solid var(--hairline); background:#000; aspect-ratio:20/14; touch-action:none;
+  }
+  .explore3d-stage canvas{ display:block; width:100%; height:100%; outline:none; cursor:grab; }
+  .explore3d-stage canvas:active{ cursor:grabbing; }
   .explore-hint{
     position:absolute; left:0; right:0; top:0; padding:8px 12px; font-family:'JetBrains Mono',ui-monospace,monospace;
     font-size:0.66rem; letter-spacing:0.08em; color:var(--ink-faint); background:linear-gradient(180deg, rgba(0,0,0,0.55), transparent);
@@ -398,6 +404,13 @@
     transition:opacity 220ms ease, transform 220ms ease; pointer-events:none;
   }
   .explore-caption.show{ opacity:1; transform:translateY(0); }
+  .enter-game-btn{
+    appearance:none; margin-top:8px; padding:0.5em 1em; border-radius:999px; border:1px solid rgba(255,255,255,0.35);
+    background:rgba(255,255,255,0.12); color:var(--ink); font-family:'Work Sans',sans-serif; font-size:0.82rem;
+    cursor:pointer; pointer-events:auto; line-height:1.25;
+  }
+  .enter-game-btn:hover{ background:rgba(255,255,255,0.22); }
+  .enter-game-btn .btn-sub{ display:block; font-size:0.72em; opacity:0.75; font-weight:400; }
   .explore-loading{
     position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
     background:#000; color:var(--ink-faint); font-size:0.82rem;
@@ -1989,6 +2002,8 @@
     var moduleRef = useRef(null);
     var _caption = useState("");
     var caption = _caption[0], setCaption = _caption[1];
+    var _markerIdx = useState(-1);
+    var markerIdx = _markerIdx[0], setMarkerIdx = _markerIdx[1];
     var _loading = useState(true);
     var loading = _loading[0], setLoading = _loading[1];
     var _err = useState(false);
@@ -1999,14 +2014,17 @@
       setLoading(true);
       setErr(false);
       setCaption("");
+      setMarkerIdx(-1);
       loadExploreScript().then(function(ExploreModule){
         if(cancelled) return null;
         return ExploreModule({ canvas: canvasRef.current });
       }).then(function(mod){
         if(cancelled || !mod) return;
         moduleRef.current = mod;
-        mod.onExploreCaption = function(text){
-          if(!cancelled) setCaption(text || "");
+        mod.onExploreCaption = function(text, idx){
+          if(cancelled) return;
+          setCaption(text || "");
+          setMarkerIdx(typeof idx === "number" ? idx : -1);
         };
         mod.ccall("explore_start", null, ["string"], [props.doorKey]);
         setLoading(false);
@@ -2058,7 +2076,13 @@
         h("canvas", { id:"explore-canvas", ref:canvasRef, width:320, height:224, tabIndex:0 }),
         loading ? h("div", { className:"explore-loading" }, "Loading…  ·  読み込み中…  ·  로딩 중…") : null,
         !loading ? h("div", { className:"explore-hint" }, "WASD / arrow keys to move  ·  WASD／矢印キーで移動  ·  WASD·화살표 키로 이동") : null,
-        h("div", { className:"explore-caption" + (caption ? " show" : "") }, caption),
+        h("div", { className:"explore-caption" + (caption ? " show" : "") },
+          h("div", null, caption),
+          markerIdx !== -1 ? h("button", {
+            type:"button", className:"enter-game-btn",
+            onClick: function(){ props.onEnterGame(markerIdx); }
+          }, biLabel("Enter game →", "ゲームに入る →", "게임 입장 →")) : null
+        ),
         !loading ? h("div", { className:"explore-dpad" },
           dpadButton("up", 2, "▲"),
           dpadButton("left", 0, "◀"),
@@ -2071,6 +2095,617 @@
       ) : null,
       h("div", { className:"q-actions", style:{ marginTop:"18px" } },
         h("button", { className:"q-btn ghost bi", type:"button", onClick: props.onBack }, biLabel("Back", "戻る", "뒤로"))
+      )
+    );
+  }
+
+  // three.js, loaded once and cached the same way loadExploreScript()
+  // caches the wasm glue — a plain UMD build (global THREE), no bundler
+  // needed. Pinned to r128: old enough to be stable/well-documented,
+  // new enough to have everything these scenes use.
+  var threeScriptPromise = null;
+  function loadThreeScript(){
+    if(threeScriptPromise) return threeScriptPromise;
+    threeScriptPromise = new Promise(function(resolve, reject){
+      if(window.THREE){ resolve(window.THREE); return; }
+      var s = document.createElement("script");
+      s.src = "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js";
+      s.onload = function(){ window.THREE ? resolve(window.THREE) : reject(new Error("THREE missing")); };
+      s.onerror = function(){ reject(new Error("three.js failed to load")); };
+      document.head.appendChild(s);
+    });
+    return threeScriptPromise;
+  }
+
+  // One small 3D scene per marker (9 total: 3 per realm), reached via
+  // "Enter game" on the 2D Explore screen's caption. Each config is
+  // hand-placed the same way the 2D maps' walls/markers are — a handful
+  // of props plus a particle style — so one renderer (buildScene3D /
+  // Explore3DScreen below) can serve all nine just from data.
+  var ROOM_SIZE = 9;    // half-width of the walkable floor, world units
+  var ROOM_HEIGHT = 6;  // ceiling used only as the particle wrap height
+
+  var SCENE3D = {
+    "heaven:0": { // "The light here doesn't cast a shadow."
+      sky:0xeef9ff, fog:0xdceffa, fogNear:4, fogFar:20, floor:0xcfe9f5,
+      ambient:0xffffff, ambientI:1.25, point:0xffffff, pointI:0.15,
+      spawnZ:6, mysterySpot:{x:0, y:1.4, z:-1},
+      props:[
+        {type:"cylinder", x:-4,y:1.5,z:-4, sx:0.5,sy:3,sz:0.5, color:0xbfeaff},
+        {type:"cylinder", x:4,y:1.5,z:-4, sx:0.5,sy:3,sz:0.5, color:0xbfeaff},
+        {type:"cylinder", x:-4,y:1.5,z:4, sx:0.5,sy:3,sz:0.5, color:0xbfeaff},
+        {type:"cylinder", x:4,y:1.5,z:4, sx:0.5,sy:3,sz:0.5, color:0xbfeaff},
+        {type:"cylinder", x:0,y:1.2,z:-7, sx:0.4,sy:2.4,sz:0.4, color:0xeef9ff}
+      ],
+      particle:{ color:0xffffff, count:60, size:0.06, opacity:0.55, vy:0.15, jitter:0.5, jitterY:0.2, rise:false }
+    },
+    "heaven:1": { // "A name you almost remember, just out of reach."
+      sky:0x0d1b2a, fog:0x0d1b2a, fogNear:2, fogFar:11, floor:0x14283a,
+      ambient:0x8fb4d9, ambientI:0.5, point:0xbfeaff, pointI:0.4,
+      spawnZ:5, mysterySpot:{x:0.5, y:1.0, z:-4},
+      props:[
+        {type:"sphere", x:-2,y:1.8,z:-3, sx:0.6,sy:0.6,sz:0.6, color:0xeef9ff, emissive:0x335566},
+        {type:"sphere", x:2.5,y:1.2,z:-5, sx:0.4,sy:0.4,sz:0.4, color:0xbfeaff, emissive:0x223344},
+        {type:"sphere", x:0,y:2.2,z:-8.5, sx:0.9,sy:0.9,sz:0.9, color:0xffffff, emissive:0x557799}
+      ],
+      particle:{ color:0xbfeaff, count:40, size:0.05, opacity:0.5, vy:0.1, jitter:0.4, jitterY:0.15, rise:false }
+    },
+    "heaven:2": { // "Something up here is still being built."
+      // Built from a pass of research across world afterlife myth (Elysium,
+      // Jannah, Svarga, Aaru, the Pure Land...) — the recurring images were
+      // light, a garden-or-city "paradise perfected," and standing above
+      // the clouds. This scene stages that as a real 19th-century painting
+      // of heaven (John Martin's "The Plains of Heaven," public domain —
+      // see textures/heaven/CREDITS.md) glimpsed through an unfinished
+      // wireframe gate, standing on a cloud-photo floor: the finished
+      // vision, framed by the thing still being built in front of it.
+      sky:0xcdd8de, fog:0xcdd8de, fogNear:9, fogFar:26, floor:0xb9c6cd,
+      floorTexture:"game/textures/heaven/clouds-sky.jpg", floorRepeat:3,
+      ambient:0xffffff, ambientI:1.0, point:0xffffff, pointI:0.25,
+      spawnZ:7, mysterySpot:{x:0, y:0.9, z:-2},
+      backdrop:{ url:"game/textures/heaven/plains-of-heaven.jpg", x:0, y:5.2, z:-15, width:22, height:14.1 },
+      props:[
+        // The unfinished gate: two wireframe pillars and a crossbeam,
+        // framing the backdrop rather than blocking it.
+        {type:"box", x:-4.2,y:2,z:-4, sx:0.6,sy:4,sz:0.6, color:0xeef9ff, wireframe:true},
+        {type:"box", x:4.2,y:2,z:-4, sx:0.6,sy:4,sz:0.6, color:0xeef9ff, wireframe:true},
+        {type:"box", x:0,y:4,z:-4, sx:9,sy:0.6,sz:0.6, color:0xeef9ff, wireframe:true},
+        // A half-set platform stone and a stray support, like scaffolding
+        // left mid-job.
+        {type:"box", x:2.6,y:0.3,z:-1.5, sx:1.8,sy:0.6,sz:1.8, color:0xbfeaff},
+        {type:"cylinder", x:-2.4,y:0.6,z:-1, sx:0.18,sy:1.2,sz:0.18, color:0x8fa5ad}
+      ],
+      particle:{ color:0xffffff, count:34, size:0.05, opacity:0.45, vy:0.12, jitter:0.35, jitterY:0.1, rise:false }
+    },
+    "earth:0": { // soil dug up
+      sky:0x162213, fog:0x162213, fogNear:4, fogFar:18, floor:0x2a3f1f,
+      ambient:0xbfd9a0, ambientI:0.6, point:0xc7f0b8, pointI:0.3,
+      spawnZ:6, mysterySpot:{x:1.8, y:0.3, z:-1},
+      props:[
+        {type:"cone", x:0,y:0.6,z:-3, sx:1.6,sy:1.2,sz:1.6, color:0x3a2a18},
+        {type:"cylinder", x:0,y:0.02,z:-3, sx:1.9,sy:0.05,sz:1.9, color:0x0e0a06},
+        {type:"cylinder", x:1.2,y:0.4,z:-2, sx:0.15,sy:1.4,sz:0.15, color:0x2c1c10, ry:0.6},
+        {type:"cylinder", x:-1,y:0.3,z:-2.4, sx:0.12,sy:1,sz:0.12, color:0x2c1c10, ry:-0.4}
+      ],
+      particle:{ color:0xc7f0b8, count:30, size:0.05, opacity:0.4, vy:-0.3, jitter:0.6, jitterY:0.1, rise:false }
+    },
+    "earth:1": { // the mismatched row
+      sky:0x1b2a15, fog:0x1b2a15, fogNear:5, fogFar:20, floor:0x24361c,
+      ambient:0xbfd9a0, ambientI:0.7, point:0xc7f0b8, pointI:0.2,
+      spawnZ:7, mysterySpot:{x:0, y:0.4, z:-4},
+      props:(function(){
+        var arr = [];
+        for(var row=0; row<3; row++){
+          for(var col=0; col<3; col++){
+            var mismatched = row === 1;
+            arr.push({
+              type:"cone", x:(col-1)*2.4, y:0.5, z:-2-row*2.2,
+              sx:0.5,sy:1,sz:0.5,
+              color: mismatched ? 0xe0b060 : 0x6fae52
+            });
+          }
+        }
+        return arr;
+      })(),
+      particle:{ color:0xc7f0b8, count:26, size:0.05, opacity:0.4, vy:-0.2, jitter:0.5, jitterY:0.1, rise:false }
+    },
+    "earth:2": { // footprints, one direction
+      sky:0x1f2c18, fog:0x1f2c18, fogNear:3, fogFar:12, floor:0x2a3a1f,
+      ambient:0xbfd9a0, ambientI:0.55, point:0xc7f0b8, pointI:0.2,
+      spawnZ:7, mysterySpot:{x:0, y:0.3, z:1},
+      props:(function(){
+        var arr = [];
+        for(var i=0; i<7; i++){
+          arr.push({ type:"cylinder", x:(i%2===0?-0.3:0.3), y:0.01, z:5-i*2, sx:0.35,sy:0.02,sz:0.55, color:0x18240f });
+        }
+        return arr;
+      })(),
+      particle:{ color:0xc7f0b8, count:20, size:0.04, opacity:0.35, vy:-0.15, jitter:0.4, jitterY:0.1, rise:false }
+    },
+    "hell:0": { // fire quieter in the corners — that's aim
+      sky:0x1a0704, fog:0x1a0704, fogNear:3, fogFar:16, floor:0x2a0d08,
+      ambient:0x5a2015, ambientI:0.35, point:0xff8a3d, pointI:0.25,
+      spawnZ:6, mysterySpot:{x:0, y:0.5, z:0},
+      props:[
+        {type:"cone", x:-6,y:0.6,z:-6, sx:0.4,sy:1.2,sz:0.4, color:0xff6a3d, emissive:0x992200},
+        {type:"cone", x:6,y:0.6,z:-6, sx:0.4,sy:1.2,sz:0.4, color:0xff6a3d, emissive:0x992200},
+        {type:"cone", x:-6,y:0.6,z:6, sx:0.4,sy:1.2,sz:0.4, color:0xff6a3d, emissive:0x992200},
+        {type:"cone", x:6,y:0.6,z:6, sx:0.4,sy:1.2,sz:0.4, color:0xff6a3d, emissive:0x992200}
+      ],
+      particle:{ color:0xff8a3d, count:50, size:0.06, opacity:0.7, vy:0.9, jitter:0.6, jitterY:0.3, rise:true, corners:true }
+    },
+    "hell:1": { // scratched into the wall, then burned away
+      sky:0x220a06, fog:0x220a06, fogNear:3, fogFar:14, floor:0x33110a,
+      ambient:0x7a3020, ambientI:0.4, point:0xffb488, pointI:0.3,
+      spawnZ:5, mysterySpot:{x:0, y:1.2, z:-4.5},
+      props:(function(){
+        var arr = [
+          {type:"box", x:0,y:2,z:-6, sx:8,sy:4,sz:0.3, color:0x3a140d},
+          {type:"box", x:0.5,y:2.2,z:-5.8, sx:3,sy:2.4,sz:0.15, color:0x140503}
+        ];
+        var jag = [[-1.6,2.6],[-1.1,2.1],[-1.6,1.7],[-0.9,1.4],[-1.4,0.9]];
+        for(var i=0;i<jag.length;i++){
+          arr.push({ type:"box", x:jag[i][0], y:jag[i][1], z:-5.75, sx:0.55,sy:0.08,sz:0.05, color:0xffb488, emissive:0x552200, ry:(i%2?0.3:-0.3) });
+        }
+        return arr;
+      })(),
+      particle:{ color:0xff8a3d, count:24, size:0.05, opacity:0.5, vy:0.5, jitter:0.4, jitterY:0.2, rise:true }
+    },
+    "hell:2": { // a voice that stops when you turn toward it
+      sky:0x1a0a06, fog:0x1a0a06, fogNear:2, fogFar:13, floor:0x2a100a,
+      ambient:0x6a2818, ambientI:0.35, point:0xffb488, pointI:0.2,
+      spawnZ:0, mysterySpot:{x:0, y:0.8, z:-1},
+      props:[
+        {type:"sphere", x:0,y:1.4,z:6.5, sx:0.35,sy:0.35,sz:0.35, color:0xffe0c0, emissive:0x663311},
+        {type:"box", x:-3,y:1,z:-2, sx:1,sy:2,sz:1, color:0x3a140d},
+        {type:"box", x:3,y:1,z:-3, sx:1,sy:2,sz:1, color:0x3a140d}
+      ],
+      particle:{ color:0xff8a3d, count:34, size:0.05, opacity:0.55, vy:0.6, jitter:0.5, jitterY:0.25, rise:true }
+    }
+  };
+
+  function sceneKeyFor(doorKey, markerIdx){ return doorKey + ":" + markerIdx; }
+
+  // "The room isn't the same twice" — every 3D scene shifts with the
+  // visitor's local clock (mood/lighting, four phases a day) and with
+  // the calendar date (one small "mystery" object, picked the same way
+  // DAILY_TASKS rotates — see dayOfYear() above). Nothing here is driven
+  // by the player; it's deliberately outside their control, so the only
+  // way to know what a scene looks like right now is to come look.
+  var TIME_PHASES = {
+    dawn:  { ambientMul:0.85, fogMul:0.85, tint:0xffb46a, tintAmt:0.16, particleMul:1.1 },
+    day:   { ambientMul:1.0,  fogMul:1.0,  tint:0xffffff, tintAmt:0,    particleMul:1.0 },
+    dusk:  { ambientMul:0.7,  fogMul:0.8,  tint:0xff8a4a, tintAmt:0.22, particleMul:1.15 },
+    night: { ambientMul:0.4,  fogMul:0.55, tint:0x33507a, tintAmt:0.35, particleMul:1.3 }
+  };
+  function getTimePhase(){
+    var h = new Date().getHours();
+    if(h >= 5 && h < 8) return "dawn";
+    if(h >= 8 && h < 17) return "day";
+    if(h >= 17 && h < 20) return "dusk";
+    return "night";
+  }
+  function tintColor(hex, tintHex, amount){
+    if(!amount) return hex;
+    var r1=(hex>>16)&255, g1=(hex>>8)&255, b1=hex&255;
+    var r2=(tintHex>>16)&255, g2=(tintHex>>8)&255, b2=tintHex&255;
+    var r=Math.round(r1+(r2-r1)*amount), g=Math.round(g1+(g2-g1)*amount), b=Math.round(b1+(b2-b1)*amount);
+    return (r<<16)|(g<<8)|b;
+  }
+
+  // Sacred-geometry symbols, not generic shapes — a rotation of four
+  // recognizable ones, built from primitives (no external assets), all
+  // lying flat in the XY plane so they face the spawn point by default.
+  // Tinted per-scene (see cfg.point below) rather than hand-colored, so
+  // they read as belonging to whichever room they're in.
+  function cylinderBetween(THREE, mat, ax, ay, bx, by, radius){
+    var dx = bx - ax, dy = by - ay, len = Math.sqrt(dx*dx + dy*dy) || 0.001;
+    var cyl = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, len, 6), mat);
+    cyl.position.set((ax + bx) / 2, (ay + by) / 2, 0);
+    cyl.rotation.z = Math.atan2(-dx, dy);
+    return cyl;
+  }
+
+  function buildFlowerOfLife(THREE, color){
+    var group = new THREE.Group();
+    var mat = new THREE.MeshStandardMaterial({ color:color, emissive:color, emissiveIntensity:0.5 });
+    var r = 0.16;
+    var centers = [[0, 0]];
+    for(var i = 0; i < 6; i++){
+      var a = i * Math.PI / 3;
+      centers.push([Math.cos(a) * r, Math.sin(a) * r]);
+    }
+    centers.forEach(function(c){
+      var ring = new THREE.Mesh(new THREE.TorusGeometry(r, 0.008, 8, 40), mat);
+      ring.position.set(c[0], c[1], 0);
+      group.add(ring);
+    });
+    return group;
+  }
+
+  function buildTreeOfLife(THREE, color){
+    var group = new THREE.Group();
+    var mat = new THREE.MeshStandardMaterial({ color:color, emissive:color, emissiveIntensity:0.5 });
+    var s = 0.09;
+    var nodes = {
+      keter:[0,4], chokmah:[1,3.3], binah:[-1,3.3], chesed:[1,2], gevurah:[-1,2],
+      tiferet:[0,1.3], netzach:[1,0.3], hod:[-1,0.3], yesod:[0,-0.4], malkuth:[0,-1.5]
+    };
+    var edges = [
+      ["keter","chokmah"],["keter","binah"],["keter","tiferet"],
+      ["chokmah","binah"],["chokmah","tiferet"],["chokmah","chesed"],
+      ["binah","tiferet"],["binah","gevurah"],
+      ["chesed","gevurah"],["chesed","tiferet"],["chesed","netzach"],
+      ["gevurah","tiferet"],["gevurah","hod"],
+      ["tiferet","netzach"],["tiferet","hod"],["tiferet","yesod"],
+      ["netzach","hod"],["netzach","yesod"],["hod","yesod"],
+      ["yesod","malkuth"]
+    ];
+    var nodeGeo = new THREE.SphereGeometry(0.05, 12, 10);
+    var pos = {};
+    Object.keys(nodes).forEach(function(k){
+      var p = nodes[k];
+      pos[k] = [p[0] * s, p[1] * s];
+      var m = new THREE.Mesh(nodeGeo, mat);
+      m.position.set(pos[k][0], pos[k][1], 0);
+      group.add(m);
+    });
+    edges.forEach(function(e){
+      var a = pos[e[0]], b = pos[e[1]];
+      group.add(cylinderBetween(THREE, mat, a[0], a[1], b[0], b[1], 0.007));
+    });
+    return group;
+  }
+
+  function buildMerkaba(THREE, color){
+    var group = new THREE.Group();
+    var mat = new THREE.MeshStandardMaterial({ color:color, emissive:color, emissiveIntensity:0.5, wireframe:true });
+    var geo = new THREE.TetrahedronGeometry(0.26);
+    var t1 = new THREE.Mesh(geo, mat);
+    var t2 = new THREE.Mesh(geo, mat);
+    t2.rotation.x = Math.PI;
+    group.add(t1, t2);
+    return group;
+  }
+
+  function buildMetatronsCube(THREE, color){
+    var group = new THREE.Group();
+    var mat = new THREE.MeshStandardMaterial({ color:color, emissive:color, emissiveIntensity:0.5 });
+    var r = 0.22;
+    var pts = [[0, 0]];
+    for(var i = 0; i < 6; i++){
+      var a = i * Math.PI / 3;
+      pts.push([Math.cos(a) * r, Math.sin(a) * r]);
+    }
+    var nodeGeo = new THREE.SphereGeometry(0.028, 10, 8);
+    pts.forEach(function(p){
+      var m = new THREE.Mesh(nodeGeo, mat);
+      m.position.set(p[0], p[1], 0);
+      group.add(m);
+    });
+    for(var i2 = 0; i2 < pts.length; i2++){
+      for(var j = i2 + 1; j < pts.length; j++){
+        group.add(cylinderBetween(THREE, mat, pts[i2][0], pts[i2][1], pts[j][0], pts[j][1], 0.005));
+      }
+    }
+    return group;
+  }
+
+  var MYSTERY_SYMBOL_BUILDERS = [buildFlowerOfLife, buildTreeOfLife, buildMerkaba, buildMetatronsCube];
+
+  function makeProp3D(THREE, p){
+    var geo;
+    if(p.type === "sphere") geo = new THREE.SphereGeometry(0.5, 16, 12);
+    else if(p.type === "cone") geo = new THREE.ConeGeometry(0.5, 1, 14);
+    else if(p.type === "cylinder") geo = new THREE.CylinderGeometry(0.5, 0.5, 1, 14);
+    else geo = new THREE.BoxGeometry(1, 1, 1);
+    var matOpts = { color: p.color, wireframe: !!p.wireframe };
+    if(p.emissive !== undefined) matOpts.emissive = p.emissive;
+    var mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial(matOpts));
+    mesh.position.set(p.x, p.y, p.z);
+    mesh.scale.set(p.sx || 1, p.sy || 1, p.sz || 1);
+    if(p.ry) mesh.rotation.y = p.ry;
+    return mesh;
+  }
+
+  function makeParticles3D(THREE, cfg){
+    var n = cfg.particle.count;
+    var positions = new Float32Array(n * 3);
+    var vel = new Float32Array(n * 3);
+    for(var i = 0; i < n; i++){
+      positions[i*3]   = (Math.random() * 2 - 1) * ROOM_SIZE;
+      positions[i*3+1] = Math.random() * ROOM_HEIGHT;
+      positions[i*3+2] = (Math.random() * 2 - 1) * ROOM_SIZE;
+      vel[i*3]   = (Math.random() * 2 - 1) * cfg.particle.jitter;
+      vel[i*3+1] = cfg.particle.vy + (Math.random() * 2 - 1) * cfg.particle.jitterY;
+      vel[i*3+2] = (Math.random() * 2 - 1) * cfg.particle.jitter;
+    }
+    var geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    var mat = new THREE.PointsMaterial({
+      color: cfg.particle.color, size: cfg.particle.size || 0.06,
+      transparent: true, opacity: cfg.particle.opacity != null ? cfg.particle.opacity : 0.6,
+      depthWrite: false
+    });
+    var points = new THREE.Points(geo, mat);
+    return { points: points, positions: positions, vel: vel, count: n };
+  }
+
+  function updateParticles3D(p, dt, rise){
+    for(var i = 0; i < p.count; i++){
+      var ix = i * 3;
+      p.positions[ix]   += p.vel[ix] * dt;
+      p.positions[ix+1] += p.vel[ix+1] * dt;
+      p.positions[ix+2] += p.vel[ix+2] * dt;
+      if(rise){
+        if(p.positions[ix+1] > ROOM_HEIGHT){
+          p.positions[ix+1] = 0;
+          p.positions[ix]   = (Math.random() * 2 - 1) * ROOM_SIZE;
+          p.positions[ix+2] = (Math.random() * 2 - 1) * ROOM_SIZE;
+        }
+      }else{
+        if(p.positions[ix] < -ROOM_SIZE) p.positions[ix] = ROOM_SIZE;
+        else if(p.positions[ix] > ROOM_SIZE) p.positions[ix] = -ROOM_SIZE;
+        if(p.positions[ix+1] < 0) p.positions[ix+1] = ROOM_HEIGHT;
+        else if(p.positions[ix+1] > ROOM_HEIGHT) p.positions[ix+1] = 0;
+        if(p.positions[ix+2] < -ROOM_SIZE) p.positions[ix+2] = ROOM_SIZE;
+        else if(p.positions[ix+2] > ROOM_SIZE) p.positions[ix+2] = -ROOM_SIZE;
+      }
+    }
+    p.points.geometry.attributes.position.needsUpdate = true;
+  }
+
+  var EYE_HEIGHT = 1.6;
+  var WALK_SPEED = 3.2;
+  var LOOK_SENS = 0.006;
+
+  // The 3D scene reached from "Enter game" on a marker. Independent of
+  // the 2D explore.cpp/wasm engine — three.js runs entirely in JS here,
+  // since bridging a full 3D renderer through Emscripten would fight the
+  // library instead of using it. WASD/drag-to-look on desktop, the same
+  // on-screen D-pad plus drag-to-look on touch.
+  function Explore3DScreen(props){
+    var realm = REALMS[props.doorKey] || REALMS.earth;
+    var cfg = SCENE3D[sceneKeyFor(props.doorKey, props.markerIdx)] || SCENE3D["earth:0"];
+    var canvasRef = useRef(null);
+    var stateRef = useRef(null); // holds the live three.js objects + loop state across renders
+    var _loading = useState(true);
+    var loading = _loading[0], setLoading = _loading[1];
+    var _err = useState(false);
+    var err = _err[0], setErr = _err[1];
+
+    useEffect(function(){
+      var cancelled = false;
+      setLoading(true);
+      setErr(false);
+
+      loadThreeScript().then(function(THREE){
+        if(cancelled || !canvasRef.current) return;
+
+        var canvas = canvasRef.current;
+        var w = canvas.clientWidth || 480, h = canvas.clientHeight || 336;
+        var renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+        renderer.setSize(w, h, false);
+
+        // The mood shift for "right now" — see TIME_PHASES above. Applied
+        // uniformly on top of each scene's base palette rather than
+        // authored per scene, so all nine get it for free.
+        var phase = TIME_PHASES[getTimePhase()];
+
+        var scene = new THREE.Scene();
+        scene.background = new THREE.Color(tintColor(cfg.sky, phase.tint, phase.tintAmt));
+        scene.fog = new THREE.Fog(
+          tintColor(cfg.fog, phase.tint, phase.tintAmt),
+          cfg.fogNear * phase.fogMul, cfg.fogFar * phase.fogMul
+        );
+
+        var camera = new THREE.PerspectiveCamera(72, w / h, 0.1, 100);
+        var pos = { x: 0, y: EYE_HEIGHT, z: cfg.spawnZ };
+        var yaw = 0; // default camera forward is -Z, which is where every scene's props sit
+        var pitch = 0;
+
+        scene.add(new THREE.AmbientLight(tintColor(cfg.ambient, phase.tint, phase.tintAmt), cfg.ambientI * phase.ambientMul));
+        var point = new THREE.PointLight(cfg.point, cfg.pointI, 30);
+        point.position.set(0, 4, 0);
+        scene.add(point);
+
+        var floor = new THREE.Mesh(
+          new THREE.PlaneGeometry(ROOM_SIZE * 2, ROOM_SIZE * 2),
+          new THREE.MeshStandardMaterial({ color: cfg.floor })
+        );
+        floor.rotation.x = -Math.PI / 2;
+        scene.add(floor);
+
+        // Real, properly-licensed images (see textures/<realm>/CREDITS.md)
+        // used as actual textures rather than solid colors — a photo for
+        // the floor, tiled, and/or a single large backdrop plane for a
+        // scene that wants a real vista rather than a procedural one.
+        var textureLoader = new THREE.TextureLoader();
+        if(cfg.floorTexture){
+          textureLoader.load(cfg.floorTexture, function(tex){
+            tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+            tex.repeat.set(cfg.floorRepeat || 2, cfg.floorRepeat || 2);
+            floor.material.map = tex;
+            floor.material.needsUpdate = true;
+          });
+        }
+        if(cfg.backdrop){
+          var bd = cfg.backdrop;
+          var backdropMesh = new THREE.Mesh(
+            new THREE.PlaneGeometry(bd.width, bd.height),
+            new THREE.MeshBasicMaterial({ color: 0xffffff })
+          );
+          backdropMesh.position.set(bd.x, bd.y, bd.z);
+          scene.add(backdropMesh);
+          textureLoader.load(bd.url, function(tex){
+            backdropMesh.material.map = tex;
+            backdropMesh.material.needsUpdate = true;
+          });
+        }
+
+        cfg.props.forEach(function(p){ scene.add(makeProp3D(THREE, p)); });
+
+        // The one thing that changes by date rather than by clock: which
+        // sacred-geometry symbol sits at this scene's mystery spot today
+        // (Flower of Life, Tree of Life, Merkaba, Metatron's Cube). Same
+        // rotation the daily task/lore pool uses (dayOfYear), so it's
+        // stable all day and different again tomorrow. Tinted to the
+        // scene's own point-light color so it belongs to the room.
+        var mysterySymbol = null;
+        if(cfg.mysterySpot){
+          var buildSymbol = MYSTERY_SYMBOL_BUILDERS[dayOfYear(new Date()) % MYSTERY_SYMBOL_BUILDERS.length];
+          mysterySymbol = buildSymbol(THREE, cfg.point);
+          mysterySymbol.position.set(cfg.mysterySpot.x, cfg.mysterySpot.y, cfg.mysterySpot.z);
+          scene.add(mysterySymbol);
+        }
+
+        var particles = makeParticles3D(THREE, cfg);
+        particles.points.material.opacity = Math.min(1, particles.points.material.opacity * phase.particleMul);
+        scene.add(particles.points);
+
+        var move = { fwd:false, back:false, left:false, right:false };
+        var dragging = false, lastX = 0, lastY = 0;
+
+        function onKeyDown(e){
+          if(e.code === "KeyW" || e.code === "ArrowUp") move.fwd = true;
+          else if(e.code === "KeyS" || e.code === "ArrowDown") move.back = true;
+          else if(e.code === "KeyA" || e.code === "ArrowLeft") move.left = true;
+          else if(e.code === "KeyD" || e.code === "ArrowRight") move.right = true;
+          else return;
+          e.preventDefault();
+        }
+        function onKeyUp(e){
+          if(e.code === "KeyW" || e.code === "ArrowUp") move.fwd = false;
+          else if(e.code === "KeyS" || e.code === "ArrowDown") move.back = false;
+          else if(e.code === "KeyA" || e.code === "ArrowLeft") move.left = false;
+          else if(e.code === "KeyD" || e.code === "ArrowRight") move.right = false;
+        }
+        function onPointerDown(e){
+          dragging = true; lastX = e.clientX; lastY = e.clientY;
+          try{ canvas.setPointerCapture(e.pointerId); }catch(ignored){}
+        }
+        function onPointerMove(e){
+          if(!dragging) return;
+          var dx = e.clientX - lastX, dy = e.clientY - lastY;
+          lastX = e.clientX; lastY = e.clientY;
+          yaw -= dx * LOOK_SENS;
+          pitch -= dy * LOOK_SENS;
+          pitch = Math.max(-1.2, Math.min(1.2, pitch));
+        }
+        function onPointerUp(){ dragging = false; }
+
+        canvas.addEventListener("keydown", onKeyDown);
+        canvas.addEventListener("keyup", onKeyUp);
+        canvas.addEventListener("pointerdown", onPointerDown);
+        canvas.addEventListener("pointermove", onPointerMove);
+        canvas.addEventListener("pointerup", onPointerUp);
+        canvas.addEventListener("pointercancel", onPointerUp);
+        canvas.tabIndex = 0;
+
+        var lastT = null, animId = null;
+        function animate(t){
+          animId = requestAnimationFrame(animate);
+          var dt = lastT != null ? Math.min((t - lastT) / 1000, 0.05) : 0;
+          lastT = t;
+
+          var fwdX = -Math.sin(yaw), fwdZ = -Math.cos(yaw);
+          var rightX = Math.cos(yaw), rightZ = -Math.sin(yaw);
+          var mvX = 0, mvZ = 0;
+          if(move.fwd || stateRef.current.touch.up){ mvX += fwdX; mvZ += fwdZ; }
+          if(move.back || stateRef.current.touch.down){ mvX -= fwdX; mvZ -= fwdZ; }
+          if(move.right || stateRef.current.touch.right){ mvX += rightX; mvZ += rightZ; }
+          if(move.left || stateRef.current.touch.left){ mvX -= rightX; mvZ -= rightZ; }
+          var len = Math.hypot(mvX, mvZ);
+          if(len > 0.0001){
+            mvX /= len; mvZ /= len;
+            var bound = ROOM_SIZE - 0.6;
+            pos.x = Math.max(-bound, Math.min(bound, pos.x + mvX * WALK_SPEED * dt));
+            pos.z = Math.max(-bound, Math.min(bound, pos.z + mvZ * WALK_SPEED * dt));
+          }
+          camera.position.set(pos.x, pos.y, pos.z);
+          camera.rotation.set(pitch, yaw, 0, "YXZ");
+
+          updateParticles3D(particles, dt, !!cfg.particle.rise);
+          if(mysterySymbol) mysterySymbol.rotation.z += dt * 0.3;
+          renderer.render(scene, camera);
+        }
+
+        stateRef.current = {
+          renderer: renderer, scene: scene,
+          touch: { up:false, down:false, left:false, right:false },
+          stop: function(){
+            if(animId != null) cancelAnimationFrame(animId);
+            canvas.removeEventListener("keydown", onKeyDown);
+            canvas.removeEventListener("keyup", onKeyUp);
+            canvas.removeEventListener("pointerdown", onPointerDown);
+            canvas.removeEventListener("pointermove", onPointerMove);
+            canvas.removeEventListener("pointerup", onPointerUp);
+            canvas.removeEventListener("pointercancel", onPointerUp);
+            scene.traverse(function(obj){
+              if(obj.geometry) obj.geometry.dispose();
+              if(obj.material){
+                if(obj.material.map) obj.material.map.dispose();
+                obj.material.dispose();
+              }
+            });
+            renderer.dispose();
+          }
+        };
+        animId = requestAnimationFrame(animate);
+        setLoading(false);
+        canvas.focus();
+      }).catch(function(){
+        if(!cancelled) setErr(true);
+      });
+
+      return function(){
+        cancelled = true;
+        if(stateRef.current){ stateRef.current.stop(); stateRef.current = null; }
+      };
+    }, [props.doorKey, props.markerIdx]);
+
+    function setTouchDir(dir, down){
+      return function(e){
+        e.preventDefault();
+        if(down){ try{ e.currentTarget.setPointerCapture(e.pointerId); }catch(ignored){} }
+        if(!stateRef.current) return;
+        var key = dir === 0 ? "left" : dir === 1 ? "right" : dir === 2 ? "up" : "down";
+        stateRef.current.touch[key] = down;
+      };
+    }
+    function dpadButton(cls, dir, glyph){
+      return h("button", {
+        type:"button", className:"d-" + cls,
+        onPointerDown: setTouchDir(dir, true),
+        onPointerUp: setTouchDir(dir, false),
+        onPointerCancel: setTouchDir(dir, false)
+      }, glyph);
+    }
+
+    return h("div", null,
+      h("div", { className:"q-eyebrow" }, realm.name + " · enter"),
+      h(Sub, { ja: realm.nameJa + "・ゲームに入る", ko: realm.nameKo + " · 게임 입장" }),
+      h("h2", { className:"q-heading" }, "You're inside it now."),
+      h(Sub, { ja:"今、あなたはその中にいる。", ko:"지금, 당신은 그 안에 있다." }),
+      h("p", { className:"q-tagline" }, "This place doesn't hold still. The light changes through the day, and something in here is different than it was yesterday."),
+      h(Sub, { ja:"この場所はじっとしていない。光は一日を通して変わり、何かが昨日とは違っている。", ko:"이곳은 가만히 있지 않는다. 빛은 하루 동안 변하고, 무언가가 어제와는 달라져 있다." }),
+      h("div", { className:"explore3d-stage" },
+        h("canvas", { id:"explore3d-canvas", ref:canvasRef, tabIndex:0 }),
+        loading ? h("div", { className:"explore-loading" }, "Loading…  ·  読み込み中…  ·  로딩 중…") : null,
+        !loading ? h("div", { className:"explore-hint" }, "Drag to look, WASD to move  ·  ドラッグで視点、WASDで移動  ·  드래그로 시점, WASD로 이동") : null,
+        !loading ? h("div", { className:"explore-dpad" },
+          dpadButton("up", 2, "▲"),
+          dpadButton("left", 0, "◀"),
+          dpadButton("right", 1, "▶"),
+          dpadButton("down", 3, "▼")
+        ) : null
+      ),
+      err ? h("p", { className:"lore-note error" },
+        "Couldn't load the 3D scene — check your connection and try again.  ·  3Dシーンを読み込めませんでした——接続を確認してもう一度お試しください。  ·  3D 장면을 불러올 수 없었습니다 — 연결을 확인하고 다시 시도해주세요."
+      ) : null,
+      h("div", { className:"q-actions", style:{ marginTop:"18px" } },
+        h("button", { className:"q-btn ghost bi", type:"button", onClick: props.onBack }, biLabel("Back to Explore", "探索に戻る", "탐험으로 돌아가기"))
       )
     );
   }
@@ -2207,7 +2842,15 @@
       content = h(ExploreScreen, {
         key: "explore-" + key,
         doorKey: key,
-        onBack: props.onBackToCharacter
+        onBack: props.onBackToCharacter,
+        onEnterGame: props.onEnterGame
+      });
+    }else if(props.gamePhase === "explore3d"){
+      content = h(Explore3DScreen, {
+        key: "explore3d-" + key + "-" + props.explore3dMarkerIdx,
+        doorKey: key,
+        markerIdx: props.explore3dMarkerIdx,
+        onBack: props.onBackToExplore
       });
     }else{
       content = h(QuestionScreen, {
@@ -2254,6 +2897,8 @@
     var soulStatsOpen = _ss[0], setSoulStatsOpen = _ss[1];
     var _nv = useState(false);
     var hasNewVision = _nv[0], setHasNewVision = _nv[1];
+    var _e3d = useState(-1);
+    var explore3dMarkerIdx = _e3d[0], setExplore3dMarkerIdx = _e3d[1];
     var doors = useDoorsDb(account ? account.id : null);
     var dailyTasks = useDailyTasks(account ? account.id : null);
     var redirectTimer = useRef(null);
@@ -2395,6 +3040,12 @@
     function handleOpenLore(){ setGamePhase("lore"); }
     function handleOpenTasks(){ setGamePhase("tasks"); }
     function handleOpenExplore(){ trackEvent("open_explore", { door: doors.state.myChoice }); setGamePhase("explore"); }
+    function handleEnterGame(markerIdx){
+      trackEvent("enter_3d_game", { door: doors.state.myChoice, marker: markerIdx });
+      setExplore3dMarkerIdx(markerIdx);
+      setGamePhase("explore3d");
+    }
+    function handleBackToExplore(){ setGamePhase("explore"); }
     function handleOpenVisions(){ setHasNewVision(false); setGamePhase("visions"); }
     function handleBackToCharacter(){ setGamePhase("character"); }
     async function handleMarkDone(){
@@ -2529,6 +3180,9 @@
         onOpenExplore: handleOpenExplore,
         onOpenVisions: handleOpenVisions,
         onBackToCharacter: handleBackToCharacter,
+        explore3dMarkerIdx: explore3dMarkerIdx,
+        onEnterGame: handleEnterGame,
+        onBackToExplore: handleBackToExplore,
         onMarkDone: handleMarkDone,
         onMove: handleMoveDoor,
         onDonate: handleDonate,
