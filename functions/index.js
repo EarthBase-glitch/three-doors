@@ -46,13 +46,18 @@ const stripeSecretKey = defineSecret("STRIPE_SECRET_KEY");
 const stripeWebhookSecret = defineSecret("STRIPE_WEBHOOK_SECRET");
 const stripePriceId = defineSecret("STRIPE_PRICE_ID");
 
-const ALLOWED_ORIGIN = "https://earthbase-glitch.github.io";
-const SUCCESS_URL = "https://earthbase-glitch.github.io/three-doors/?donated=1";
-const CANCEL_URL = "https://earthbase-glitch.github.io/three-doors/?donated=0";
-const PORTAL_RETURN_URL = "https://earthbase-glitch.github.io/three-doors/?portal=1";
+// Both origins allowed during the DNS cutover to threedoorsearthbase9.com —
+// the github.io URL keeps working (GitHub Pages redirects it to the custom
+// domain once DNS resolves) so this avoids a window where checkout breaks
+// for anyone still landing on the old URL before that redirect is live.
+const ALLOWED_ORIGINS = ["https://threedoorsearthbase9.com", "https://earthbase-glitch.github.io"];
+const SUCCESS_URL = "https://threedoorsearthbase9.com/?donated=1";
+const CANCEL_URL = "https://threedoorsearthbase9.com/?donated=0";
+const PORTAL_RETURN_URL = "https://threedoorsearthbase9.com/?portal=1";
 
-function setCors(res){
-  res.set("Access-Control-Allow-Origin", ALLOWED_ORIGIN);
+function setCors(req, res){
+  const origin = req.headers.origin;
+  res.set("Access-Control-Allow-Origin", ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0]);
   res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.set("Access-Control-Allow-Headers", "Content-Type");
 }
@@ -63,7 +68,7 @@ const MAX_TIP_CENTS = 50000;
 exports.createCheckoutSession = onRequest(
   { secrets: [stripeSecretKey, stripePriceId] },
   async (req, res) => {
-    setCors(res);
+    setCors(req, res);
     if(req.method === "OPTIONS"){ res.status(204).send(""); return; }
     if(req.method !== "POST"){ res.status(405).json({ error: "Method not allowed" }); return; }
 
@@ -135,7 +140,7 @@ exports.createCheckoutSession = onRequest(
 exports.createPortalSession = onRequest(
   { secrets: [stripeSecretKey] },
   async (req, res) => {
-    setCors(res);
+    setCors(req, res);
     if(req.method === "OPTIONS"){ res.status(204).send(""); return; }
     if(req.method !== "POST"){ res.status(405).json({ error: "Method not allowed" }); return; }
 

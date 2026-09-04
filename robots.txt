@@ -1,4 +1,4 @@
 User-agent: *
 Disallow: /admin.html
 
-Sitemap: https://earthbase-glitch.github.io/three-doors/sitemap.xml
+Sitemap: https://threedoorsearthbase9.com/sitemap.xml
