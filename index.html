@@ -769,6 +769,56 @@
     ]
   };
 
+  // The Chronicle — worldbuilding lore, distinct from Memories above.
+  // Memories are gated on the *streak* (consecutive days) and are about the
+  // visitor's own reflection; the Chronicle is gated on lifetime task
+  // completions in a realm (never resets when a streak breaks) and is about
+  // the world itself — who built it, who tends it, how far back it goes.
+  // Same persistence shape as Memories (a permanent unlock, kept forever
+  // once seen) but a second, independent axis of progress and a different
+  // kind of story, so the two ladders read as two different reasons to keep
+  // coming back rather than the same mechanic twice.
+  var CHRONICLE_MILESTONES = [5, 15];
+
+  var CHRONICLES = {
+    heaven: [
+      { count: 5,
+        title: "Who Is Still Building This", titleJa: "今もこれを作っている者", titleKo: "지금도 이것을 짓고 있는 자",
+        en: "The gate you keep walking under was never finished — you assumed that meant abandoned. It didn't. Something up here has been working on it the whole time, on a schedule that has nothing to do with yours, using light no one below has a name for.",
+        ja: "あなたがくぐり続けているあの門は、一度も完成したことがない——それは放棄されたという意味だと思っていた。違う。ここにいる何かが、ずっとその門に取り組み続けている。あなたのものとは何の関係もない予定で、下の誰も名前を持たない光を使って。",
+        ko: "당신이 계속 지나다니는 저 문은 한 번도 완성된 적이 없다 — 당신은 그것이 버려졌다는 뜻이라고 생각했다. 아니다. 이곳의 무언가가 줄곧 그 문을 손보고 있다. 당신의 것과는 아무 상관없는 일정으로, 아래의 그 누구도 이름을 붙이지 못한 빛을 사용해서." },
+      { count: 15,
+        title: "What the Clouds Are Standing On", titleJa: "雲が乗っているもの", titleKo: "구름이 딛고 선 것",
+        en: "Fifteen days in, and you finally ask what's holding up a floor made of cloud. Nobody working here will answer directly. The closest thing to an answer is: something finished this a long time before you arrived, and left the unfinished part visible on purpose, so you'd have something to wonder about.",
+        ja: "十五日目、あなたはついに、雲でできた床を何が支えているのかを尋ねる。ここで働く誰も、はっきりとは答えてくれない。答えに一番近いのはこうだ——これは、あなたが到着するずっと前に完成していた。未完成の部分をわざと見える場所に残したのは、あなたに考えるものを与えるためだ。",
+        ko: "열닷새째, 당신은 마침내 구름으로 된 바닥을 무엇이 떠받치고 있는지 묻는다. 이곳에서 일하는 그 누구도 직접적으로 답하지 않는다. 답에 가장 가까운 것은 이렇다 — 이것은 당신이 도착하기 훨씬 전에 이미 완성되어 있었다. 미완성 부분을 일부러 보이게 남겨둔 것은, 당신에게 궁금해할 무언가를 주기 위해서다." }
+    ],
+    earth: [
+      { count: 5,
+        title: "Whoever Planted the First Row", titleJa: "最初の畝を植えた者", titleKo: "첫 이랑을 심은 자",
+        en: "Nobody remembers who planted the first row, only that everything since has grown in the furrows they left — including you, including the task waiting on your door tomorrow, laid out long before you got here.",
+        ja: "最初の畝を誰が植えたのか、誰も覚えていない。分かっているのはただ、それ以来すべてが、彼らが残した畝の中で育ってきたということだけだ——あなたも含めて、明日あなたの扉で待っている課題も含めて。それは、あなたがここに来るよりずっと前から、すでに定められていた。",
+        ko: "누가 첫 이랑을 심었는지 아무도 기억하지 못한다. 다만 그 이후로 모든 것이 그들이 남긴 이랑 속에서 자라왔다는 것만 알 뿐이다 — 당신을 포함해서, 내일 당신의 문에서 기다리고 있는 과제를 포함해서. 그것은 당신이 이곳에 오기 훨씬 전부터 이미 정해져 있었다." },
+      { count: 15,
+        title: "The Field Has No Edge", titleJa: "畑に終わりはない", titleKo: "밭에는 끝이 없다",
+        en: "Fifteen days of tending your row, and you finally look up far enough to notice the field doesn't end — it just stops being tended, somewhere past what anyone's walked back from to describe.",
+        ja: "十五日間、自分の畝を世話し続けて、あなたはようやく遠くまで目を上げ、畑に終わりがないことに気づく——ただ、どこかで世話をされなくなるだけだ。それがどこなのか、歩いて戻ってきて語れた者は誰もいない。",
+        ko: "열닷새 동안 자신의 이랑을 돌보다가, 당신은 마침내 멀리까지 눈을 들어 밭에 끝이 없다는 것을 알아챈다 — 그저 어딘가에서 돌봄이 멈출 뿐이다. 그곳이 어디인지, 걸어갔다 돌아와 설명해준 사람은 아무도 없다." }
+    ],
+    hell: [
+      { count: 5,
+        title: "Who Keeps the Fire", titleJa: "炎の番人", titleKo: "불꽃을 지키는 자",
+        en: "The fire in Hell isn't wild. Something tends it, banks it at night, feeds it exactly enough to keep remembering every name it's ever been given — yours included, now. Nobody's seen the keeper. Everyone's felt the fire get precise in a way nothing accidental ever does.",
+        ja: "地獄の炎は野放しではない。何かがそれを世話し、夜には火勢を弱め、これまで与えられたすべての名前を覚え続けるのにちょうど足りるだけ、燃料をくべている——今はあなたの名前も含めて。番人を見た者はいない。だが誰もが、その炎が偶然では決してありえないほど正確になっていくのを感じている。",
+        ko: "지옥의 불꽃은 제멋대로 타오르지 않는다. 무언가가 그것을 돌보고, 밤에는 불씨를 낮추고, 지금까지 주어진 모든 이름을 계속 기억할 수 있을 만큼만 정확히 먹인다 — 이제는 당신의 이름도 포함해서. 그 관리자를 본 사람은 아무도 없다. 하지만 모두가, 그 불꽃이 결코 우연으로는 나올 수 없는 정확함을 갖춰가는 것을 느낀다." },
+      { count: 15,
+        title: "Before the First Debt", titleJa: "最初の借りより前", titleKo: "최초의 빚 이전",
+        en: "Fifteen days burning, and the fire finally lets slip how far back this goes — to a first debt nobody left can name, that every flame since, yours included, has just been paying interest on.",
+        ja: "十五日間燃え続けて、炎はついに、これがどれほど昔から続いているのかをこぼす——誰一人名前を挙げられない最初の借りにまで遡る。それ以来のすべての炎は、あなたのものも含めて、ただその利子を払い続けているだけだ。",
+        ko: "열닷새 동안 불타면서, 불꽃은 마침내 이것이 얼마나 오래전부터 이어져 왔는지를 흘린다 — 남아있는 그 누구도 이름을 댈 수 없는 최초의 빚까지 거슬러 올라간다. 그 이후의 모든 불꽃은, 당신의 것을 포함해, 그저 그 이자를 갚아온 것뿐이다." }
+    ]
+  };
+
   function dateKey(offsetDays){
     var d = new Date();
     if(offsetDays) d.setDate(d.getDate() + offsetDays);
@@ -809,13 +859,13 @@
   // actually pay for moving to a different door.
   function useDailyTasks(accountId){
     var dbRef = useRef(null);
-    var _s = useState({ streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], resolvedFor:null });
+    var _s = useState({ streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], realmCompletions:{}, unlockedChronicles:[], resolvedFor:null });
     var state = _s[0], setState = _s[1];
     var loaded = !accountId || state.resolvedFor === accountId;
 
     useEffect(function(){
       if(!accountId){
-        setState(function(s){ return Object.assign({}, s, { streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], resolvedFor:null }); });
+        setState(function(s){ return Object.assign({}, s, { streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], realmCompletions:{}, unlockedChronicles:[], resolvedFor:null }); });
         return;
       }
       var cancelled = false;
@@ -835,6 +885,8 @@
             points: (found && found.points) || 0,
             lastCompletedDate: (found && found.lastCompletedDate) || null,
             unlockedVisions: (found && found.unlockedVisions) || [],
+            realmCompletions: (found && found.realmCompletions) || {},
+            unlockedChronicles: (found && found.unlockedChronicles) || [],
             resolvedFor: accountId
           });
         }
@@ -856,21 +908,41 @@
           newVision = visionKey;
         }
       }
+      // Chronicle progress is a second, independent ladder: it counts every
+      // completion of this realm's daily task over the visitor's whole
+      // lifetime here, and — unlike the streak above — never resets when a
+      // day is missed. That's the whole point of having it: some story
+      // beats should survive a broken streak.
+      var nextCompletions = Object.assign({ heaven:0, earth:0, hell:0 }, state.realmCompletions);
+      nextCompletions[realmKey] = (nextCompletions[realmKey] || 0) + 1;
+      var nextUnlockedChronicles = state.unlockedChronicles.slice();
+      var newChronicle = null;
+      if(CHRONICLE_MILESTONES.indexOf(nextCompletions[realmKey]) !== -1){
+        var chronicleKey = realmKey + ":" + nextCompletions[realmKey];
+        if(nextUnlockedChronicles.indexOf(chronicleKey) === -1){
+          nextUnlockedChronicles.push(chronicleKey);
+          newChronicle = chronicleKey;
+        }
+      }
       var ns = dbRef.current;
       if(ns){
         try{
           // A full set(), not update() — matches the existing shape of this
           // doc, so every field this doc holds has to be listed here or it
-          // gets dropped, unlockedVisions included.
+          // gets dropped, unlockedVisions/realmCompletions/unlockedChronicles included.
           await ns.doc("dailytasks/" + accountId).set({
-            realm: realmKey, streak: nextStreak, points: nextPoints, lastCompletedDate: today, unlockedVisions: nextUnlocked
+            realm: realmKey, streak: nextStreak, points: nextPoints, lastCompletedDate: today,
+            unlockedVisions: nextUnlocked, realmCompletions: nextCompletions, unlockedChronicles: nextUnlockedChronicles
           });
         }catch(e){
           return { ok:false };
         }
       }
-      setState(function(s){ return Object.assign({}, s, { streak:nextStreak, points:nextPoints, lastCompletedDate:today, unlockedVisions:nextUnlocked }); });
-      return { ok:true, newVision: newVision };
+      setState(function(s){ return Object.assign({}, s, {
+        streak:nextStreak, points:nextPoints, lastCompletedDate:today,
+        unlockedVisions:nextUnlocked, realmCompletions:nextCompletions, unlockedChronicles:nextUnlockedChronicles
+      }); });
+      return { ok:true, newVision: newVision, newChronicle: newChronicle };
     }
 
     async function spend(amount){
@@ -1748,6 +1820,9 @@
         h("button", { className:"q-btn ghost tiny bi", type:"button", onClick: props.onOpenVisions },
           h("span", { className:"btn-en" }, "Memories", props.hasNewVision ? h("span", { className:"vision-nav-dot" }) : null),
           h("span", { className:"btn-sub" }, "記憶 ・ 기억")),
+        h("button", { className:"q-btn ghost tiny bi", type:"button", onClick: props.onOpenChronicle },
+          h("span", { className:"btn-en" }, "Chronicle", props.hasNewChronicle ? h("span", { className:"vision-nav-dot" }) : null),
+          h("span", { className:"btn-sub" }, "年代記 ・ 연대기")),
         h("button", { className:"q-btn ghost tiny bi", type:"button", onClick: props.onDonate },
           biLabel("Support — $3/mo", "サポート — 月3ドル", "후원 — 월 $3")),
         h("span", { className:"char-tip-label" }, "or tip:"),
@@ -2772,6 +2847,64 @@
     );
   }
 
+  // The Chronicle: a second, independent ladder of one-time unlocks (see
+  // CHRONICLE_MILESTONES) — not about the visitor's own streak, like
+  // Memories above, but about the world itself, gated on lifetime task
+  // completions in a realm so it keeps advancing even through a broken
+  // streak. Same visual language as VisionsScreen on purpose, reusing its
+  // classes, so the two journals read as siblings rather than unrelated UI.
+  function ChronicleScreen(props){
+    return h("div", null,
+      h("div", { className:"q-eyebrow" }, "Chronicle"),
+      h(Sub, { ja:"年代記", ko:"연대기" }),
+      h("h2", { className:"q-heading" }, "What the world was, before you got here."),
+      h(Sub, { ja:"あなたが来る前、この世界がどうだったか。", ko:"당신이 오기 전, 이 세계가 어땠는지." }),
+      h("p", { className:"q-tagline" }, "Not about you — about who built this place, who tends it, and how far back it goes. Keep doing the work in a realm and it tells you a little more, streak or no streak."),
+      h(Sub, {
+        ja:"あなたについてではなく、この場所を誰が作り、誰が世話をし、それがどれほど昔から続いているかについて。連続記録が途切れても、その世界で課題を続けていれば、もう少しずつ語ってくれる。",
+        ko:"당신에 대한 이야기가 아니라, 이곳을 누가 만들었고, 누가 돌보며, 그것이 얼마나 오래전부터 이어져 왔는지에 대한 이야기다. 연속 기록이 끊기더라도, 그 세계에서 과제를 계속하면 조금씩 더 들려준다."
+      }),
+      h("div", { className:"vision-groups" },
+        DOORS.map(function(d){
+          var realm = REALMS[d.key];
+          var completed = (props.realmCompletions && props.realmCompletions[d.key]) || 0;
+          return h("div", { key: d.key },
+            h("div", { className:"vision-group-title" },
+              h("span", { className:"dot", style:{ background:"var(--" + d.key + ")" } }),
+              realm.name + (d.key === props.doorKey ? " — your door" : ""),
+              " · ", realm.nameJa, " · ", realm.nameKo
+            ),
+            h("div", { className:"vision-list" },
+              CHRONICLE_MILESTONES.map(function(count){
+                var c = (CHRONICLES[d.key] || []).filter(function(x){ return x.count === count; })[0];
+                if(!c) return null;
+                var key = d.key + ":" + count;
+                var unlocked = props.unlockedChronicles.indexOf(key) !== -1;
+                return h("div", { key: key, className:"vision-item" + (unlocked ? " unlocked" : " locked") },
+                  h("span", { className:"vision-day" }, count + " tasks done · " + completed + "/" + count),
+                  unlocked
+                    ? [
+                        h("h3", { key:"t" }, c.title),
+                        h(Sub, { key:"ts", ja:c.titleJa, ko:c.titleKo }),
+                        h("p", { key:"b" }, c.en),
+                        h(Sub, { key:"bs", ja:c.ja, ko:c.ko })
+                      ]
+                    : [
+                        h("h3", { key:"t" }, "Not yet told"),
+                        h(Sub, { key:"ts", ja:"まだ語られていない", ko:"아직 들려주지 않았다" })
+                      ]
+                );
+              })
+            )
+          );
+        })
+      ),
+      h("div", { className:"q-actions", style:{ marginTop:"24px" } },
+        h("button", { className:"q-btn ghost bi", type:"button", onClick: props.onBack }, biLabel("Back", "戻る", "뒤로"))
+      )
+    );
+  }
+
   function QuestionScreen(props){
     var realm = REALMS[props.doorKey] || REALMS.earth;
     var others = DOORS.filter(function(d){ return d.key !== props.doorKey; });
@@ -2815,6 +2948,8 @@
         onOpenExplore: props.onOpenExplore,
         onOpenVisions: props.onOpenVisions,
         hasNewVision: props.hasNewVision,
+        onOpenChronicle: props.onOpenChronicle,
+        hasNewChronicle: props.hasNewChronicle,
         onDonate: props.onDonate,
         onTip: props.onTip,
         onManageSubscription: props.onManageSubscription
@@ -2831,6 +2966,14 @@
         key: "visions-" + props.accountId,
         doorKey: key,
         unlockedVisions: props.unlockedVisions,
+        onBack: props.onBackToCharacter
+      });
+    }else if(props.gamePhase === "chronicle"){
+      content = h(ChronicleScreen, {
+        key: "chronicle-" + props.accountId,
+        doorKey: key,
+        unlockedChronicles: props.unlockedChronicles,
+        realmCompletions: props.realmCompletions,
         onBack: props.onBackToCharacter
       });
     }else if(props.gamePhase === "tasks"){
@@ -2903,6 +3046,8 @@
     var soulStatsOpen = _ss[0], setSoulStatsOpen = _ss[1];
     var _nv = useState(false);
     var hasNewVision = _nv[0], setHasNewVision = _nv[1];
+    var _nc = useState(false);
+    var hasNewChronicle = _nc[0], setHasNewChronicle = _nc[1];
     var _e3d = useState(-1);
     var explore3dMarkerIdx = _e3d[0], setExplore3dMarkerIdx = _e3d[1];
     var doors = useDoorsDb(account ? account.id : null);
@@ -3053,6 +3198,7 @@
     }
     function handleBackToExplore(){ setGamePhase("explore"); }
     function handleOpenVisions(){ setHasNewVision(false); setGamePhase("visions"); }
+    function handleOpenChronicle(){ setHasNewChronicle(false); setGamePhase("chronicle"); }
     function handleBackToCharacter(){ setGamePhase("character"); }
     async function handleMarkDone(){
       var result = await dailyTasks.markDone(doors.state.myChoice, dateKey(0));
@@ -3061,6 +3207,10 @@
         if(result.newVision){
           trackEvent("unlock_vision", { vision: result.newVision });
           setHasNewVision(true);
+        }
+        if(result.newChronicle){
+          trackEvent("unlock_chronicle", { chronicle: result.newChronicle });
+          setHasNewChronicle(true);
         }
       }
       return result;
@@ -3178,6 +3328,9 @@
         dailyTasksState: dailyTasks.state,
         unlockedVisions: dailyTasks.state.unlockedVisions,
         hasNewVision: hasNewVision,
+        unlockedChronicles: dailyTasks.state.unlockedChronicles,
+        realmCompletions: dailyTasks.state.realmCompletions,
+        hasNewChronicle: hasNewChronicle,
         onSatisfied: handleSatisfied,
         onEscape: handleEscape,
         onExit: handleExit,
@@ -3185,6 +3338,7 @@
         onOpenTasks: handleOpenTasks,
         onOpenExplore: handleOpenExplore,
         onOpenVisions: handleOpenVisions,
+        onOpenChronicle: handleOpenChronicle,
         onBackToCharacter: handleBackToCharacter,
         explore3dMarkerIdx: explore3dMarkerIdx,
         onEnterGame: handleEnterGame,
