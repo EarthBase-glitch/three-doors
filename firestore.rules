@@ -62,7 +62,16 @@ service cloud.firestore {
                     && request.resource.data.text.size() > 0
                     && request.resource.data.text.size() <= 800
                     && request.resource.data.email is string
-                    && request.resource.data.email.matches('^[^\\s@]+@[^\\s@]+[.][^\\s@]+$');
+                    && request.resource.data.email.matches('^[^\\s@]+@[^\\s@]+[.][^\\s@]+$')
+                    && request.resource.data.firstName is string
+                    && request.resource.data.firstName.size() > 0
+                    && request.resource.data.firstName.size() <= 100
+                    && request.resource.data.lastName is string
+                    && request.resource.data.lastName.size() > 0
+                    && request.resource.data.lastName.size() <= 100
+                    && (!('phone' in request.resource.data)
+                        || request.resource.data.phone == null
+                        || (request.resource.data.phone is string && request.resource.data.phone.size() <= 40));
     }
 
     // Standalone mailing-list-style record of every email collected from
@@ -73,7 +82,16 @@ service cloud.firestore {
     match /emails/{id} {
       allow read, delete: if request.auth != null;
       allow create, update: if request.resource.data.email is string
-                    && request.resource.data.email.matches('^[^\\s@]+@[^\\s@]+[.][^\\s@]+$');
+                    && request.resource.data.email.matches('^[^\\s@]+@[^\\s@]+[.][^\\s@]+$')
+                    && request.resource.data.firstName is string
+                    && request.resource.data.firstName.size() > 0
+                    && request.resource.data.firstName.size() <= 100
+                    && request.resource.data.lastName is string
+                    && request.resource.data.lastName.size() > 0
+                    && request.resource.data.lastName.size() <= 100
+                    && (!('phone' in request.resource.data)
+                        || request.resource.data.phone == null
+                        || (request.resource.data.phone is string && request.resource.data.phone.size() <= 40));
     }
 
     // Raw page-view counter — one aggregate document per day (id is the
