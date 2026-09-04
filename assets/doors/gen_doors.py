@@ -1,25 +1,96 @@
 #!/usr/bin/env python3
-"""Procedurally generates the three door SVGs (hell / earth / heaven) for
-the Three Doors Hall screen — no external images, no AI-generated art,
-just parametric shapes (branching cracks, an L-system tree, sunburst
-rays, a diamond lattice) rendered straight to SVG path/line data."""
+"""Door art for the Hall (door-choice) screen — 100% code, no photos,
+no AI images. SVG filters do the work that used to need a painter:
+feTurbulence for noise/grain instead of flat color fields, feGaussianBlur
+for glow and soft depth, layered blurred shapes for foliage/cloud/embers.
+CSS @keyframes (ANIM_STYLE, embedded directly in each SVG) keep it
+actually alive rather than a still image — cracks flicker, vines sway
+from their rooted base, clouds drift — and keep animating even though
+the SVG is only ever used as a plain CSS background-image on the site's
+own .door-leaf element, not inlined into the page."""
 
 import math
 import random
 
 W, H = 400, 700
 
-def svg_open(bg_id):
+FILTERS = '''
+    <filter id="glowSoft" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="6"/>
+    </filter>
+    <filter id="glowTight" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="2.2"/>
+    </filter>
+    <filter id="softBlur" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="5"/>
+    </filter>
+    <filter id="grainStone" x="-10%" y="-10%" width="120%" height="120%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.012 0.02" numOctaves="4" seed="7" result="n"/>
+      <feColorMatrix in="n" type="matrix"
+        values="0.15 0.15 0.15 0 0.62  0.15 0.15 0.15 0 0.62  0.15 0.15 0.15 0 0.62  0 0 0 0 1" result="ng"/>
+      <feComposite in="ng" in2="SourceAlpha" operator="in" result="grain"/>
+      <feBlend in="SourceGraphic" in2="grain" mode="multiply"/>
+    </filter>
+    <filter id="grainWood" x="-10%" y="-10%" width="120%" height="120%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.008 0.09" numOctaves="3" seed="3" result="n"/>
+      <feColorMatrix in="n" type="matrix"
+        values="0.12 0.12 0.12 0 0.68  0.12 0.12 0.12 0 0.68  0.12 0.12 0.12 0 0.68  0 0 0 0 1" result="ng"/>
+      <feComposite in="ng" in2="SourceAlpha" operator="in" result="grain"/>
+      <feBlend in="SourceGraphic" in2="grain" mode="multiply"/>
+    </filter>
+'''
+
+# CSS animation continues to run when an SVG is used as a plain CSS
+# background-image (this is the one embedded in each door's <svg>, not
+# a filter) — kept as one shared block so all three doors' motion reads
+# as the same "living world" language the rest of the site already has
+# (particle drift in the 2D explore area, rotating symbols in the 3D
+# scenes) rather than three unrelated effects.
+ANIM_STYLE = '''
+  <style>
+    .ember, .crackglow{ animation-name:flicker; animation-timing-function:ease-in-out; animation-iteration-count:infinite; }
+    @keyframes flicker{ 0%,100%{opacity:var(--lo)} 50%{opacity:var(--hi)} }
+    .vine{ animation-name:sway; animation-timing-function:ease-in-out; animation-iteration-count:infinite; transform-box:fill-box; }
+    @keyframes sway{ 0%,100%{transform:rotate(-2.2deg)} 50%{transform:rotate(2.2deg)} }
+    .cloud{ animation-name:drift; animation-timing-function:ease-in-out; animation-iteration-count:infinite; }
+    @keyframes drift{ 0%,100%{transform:translateX(-7px)} 50%{transform:translateX(7px)} }
+  </style>
+'''
+
+def svg_open():
     return f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}">'
 
 def svg_close():
     return '</svg>'
 
+def soft_blob(cx, cy, rx, ry, color, opacity, blur='glowSoft', extra=''):
+    return f'<ellipse cx="{cx:.1f}" cy="{cy:.1f}" rx="{rx:.1f}" ry="{ry:.1f}" fill="{color}" opacity="{opacity}" filter="url(#{blur})" {extra}/>'
+
+# ---------------------------------------------------------- Sacred geometry ---
+# Flower of Life on all three doors, same height on each — echoing the
+# mystery symbols the 3D "Enter game" scenes already rotate through.
+# (An earlier pass gave each door its own motif — a triangle-based
+# "sigil" on Hell, a hexagon compass-rose on Heaven — but both of those
+# constructions turned out to read as a hexagram/Star of David, which
+# has no place on a Hell door or scattered around decoratively, so
+# they were dropped rather than reworked.)
+
+def sg_hexpoints(cx, cy, r, rot=0.0):
+    return [(cx + r*math.cos(rot + i*math.pi/3), cy + r*math.sin(rot + i*math.pi/3)) for i in range(6)]
+
+def sg_flower_of_life(cx, cy, r, color):
+    """Center circle + one ring of six, classic seed/flower-of-life
+    layout — organic, fits Earth's growth-and-return theme."""
+    out = [f'<circle cx="{cx}" cy="{cy}" r="{r*1.5:.1f}" fill="none" stroke="{color}" stroke-width="1.2" opacity="0.35"/>']
+    centers = [(cx, cy)] + sg_hexpoints(cx, cy, r)
+    for (x, y) in centers:
+        out.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{r:.1f}" fill="none" stroke="{color}" stroke-width="1.6" opacity="0.6" filter="url(#glowTight)"/>')
+        out.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{r:.1f}" fill="none" stroke="{color}" stroke-width="0.7" opacity="0.8"/>')
+    return "".join(out)
+
 # ---------------------------------------------------------------- Hell ---
 
 def jagged_segment(x, y, angle, length, rng, out, width):
-    """One crack segment, subdivided into a few sharp zigzag kinks —
-    reads as fractured glass/rock instead of a smooth branch."""
     steps = rng.randint(2, 4)
     cx, cy, cang = x, y, angle
     for i in range(steps):
@@ -43,46 +114,60 @@ def branch(x, y, angle, length, depth, rng, out, width):
 def gen_hell():
     rng = random.Random(23)
     segs = []
-    # Cracks seeded from a few points along the center seam and low on
-    # each panel, branching upward/outward like heat-fractured stone.
     seeds = [(200, 640, -math.pi/2), (110, 660, -math.pi/2 - 0.3), (290, 660, -math.pi/2 + 0.3),
              (200, 420, -math.pi/2), (150, 300, -1.9), (250, 300, -1.25)]
     for (sx, sy, ang) in seeds:
         branch(sx, sy, ang, rng.uniform(60, 85), 4, rng, segs, 3.4)
 
-    lines = []
-    glow = []
+    glow, bloom, core = [], [], []
     for (x1, y1, x2, y2, wd) in segs:
-        glow.append(f'<line x1="{x1:.1f}" y1="{y1:.1f}" x2="{x2:.1f}" y2="{y2:.1f}" stroke="#ff6a3d" stroke-width="{wd*3:.1f}" stroke-linecap="round" opacity="0.35"/>')
-        lines.append(f'<line x1="{x1:.1f}" y1="{y1:.1f}" x2="{x2:.1f}" y2="{y2:.1f}" stroke="#ffd9a8" stroke-width="{wd:.1f}" stroke-linecap="round"/>')
+        d = rng.uniform(0, 2.4)
+        bloom.append(f'<line x1="{x1:.1f}" y1="{y1:.1f}" x2="{x2:.1f}" y2="{y2:.1f}" stroke="#ff7a3d" stroke-width="{wd*4:.1f}" stroke-linecap="round" filter="url(#glowSoft)" class="crackglow" style="--lo:0.3;--hi:0.6;animation-duration:{rng.uniform(1.8,2.6):.2f}s;animation-delay:{d:.2f}s"/>')
+        glow.append(f'<line x1="{x1:.1f}" y1="{y1:.1f}" x2="{x2:.1f}" y2="{y2:.1f}" stroke="#ffb066" stroke-width="{wd*1.8:.1f}" stroke-linecap="round" filter="url(#glowTight)" class="crackglow" style="--lo:0.55;--hi:0.9;animation-duration:{rng.uniform(1.8,2.6):.2f}s;animation-delay:{d:.2f}s"/>')
+        core.append(f'<line x1="{x1:.1f}" y1="{y1:.1f}" x2="{x2:.1f}" y2="{y2:.1f}" stroke="#fff3e0" stroke-width="{wd*0.55:.1f}" stroke-linecap="round"/>')
+
+    # Scattered embers, flickering like heat/sparks off the cracks.
+    embers = []
+    for _ in range(26):
+        ex = rng.uniform(40, W-40)
+        ey = rng.uniform(60, H-40)
+        r = rng.uniform(1.2, 3.2)
+        dur = rng.uniform(1.1, 2.2)
+        delay = rng.uniform(0, 2.2)
+        embers.append(
+            f'<circle cx="{ex:.1f}" cy="{ey:.1f}" r="{r:.1f}" fill="#ffb066" filter="url(#glowTight)" '
+            f'class="ember" style="--lo:0.25;--hi:0.9;animation-duration:{dur:.2f}s;animation-delay:{delay:.2f}s"/>'
+        )
 
     blocks = ""
     for i in range(9):
         y = 40 + i * 68
-        blocks += f'<rect x="14" y="{y}" width="34" height="58" rx="4" fill="#241210" stroke="#3a1f19" stroke-width="2"/>'
-        blocks += f'<rect x="{W-48}" y="{y}" width="34" height="58" rx="4" fill="#241210" stroke="#3a1f19" stroke-width="2"/>'
+        blocks += f'<rect x="14" y="{y}" width="34" height="58" rx="4" fill="#2c1410" stroke="#4a2418" stroke-width="2" filter="url(#grainStone)"/>'
+        blocks += f'<rect x="{W-48}" y="{y}" width="34" height="58" rx="4" fill="#2c1410" stroke="#4a2418" stroke-width="2" filter="url(#grainStone)"/>'
 
-    svg = f'''{svg_open("h")}
+    svg = f'''{svg_open()}{ANIM_STYLE}
   <defs>
+    {FILTERS}
     <linearGradient id="hbg" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#160604"/>
-      <stop offset="55%" stop-color="#2a0c08"/>
-      <stop offset="100%" stop-color="#150402"/>
+      <stop offset="0%" stop-color="#0d0302"/>
+      <stop offset="35%" stop-color="#220a06"/>
+      <stop offset="68%" stop-color="#3a1108"/>
+      <stop offset="100%" stop-color="#170502"/>
     </linearGradient>
-    <radialGradient id="hember" cx="50%" cy="92%" r="60%">
-      <stop offset="0%" stop-color="#ff8a3d" stop-opacity="0.55"/>
+    <radialGradient id="hember" cx="50%" cy="94%" r="65%">
+      <stop offset="0%" stop-color="#ff8a3d" stop-opacity="0.6"/>
+      <stop offset="45%" stop-color="#a83a12" stop-opacity="0.25"/>
       <stop offset="100%" stop-color="#ff8a3d" stop-opacity="0"/>
     </radialGradient>
   </defs>
   <rect width="{W}" height="{H}" fill="url(#hbg)"/>
-  <rect x="0" y="0" width="{W}" height="{H}" fill="url(#hember)"/>
   {blocks}
-  <rect x="48" y="30" width="{W-96}" height="{H-60}" rx="10" fill="#1c0906" stroke="#40201a" stroke-width="4"/>
-  <line x1="{W/2}" y1="30" x2="{W/2}" y2="{H-30}" stroke="#40201a" stroke-width="4"/>
+  <rect width="{W}" height="{H}" fill="url(#hember)"/>
+  {"".join(bloom)}
   {"".join(glow)}
-  {"".join(lines)}
-  <circle cx="{W/2-14}" cy="{H*0.52}" r="5" fill="#ffb488"/>
-  <circle cx="{W/2+14}" cy="{H*0.52}" r="5" fill="#ffb488"/>
+  {"".join(core)}
+  {"".join(embers)}
+  {sg_flower_of_life(W/2, H*0.5, 30, "#ff9d5c")}
 {svg_close()}'''
     return svg
 
@@ -101,22 +186,29 @@ def tree(x, y, angle, length, depth, rng, out):
 
 def gen_earth():
     rng = random.Random(4)
-    elems = []
-    tree(W*0.56, 430, -math.pi/2, 62, 6, rng, elems)
-    branches = ""
-    leaves = ""
-    for e in elems:
-        if e[0] == 'branch':
-            _, x1, y1, x2, y2, wd = e
-            branches += f'<line x1="{x1:.1f}" y1="{y1:.1f}" x2="{x2:.1f}" y2="{y2:.1f}" stroke="#4a3218" stroke-width="{wd:.1f}" stroke-linecap="round"/>'
-        else:
-            _, x, y, r = e
-            leaves += f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{r*4:.1f}" fill="#5c8a3a" opacity="0.85"/>'
+    cx, cy, r = W/2, 230, 168
+    # No tree, no sky — the whole door is soil/wood brown, same
+    # "texture the full surface" approach as Hell and Heaven, just the
+    # earth-toned version of it. A scatter of independent root veins
+    # (not attached to any visible trunk) breaks up the brown instead.
+    roots = ""
+    for _ in range(5):
+        rx = cx + rng.uniform(-(r-50), r-50)
+        ry = rng.uniform(cy-r+40, H-90)
+        rlen = []
+        branch(rx, ry, rng.uniform(0, math.pi*2), rng.uniform(26, 40), 3, rng, rlen, 2.2)
+        for (x1, y1, x2, y2, wd) in rlen:
+            roots += f'<line x1="{x1:.1f}" y1="{y1:.1f}" x2="{x2:.1f}" y2="{y2:.1f}" stroke="#5c4322" stroke-width="{wd*0.7:.1f}" stroke-linecap="round" opacity="0.55"/>'
+    seeds = ""
+    for _ in range(9):
+        sx = cx + rng.uniform(-(r-40), r-40)
+        sy = rng.uniform(cy-r+50, H-50)
+        seeds += f'<circle cx="{sx:.1f}" cy="{sy:.1f}" r="3.4" fill="#e8d98a" opacity="{rng.uniform(0.5,0.9):.2f}" filter="url(#glowTight)"/>'
 
-    # Vines climbing the arch border — a bezier spine with small leaves.
     vines = ""
-    for side, x0 in ((1, 22), (-1, W-22)):
+    for vi, (side, x0) in enumerate(((1, 22), (-1, W-22))):
         py = H - 20
+        base_x, base_y = x0, py  # pivot for the sway animation — rooted at the ground
         d = f'M{x0},{py}'
         pts = [(x0, py)]
         y = py
@@ -125,54 +217,47 @@ def gen_earth():
             x0 = x0 + side * rng.randint(-6, 10)
             d += f' Q{x0 + side*14},{y+30} {x0},{y}'
             pts.append((x0, y))
-        vines += f'<path d="{d}" fill="none" stroke="#3c6b28" stroke-width="3"/>'
+        leaves = ""
         for (lx, ly) in pts[1:-1]:
-            vines += f'<circle cx="{lx+side*9:.1f}" cy="{ly:.1f}" r="6" fill="#4f8a34"/>'
+            leaves += f'<ellipse cx="{lx+side*9:.1f}" cy="{ly:.1f}" rx="8" ry="5.5" fill="#4f8a34"/>'
+        vines += (
+            f'<g class="vine" style="transform-origin:{base_x}px {base_y}px;'
+            f'animation-duration:{3.4+vi*0.6:.1f}s;animation-delay:{vi*0.5:.1f}s">'
+            f'<path d="{d}" fill="none" stroke="#2f5a1e" stroke-width="3.5"/>{leaves}</g>'
+        )
 
-    # Stone arch blocks tracing the doorway.
     blocks = ""
-    cx, cy, r = W/2, 230, 168
     for i in range(15):
         t = math.pi * (0.06 + 0.88 * i / 14)
         bx = cx + math.cos(math.pi - t) * r
         by = cy - math.sin(t) * r
-        blocks += f'<circle cx="{bx:.1f}" cy="{by:.1f}" r="17" fill="#2c3a26" stroke="#1b2418" stroke-width="2"/>'
+        blocks += f'<circle cx="{bx:.1f}" cy="{by:.1f}" r="17" fill="#33421f" stroke="#1e2812" stroke-width="2" filter="url(#grainStone)"/>'
     for y in range(int(cy), H-20, 40):
-        blocks += f'<rect x="14" y="{y}" width="32" height="34" rx="3" fill="#2c3a26" stroke="#1b2418" stroke-width="2"/>'
-        blocks += f'<rect x="{W-46}" y="{y}" width="32" height="34" rx="3" fill="#2c3a26" stroke="#1b2418" stroke-width="2"/>'
+        blocks += f'<rect x="14" y="{y}" width="32" height="34" rx="3" fill="#33421f" stroke="#1e2812" stroke-width="2" filter="url(#grainStone)"/>'
+        blocks += f'<rect x="{W-46}" y="{y}" width="32" height="34" rx="3" fill="#33421f" stroke="#1e2812" stroke-width="2" filter="url(#grainStone)"/>'
 
-    # Path: converging trapezoid strokes toward the horizon.
-    path_lines = ""
-    for i in range(5):
-        t = i / 4
-        x1 = W*0.5 - 46*(1-t)
-        x2 = W*0.5 + 46*(1-t)
-        y = H*0.62 + t*(H*0.30)
-        path_lines += f'<line x1="{x1:.1f}" y1="{y:.1f}" x2="{x2:.1f}" y2="{y:.1f}" stroke="#d8cf9a" stroke-width="1.4" opacity="0.5"/>'
-
-    svg = f'''{svg_open("e")}
+    door_shape = f'M{cx-r+18},{cy} A{r-18},{r-18} 0 0 1 {cx+r-18},{cy} L{cx+r-18},{H-20} L{cx-r+18},{H-20} Z'
+    svg = f'''{svg_open()}{ANIM_STYLE}
   <defs>
-    <linearGradient id="esky" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#bfe0e6"/>
-      <stop offset="45%" stop-color="#f4e3a8"/>
-      <stop offset="100%" stop-color="#e8c874"/>
+    {FILTERS}
+    <linearGradient id="esoil" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#5a4423"/>
+      <stop offset="55%" stop-color="#4a3a1c"/>
+      <stop offset="100%" stop-color="#241a0c"/>
     </linearGradient>
-    <linearGradient id="edoor" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0%" stop-color="#7a5228"/>
-      <stop offset="100%" stop-color="#5a3a1c"/>
-    </linearGradient>
+    <radialGradient id="evign" cx="50%" cy="20%" r="85%">
+      <stop offset="0%" stop-color="#0a1206" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#0a1206" stop-opacity="0.5"/>
+    </radialGradient>
   </defs>
-  <rect width="{W}" height="{H}" fill="#14200f"/>
-  <path d="M{cx-r+18},{cy} A{r-18},{r-18} 0 0 1 {cx+r-18},{cy} L{cx+r-18},{H-20} L{cx-r+18},{H-20} Z" fill="url(#esky)"/>
-  {path_lines}
-  {branches}
-  {leaves}
-  <rect x="{cx-r+18}" y="{cy-4}" width="{r-18}" height="{H-20-cy+4}" fill="url(#edoor)"/>
-  <rect x="{cx-r+18}" y="{cy-4}" width="{r-18}" height="{H-20-cy+4}" fill="none" stroke="#3a2410" stroke-width="3"/>
-  <line x1="{cx-14}" y1="{cy+40}" x2="{cx-14}" y2="{H-70}" stroke="#3a2410" stroke-width="4"/>
-  <circle cx="{cx-30}" cy="{H*0.62}" r="5" fill="#e8c874"/>
+  <rect width="{W}" height="{H}" fill="#0f1a0a"/>
+  <path d="{door_shape}" fill="url(#esoil)" filter="url(#grainWood)"/>
+  {roots}
+  {seeds}
+  {sg_flower_of_life(cx, H*0.5, 30, "#cddc9a")}
   {blocks}
   {vines}
+  <path d="{door_shape}" fill="url(#evign)"/>
 {svg_close()}'''
     return svg
 
@@ -181,60 +266,53 @@ def gen_earth():
 def gen_heaven():
     rng = random.Random(7)
     cx, cy = W/2, H*0.34
-    rays = ""
-    n = 28
+    rays_bloom, rays = [], []
+    n = 26
     for i in range(n):
         ang = -math.pi/2 + (i - n/2) * (math.pi*0.9/n)
         length = rng.uniform(240, 420)
         x2 = cx + math.cos(ang) * length
         y2 = cy + math.sin(ang) * length
-        rays += f'<line x1="{cx}" y1="{cy}" x2="{x2:.1f}" y2="{y2:.1f}" stroke="#ffffff" stroke-width="1.4" opacity="{rng.uniform(0.08,0.22):.2f}"/>'
+        rays_bloom.append(f'<line x1="{cx}" y1="{cy}" x2="{x2:.1f}" y2="{y2:.1f}" stroke="#ffffff" stroke-width="5" opacity="{rng.uniform(0.05,0.12):.2f}" filter="url(#glowSoft)"/>')
+        rays.append(f'<line x1="{cx}" y1="{cy}" x2="{x2:.1f}" y2="{y2:.1f}" stroke="#ffffff" stroke-width="1.2" opacity="{rng.uniform(0.1,0.28):.2f}"/>')
 
-    # Ornate ironwork: a chain of symmetric scrolls climbing each panel,
-    # mirrored left/right of the seam, rather than a flat repeating grid.
-    def scroll_column(x0, mirror, rng2):
-        out = []
-        y = H - 70
-        amp = 34
-        while y > 190:
-            step = rng2.uniform(52, 66)
-            y2 = y - step
-            sx = x0 + (amp if mirror else -amp)
-            out.append(f'<path d="M{x0},{y} C{sx:.1f},{y-step*0.25:.1f} {sx:.1f},{y2+step*0.25:.1f} {x0},{y2:.1f}" fill="none" stroke="#eaf6ff" stroke-width="1.6" opacity="0.75"/>')
-            out.append(f'<circle cx="{x0:.1f}" cy="{(y+y2)/2:.1f}" r="4.2" fill="none" stroke="#eaf6ff" stroke-width="1.3" opacity="0.8"/>')
-            out.append(f'<circle cx="{x0:.1f}" cy="{y2:.1f}" r="2.6" fill="#eaf6ff" opacity="0.9"/>')
-            y = y2
-        return "".join(out)
-
-    rng_l = random.Random(3)
-    rng_r = random.Random(9)
-    lattice = scroll_column(W/2 - 44, False, rng_l) + scroll_column(W/2 + 44, True, rng_r)
-    # A center spine of small linked circles ties the two scrolls together.
-    for gy in range(190, H-60, 26):
-        lattice += f'<circle cx="{W/2}" cy="{gy}" r="2.4" fill="#eaf6ff" opacity="0.7"/>'
+    # Cloud bank across the bottom, standing-above-the-world feel —
+    # each blob drifts side to side on its own timing.
+    clouds = ""
+    for i in range(10):
+        cx2 = rng.uniform(0, W)
+        cy2 = H - rng.uniform(10, 70)
+        rx = rng.uniform(50, 110)
+        style = f'class="cloud" style="animation-duration:{rng.uniform(5,9):.1f}s;animation-delay:{rng.uniform(0,4):.1f}s"'
+        clouds += soft_blob(cx2, cy2, rx, rx*0.45, "#ffffff", rng.uniform(0.5, 0.85), 'softBlur', style)
 
     blocks = ""
     for i in range(9):
         y = 40 + i * 68
-        blocks += f'<rect x="10" y="{y}" width="30" height="58" rx="6" fill="#3a4a58" stroke="#20303c" stroke-width="2"/>'
-        blocks += f'<rect x="{W-40}" y="{y}" width="30" height="58" rx="6" fill="#3a4a58" stroke="#20303c" stroke-width="2"/>'
+        blocks += f'<rect x="10" y="{y}" width="30" height="58" rx="6" fill="#3a4a58" stroke="#20303c" stroke-width="2" filter="url(#grainStone)"/>'
+        blocks += f'<rect x="{W-40}" y="{y}" width="30" height="58" rx="6" fill="#3a4a58" stroke="#20303c" stroke-width="2" filter="url(#grainStone)"/>'
 
-    svg = f'''{svg_open("hv")}
+    svg = f'''{svg_open()}{ANIM_STYLE}
   <defs>
-    <radialGradient id="hvglow" cx="50%" cy="30%" r="75%">
-      <stop offset="0%" stop-color="#ffffff"/>
-      <stop offset="35%" stop-color="#dff0fb"/>
-      <stop offset="100%" stop-color="#0d1b2a"/>
+    {FILTERS}
+    <radialGradient id="hvglow" cx="50%" cy="20%" r="65%">
+      <stop offset="0%" stop-color="#eef8ff"/>
+      <stop offset="20%" stop-color="#c3ddef"/>
+      <stop offset="50%" stop-color="#5f7d94"/>
+      <stop offset="100%" stop-color="#0c1822"/>
     </radialGradient>
+    <linearGradient id="hvbody" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#22374a" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#0a141c" stop-opacity="0.75"/>
+    </linearGradient>
   </defs>
   <rect width="{W}" height="{H}" fill="url(#hvglow)"/>
-  {rays}
+  {"".join(rays_bloom)}
+  {"".join(rays)}
+  <rect width="{W}" height="{H}" fill="url(#hvbody)"/>
   {blocks}
-  <rect x="46" y="140" width="{W-92}" height="{H-180}" rx="18" fill="#0e1c28" opacity="0.35" stroke="#cfe6f7" stroke-width="3"/>
-  <line x1="{W/2}" y1="140" x2="{W/2}" y2="{H-40}" stroke="#cfe6f7" stroke-width="2" opacity="0.6"/>
-  {lattice}
-  <circle cx="{W/2-16}" cy="{H*0.55}" r="5" fill="#ffffff"/>
-  <circle cx="{W/2+16}" cy="{H*0.55}" r="5" fill="#ffffff"/>
+  {sg_flower_of_life(W/2, H*0.5, 30, "#eaf6ff")}
+  {clouds}
 {svg_close()}'''
     return svg
 
