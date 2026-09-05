@@ -816,10 +816,17 @@
   // your current door earns that realm's vision for that day, permanently
   // (see unlockedVisions in useDailyTasks) — the first threads of an
   // actual story for a game that's otherwise just daily-habit mechanics.
-  var VISION_MILESTONES = [3, 7, 30];
+  // Day 1 fires on the very first task ever completed — before this it
+  // was a 3-day wait before a brand-new visitor saw any story at all.
+  var VISION_MILESTONES = [1, 3, 7, 30];
 
   var VISIONS = {
     heaven: [
+      { day: 1,
+        title: "The Light Says Nothing", titleJa: "光は何も言わない", titleKo: "빛은 아무 말도 하지 않는다",
+        en: "You expected a verdict, or at least a greeting. Instead the light just settles around you, unhurried, the way it settles around everyone — no better angle for the good you did, no dimmer corner for what you didn't. It isn't judging you yet. It never was going to.",
+        ja: "あなたは裁きか、せめて挨拶を予期していた。だが光はただ、あなたの周りに落ち着く——急がず、誰の周りにも同じように。あなたがした善行のための良い角度も、しなかったことのための暗い隅もない。まだあなたを裁いてはいない。最初からそのつもりはなかったのだ。",
+        ko: "당신은 심판이나, 적어도 인사를 예상했다. 하지만 빛은 그저 당신 주위에 자리를 잡는다 — 서두르지 않고, 누구에게나 그러하듯이. 당신이 한 선행을 위한 더 나은 각도도, 하지 않은 일을 위한 어두운 구석도 없다. 아직 당신을 심판하지 않는다. 애초에 그럴 생각이 없었던 것이다." },
       { day: 3,
         title: "A Name Half-Remembered", titleJa: "半分思い出した名前", titleKo: "반쯤 기억나는 이름",
         en: "On the third morning, you hear it — someone calling a name that isn't the one you were given here. It sounds like yours. You don't know why the light lets old names through, only that it does, sometimes, when you've stayed still long enough to listen.",
@@ -837,6 +844,11 @@
         ko: "서른 날이 지나고, 빛은 마침내 당신이 더 이상 소리 내어 묻지 않게 된 질문에 답한다 — 심판하지 않는 것은, 이미 결정했기 때문이다. 이 서른 날 동안 당신이 한 일은 보이지 않는 곳에 기록된다. 이곳의 모든 것이 그러하듯, 조용히, 영원히, 아무 말 없이 간직된 채로." }
     ],
     earth: [
+      { day: 1,
+        title: "The First Waking", titleJa: "最初の目覚め", titleKo: "첫 깨어남",
+        en: "You wake already partway into a body you didn't choose the size of. Your lungs know how to breathe before you've decided to. The soil under your first steps doesn't explain any of it — it just holds your weight the same way it held whoever stood here last.",
+        ja: "あなたは、大きさを自分で選ばなかった体の途中で目を覚ます。決める前から、肺はすでに呼吸の仕方を知っている。最初の一歩を支える土は、何も説明してくれない——ただ、以前ここに立っていた誰かを支えたのと同じように、あなたの重みを受け止めるだけだ。",
+        ko: "당신은 크기를 스스로 고르지 않은 몸 한가운데서 눈을 뜬다. 결정하기도 전에, 폐는 이미 숨 쉬는 법을 알고 있다. 첫걸음을 딛는 흙은 아무것도 설명해주지 않는다 — 그저 이전에 이곳에 섰던 누군가를 받쳐주었던 것과 똑같이, 당신의 무게를 받아줄 뿐이다." },
       { day: 3,
         title: "The Weight of a Body", titleJa: "体の重さ", titleKo: "몸의 무게",
         en: "Three days into this life and your hands already remember things you didn't teach them — how to flinch, how to reach. The soil doesn't tell you whose hands these were before. It only says: use them better this time.",
@@ -854,6 +866,11 @@
         ko: "서른 날이 지나고, 당신은 마침내 '다시 시작한다'는 말의 진짜 의미를 이해한다 — 백지가 아니라, 거의 깨끗하게 긁어낸, 이미 쓰였던 종이라는 것을. 흙이 천천히 용서하는 것은, 그보다 더 천천히 잊기 때문이다. 그리고 이번 달 당신이 쌓아온 모든 것 아래에는, 파보면 읽힐 만큼, 지난 삶이 아직 희미하게 남아 있다." }
     ],
     hell: [
+      { day: 1,
+        title: "The First Burn", titleJa: "最初の炎", titleKo: "첫 번째 불길",
+        en: "The fire meets you all at once, indiscriminate, burning everywhere the same — it hasn't learned you yet. That comes later, it turns out. For now you're just fuel like anyone else, which is almost a mercy: one more night of being nobody in particular.",
+        ja: "炎は一斉にあなたを迎える、無差別に、どこも同じように焼きながら——まだあなたを知らないのだ。それは後になって分かることらしい。今のところ、あなたは他の誰とも同じ、ただの燃料に過ぎない。それはほとんど慈悲でもある——もう一晩だけ、特別な誰かではいられずに済むのだから。",
+        ko: "불길은 한꺼번에 당신을 맞이한다, 무차별하게, 어디든 똑같이 태우며 — 아직 당신을 모르는 것이다. 그것은 나중에야 알게 된다고 한다. 지금으로선, 당신은 다른 누구와도 다를 바 없는 그저 연료일 뿐이다. 그것은 거의 자비에 가깝다 — 하룻밤만 더, 특별한 누구도 아닌 채로 있을 수 있으니." },
       { day: 3,
         title: "The Fire Learns Your Shape", titleJa: "炎があなたの形を覚える", titleKo: "불꽃이 당신의 모양을 익히다",
         en: "Three days, and the fire has stopped burning you evenly — it's begun to trace the parts of you that are actually guilty, leaving the rest almost bearable. That's not mercy. That's it getting better at aiming.",
