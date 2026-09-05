@@ -379,6 +379,23 @@ void explore_start(const char* realmKey) {
   populateParticles(g_map);
 
   if (!g_window) {
+    // SDL_CreateWindow installs its OWN keydown/keyup/keypress listener,
+    // separate from (and in addition to) the #explore-canvas listener
+    // below — it exists purely to feed SDL's internal keyboard-state
+    // array, which this game never reads (movement is driven entirely by
+    // the app's own onKey callback and g_key* flags). By default that
+    // internal listener attaches to the browser *window*, not any
+    // specific element, and calls preventDefault() on virtually every
+    // key — for the lifetime of the page, since the window is created
+    // once here and never torn down. That's what was silently eating
+    // every keystroke typed anywhere on the site, in any field, from the
+    // first time Explore was opened onward: it has nothing to do with
+    // this app's own (correctly-scoped) canvas listener a few lines down.
+    // This hint, read once during SDL_CreateWindow below, tells SDL to
+    // attach that internal listener to the canvas too, instead of the
+    // window — matching the app's own listener and eliminating the leak
+    // entirely, for every key, not just non-navigation ones.
+    SDL_SetHint(SDL_HINT_EMSCRIPTEN_KEYBOARD_ELEMENT, "#explore-canvas");
     SDL_Init(SDL_INIT_VIDEO);
     g_window = SDL_CreateWindow("explore", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
                                  SCREEN_W, SCREEN_H, SDL_WINDOW_SHOWN);
