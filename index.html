@@ -3662,13 +3662,11 @@
     if(!state.accountId || !window.doorsDb) return;
     voteUnsub = window.doorsDb.doc("votes/" + state.accountId).onSnapshot(function(snap){
       var data = snap.data();
-      console.log("[realm-chat] votes snapshot for", state.accountId, "->", data);
       // Gated on confirmed, not just door — a door pick alone just means
       // they're looking at the "are you satisfied?" question, written by
       // doors.confirm() in the React app only once they answer yes.
       var door = (data && data.confirmed === true) ? data.door : null;
       if(door !== state.realm){
-        console.log("[realm-chat] realm changing from", state.realm, "to", door);
         state.realm = door || null;
         attachMessages();
         attachPresence();
@@ -3690,7 +3688,6 @@
   function onIdentityChange(e){
     var detail = e.detail;
     var id = (detail && detail.accountId) || null;
-    console.log("[realm-chat] doors:identity received ->", detail, "doorsDb ready?", !!window.doorsDb);
     if(id === state.accountId) return;
     // Switching identity mid-session (e.g. someone signs into a different
     // name in the same tab) — leave the old identity's presence/messages
@@ -3709,7 +3706,6 @@
     else window.addEventListener("doorsFirebaseReady", attachVote, { once:true });
   }
   window.addEventListener("doors:identity", onIdentityChange);
-  console.log("[realm-chat] script initialized, listening for doors:identity");
 
   build();
   render();
