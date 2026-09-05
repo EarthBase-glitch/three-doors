@@ -496,8 +496,15 @@
 
   .realm-chat-overlay{
     position:fixed; z-index:6;
-    top:50%; right:calc(20px + env(safe-area-inset-right));
-    transform:translateY(-50%);
+    /* Below the account badge (top:14px + its own height) rather than
+       vertically centered — centering put a tall chat panel's bottom
+       edge into the same bottom-right corner the feedback widget owns,
+       and since this element comes later in the DOM at the same
+       z-index, it painted over the feedback panel whenever they
+       overlapped. Docking under the badge instead keeps it clear of
+       that corner regardless of either panel's height. */
+    top:calc(60px + env(safe-area-inset-top));
+    right:calc(20px + env(safe-area-inset-right));
   }
   .realm-chat-close{ display:none; } /* desktop: nothing to close */
 
@@ -3465,12 +3472,86 @@
     els.send = root.querySelector(".realm-chat-send");
     els.close = root.querySelector(".realm-chat-close");
     els.error = root.querySelector(".realm-chat-error");
+    els.head = root.querySelector(".realm-chat-head");
 
     els.toggle.addEventListener("click", function(){ state.open = true; render(); });
     els.close.addEventListener("click", function(){ state.open = false; render(); });
     els.send.addEventListener("click", function(){ send(els.input.value); });
     els.input.addEventListener("keydown", function(e){
       if(e.key === "Enter"){ e.preventDefault(); send(els.input.value); }
+    });
+
+    initDrag();
+  }
+
+  // Drag-to-reposition, desktop dock only — the mobile pop-out is a
+  // full-screen overlay (see the <=760px media query), so "moving" it
+  // wouldn't mean anything there. Position is remembered across visits;
+  // switching down to a mobile-width viewport clears any inline
+  // position so the CSS inset:0 full-screen layout isn't fought by a
+  // leftover left/top from a desktop drag.
+  function isDesktopLayout(){
+    return window.matchMedia("(min-width: 761px)").matches;
+  }
+
+  function clampPosition(left, top){
+    var maxLeft = Math.max(0, window.innerWidth - els.overlay.offsetWidth);
+    var maxTop = Math.max(0, window.innerHeight - els.overlay.offsetHeight);
+    return { left: Math.min(Math.max(0, left), maxLeft), top: Math.min(Math.max(0, top), maxTop) };
+  }
+
+  function applyPosition(left, top){
+    var pos = clampPosition(left, top);
+    els.overlay.style.left = pos.left + "px";
+    els.overlay.style.top = pos.top + "px";
+    els.overlay.style.right = "auto";
+  }
+
+  function initDrag(){
+    var dragging = false;
+    var startX, startY, startLeft, startTop;
+
+    if(isDesktopLayout()){
+      try{
+        var saved = JSON.parse(localStorage.getItem("doors_chat_pos") || "null");
+        if(saved && typeof saved.left === "number" && typeof saved.top === "number"){
+          applyPosition(saved.left, saved.top);
+        }
+      }catch(e){}
+    }
+
+    els.head.style.cursor = "move";
+    els.head.addEventListener("pointerdown", function(e){
+      if(!isDesktopLayout()) return;
+      dragging = true;
+      var rect = els.overlay.getBoundingClientRect();
+      startX = e.clientX; startY = e.clientY;
+      startLeft = rect.left; startTop = rect.top;
+      try{ els.head.setPointerCapture(e.pointerId); }catch(ignored){}
+      e.preventDefault();
+    });
+    els.head.addEventListener("pointermove", function(e){
+      if(!dragging) return;
+      applyPosition(startLeft + (e.clientX - startX), startTop + (e.clientY - startY));
+    });
+    function endDrag(){
+      if(!dragging) return;
+      dragging = false;
+      try{
+        var left = parseFloat(els.overlay.style.left);
+        var top = parseFloat(els.overlay.style.top);
+        localStorage.setItem("doors_chat_pos", JSON.stringify({ left: left, top: top }));
+      }catch(e){}
+    }
+    els.head.addEventListener("pointerup", endDrag);
+    els.head.addEventListener("pointercancel", endDrag);
+
+    window.addEventListener("resize", function(){
+      if(!isDesktopLayout()){
+        els.overlay.style.left = "";
+        els.overlay.style.top = "";
+        els.overlay.style.right = "";
+      }
     });
   }
 
@@ -3491,7 +3572,7 @@
     if(visible.length === 0){
       var empty = document.createElement("p");
       empty.className = "realm-chat-empty";
-      empty.textContent = "No one else is here right now. · 今、他に誰もいない。· 지금 여기 아무도 없다.";
+      empty.textContent = "Say something and see who's here. · 何か言ってみて、誰がいるか確かめよう。· 말을 걸어서 누가 있는지 확인해봐.";
       els.messages.appendChild(empty);
     }else{
       visible.forEach(function(m){
