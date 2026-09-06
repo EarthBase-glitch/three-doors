@@ -872,6 +872,69 @@
     ]
   };
 
+  // Small deterministic hash, used to give an account a stable but
+  // unpredictable pick from a content pool (e.g. which past-life fragment
+  // the soil "remembers" for a given accountId) without needing to store
+  // the resolved content itself.
+  function hashCode(str){
+    var hash = 0;
+    for(var i = 0; i < str.length; i++){ hash = (hash * 31 + str.charCodeAt(i)) | 0; }
+    return Math.abs(hash);
+  }
+
+  // Reincarnation's "Something Was Here Before You" — a one-time, private
+  // reveal of who the soil says lived in this body before you. Picked
+  // deterministically from accountId, so it's stable forever once seen,
+  // and ties directly into the existing daily tasks / Day 7 vision theme
+  // of inherited, unexplained habits.
+  var PAST_LIFE_FRAGMENTS = [
+    { en:"They flinched at loud sounds long before you ever did. You've noticed the same flinch in yourself, aimed at nothing you remember causing it.",
+      ja:"彼らは、あなたよりずっと前から大きな音に身をすくめていた。あなたも同じように身をすくめていることに気づいたが、その原因になるようなことをした記憶はない。",
+      ko:"그들은 당신보다 훨씬 전부터 큰 소리에 움츠러들었다. 당신도 같은 움찔거림을 알아챘지만, 그 원인이 될 만한 일을 한 기억은 없다." },
+    { en:"They were left-handed. Some mornings your right hand still feels like the wrong one to reach with.",
+      ja:"彼らは左利きだった。今でも朝によっては、右手で何かを取ろうとすると、それが間違った手のように感じられる。",
+      ko:"그들은 왼손잡이였다. 어떤 아침에는 오른손으로 무언가를 잡으려 하면, 그것이 잘못된 손처럼 느껴진다." },
+    { en:"They hummed when they were nervous, always the same three notes. You've caught yourself humming them and stopped, not knowing why.",
+      ja:"彼らは緊張すると鼻歌を歌った。いつも同じ三つの音だった。あなたは自分がそれを口ずさんでいるのに気づき、理由も分からず止めた。",
+      ko:"그들은 불안할 때 흥얼거렸다. 언제나 같은 세 음이었다. 당신은 자신이 그것을 흥얼거리고 있음을 알아채고, 이유도 모른 채 멈췄다." },
+    { en:"They slept curled toward the door, like they were waiting to be able to leave quickly. You do too, and you were never told to.",
+      ja:"彼らはドアの方を向いて丸まって眠っていた。いつでもすぐに出て行けるように、というように。あなたもそうしているが、誰にもそうしろとは言われていない。",
+      ko:"그들은 문 쪽을 향해 몸을 웅크리고 잤다. 언제든 빨리 나갈 수 있도록 기다리는 사람처럼. 당신도 그러는데, 그러라고 말해준 사람은 없었다." },
+    { en:"They apologized to furniture they bumped into. You do that now. Nobody taught you that either.",
+      ja:"彼らはぶつかった家具にまで謝っていた。あなたも今、そうしている。それも誰にも教わっていない。",
+      ko:"그들은 부딪힌 가구에게도 사과했다. 당신도 지금 그렇게 한다. 그것도 아무도 가르쳐주지 않았다." },
+    { en:"They kept their eyes closed a beat too long after waking, like checking if it was safe first. Some mornings, so do you.",
+      ja:"彼らは目覚めた後も、少しの間だけ目を閉じたままでいた。まず安全かどうか確かめるかのように。あなたも朝によっては、そうしている。",
+      ko:"그들은 잠에서 깬 뒤에도 잠시 눈을 감은 채로 있었다. 먼저 안전한지 확인하려는 것처럼. 당신도 어떤 아침에는 그렇게 한다." }
+  ];
+
+  // Hell's "The Voice You Owe" — a one-time confession, answered by a
+  // deterministic reply picked from what's actually typed (so the same
+  // confession always gets the same answer, but no two people's words
+  // land the same way). Ties into the existing Day 3 daily task ("Confess
+  // something small to yourself") and the Day 7 vision of a voice inside
+  // the burn that just wants to be heard once.
+  var CONFESSION_REPLIES = [
+    { en:"It doesn't forgive you. It just says: finally. And it goes quiet, satisfied for once.",
+      ja:"それはあなたを赦しはしない。ただ、「ようやくか」とだけ言う。そして、一度だけ満たされたように静かになる。",
+      ko:"그것은 당신을 용서하지 않는다. 그저 '드디어'라고만 말한다. 그리고 처음으로 만족한 듯 조용해진다." },
+    { en:"It laughs, short and surprised, like it didn't expect you to actually say it. Then it says: that's all it wanted.",
+      ja:"それは短く、驚いたように笑う。まさか本当に言うとは思っていなかったかのように。そして言う——それだけが欲しかったのだと。",
+      ko:"그것은 짧게, 놀란 듯이 웃는다. 당신이 정말로 말할 줄은 몰랐다는 듯이. 그리고 말한다 — 그게 원했던 전부였다고." },
+    { en:"It repeats your words back to you, once, slower — like it needed to hear them said correctly at least once.",
+      ja:"それはあなたの言葉を、一度だけ、もっとゆっくりと繰り返す。せめて一度は正しく言われるのを聞く必要があったかのように。",
+      ko:"그것은 당신의 말을 한 번, 더 천천히 되풀이한다. 최소한 한 번은 제대로 말해지는 것을 들어야 했다는 듯이." },
+    { en:"It says nothing you can make into words. But something in the burn eases, like a held breath finally let out.",
+      ja:"それは言葉にできる何も言わない。だが燃える中の何かが和らぐ。ずっと止めていた息を、ようやく吐き出したかのように。",
+      ko:"그것은 말로 옮길 수 있는 어떤 것도 말하지 않는다. 하지만 불타는 안쪽의 무언가가 누그러진다. 참았던 숨을 마침내 내쉰 것처럼." },
+    { en:"It says: you should have said that to someone who was still alive to hear it. Then, quieter: but I'll take it.",
+      ja:"それは言う——それを聞けるうちに、生きている誰かに言うべきだったと。そして、もっと静かに——だが、私が受け取ろう、と。",
+      ko:"그것은 말한다 — 그 말은 아직 살아서 들어줄 수 있는 누군가에게 했어야 했다고. 그리고 더 조용히 — 하지만 내가 받아두겠다고." },
+    { en:"It says your name — the one you go by here — like it's testing whether it still fits you. It seems to decide it does.",
+      ja:"それはあなたの名を——ここで名乗っている名を——呼ぶ。それがまだあなたに合うか試すかのように。そして、合うと決めたようだった。",
+      ko:"그것은 당신의 이름을 — 이곳에서 쓰는 이름을 — 부른다. 그것이 아직 당신에게 어울리는지 시험하듯이. 그리고 어울린다고 결정한 듯하다." }
+  ];
+
   function dateKey(offsetDays){
     var d = new Date();
     if(offsetDays) d.setDate(d.getDate() + offsetDays);
@@ -1727,6 +1790,123 @@
     );
   }
 
+  // Heaven's "Before Here" — a one-time, private ritual tied to the
+  // existing Day 7 vision ("The Door Behind the Door"), which already
+  // establishes that the light lets old names through a seam near the
+  // edge of things. Lets a visitor type the name they were called before
+  // arriving, once — kept permanently afterward, never editable.
+  function HeavenOldNameCard(props){
+    var character = props.character;
+    var _d = useState("");
+    var draft = _d[0], setDraft = _d[1];
+    var kept = character.oldName;
+
+    function submit(e){
+      e.preventDefault();
+      var trimmed = draft.trim();
+      if(!trimmed) return;
+      props.onSave({ oldName: trimmed.slice(0, 60) });
+    }
+
+    return h("div", { className:"vision-item", style:{ marginTop:"24px" } },
+      h("div", { className:"q-eyebrow" }, "Before Here"),
+      h(Sub, { ja:"ここに来る前", ko:"이곳에 오기 전" }),
+      kept ? [
+        h("h3", { key:"t" }, "The light kept it."),
+        h(Sub, { key:"ts", ja:"光はそれを保った。", ko:"빛은 그것을 간직했다." }),
+        h("p", { key:"b" }, "“" + kept + "”"),
+        h(Sub, { key:"bs", ja:"それがあなたの、ここに来る前の名だ。", ko:"그것이 이곳에 오기 전, 당신의 이름이었다." })
+      ] : [
+        h("p", { key:"p", className:"q-tagline", style:{ margin:"10px 0 0" } },
+          "Somewhere in the seam where the light thins, an old name still gets through. Let it — just once."),
+        h(Sub, { key:"ps",
+          ja:"光が薄くなる継ぎ目のどこかに、古い名前がまだ通り抜けてくる。一度だけ、それを通してみよう。",
+          ko:"빛이 얇아지는 이음매 어딘가로, 오래된 이름이 아직 흘러 들어온다. 단 한 번, 그것을 흘려보내 보자." }),
+        h("form", { key:"f", onSubmit: submit, style:{ marginTop:"12px" } },
+          h("input", {
+            className:"feedback-input", type:"text", maxLength:60, placeholder:"What did they call you?",
+            value: draft, onChange: function(e){ setDraft(e.target.value); }
+          }),
+          h("button", { className:"q-btn primary bi", type:"submit", style:{ marginTop:"10px", width:"auto" } },
+            biLabel("Let it through", "光に通す", "빛에 흘려보내다"))
+        )
+      ]
+    );
+  }
+
+  // Reincarnation's "Something Was Here Before You" — see PAST_LIFE_FRAGMENTS
+  // above. One-time reveal, deterministic per account, so it's stable and
+  // permanent once asked for.
+  function EarthPastLifeCard(props){
+    var revealed = !!props.character.pastLifeRevealed;
+    var fragment = PAST_LIFE_FRAGMENTS[hashCode(props.accountId || "") % PAST_LIFE_FRAGMENTS.length];
+
+    return h("div", { className:"vision-item", style:{ marginTop:"24px" } },
+      h("div", { className:"q-eyebrow" }, "Before This Body"),
+      h(Sub, { ja:"この体になる前", ko:"이 몸이 되기 전" }),
+      revealed ? [
+        h("h3", { key:"t" }, "Something Was Here Before You"),
+        h(Sub, { key:"ts", ja:"あなたの前に、何かがここにいた", ko:"당신 이전에, 무언가가 여기 있었다" }),
+        h("p", { key:"b" }, fragment.en),
+        h(Sub, { key:"bs", ja:fragment.ja, ko:fragment.ko })
+      ] : [
+        h("p", { key:"p", className:"q-tagline", style:{ margin:"10px 0 0" } },
+          "The soil never says whose hands these were before yours. It will tell you, once, if you ask."),
+        h(Sub, { key:"ps",
+          ja:"土は、この手が以前誰のものだったかを決して言わない。一度だけ、尋ねれば教えてくれる。",
+          ko:"흙은 이 손이 이전에 누구의 것이었는지 결코 말하지 않는다. 한 번만 물으면, 알려줄 것이다." }),
+        h("button", {
+          key:"btn", className:"q-btn primary bi", type:"button", style:{ marginTop:"12px", width:"auto" },
+          onClick: function(){ props.onSave({ pastLifeRevealed: true }); }
+        }, biLabel("Ask the soil", "土に尋ねる", "흙에게 묻다"))
+      ]
+    );
+  }
+
+  // Hell's "The Voice You Owe" — see CONFESSION_REPLIES above. A one-time,
+  // permanent confession that this page never shows to any other visitor,
+  // answered by a reply picked from the words themselves.
+  function HellConfessionCard(props){
+    var character = props.character;
+    var _d = useState("");
+    var draft = _d[0], setDraft = _d[1];
+    var said = character.confessionText;
+    var reply = said ? CONFESSION_REPLIES[(character.confessionReplyIdx || 0) % CONFESSION_REPLIES.length] : null;
+
+    function submit(e){
+      e.preventDefault();
+      var trimmed = draft.trim();
+      if(!trimmed) return;
+      props.onSave({ confessionText: trimmed.slice(0, 300), confessionReplyIdx: hashCode(trimmed) % CONFESSION_REPLIES.length });
+    }
+
+    return h("div", { className:"vision-item", style:{ marginTop:"24px" } },
+      h("div", { className:"q-eyebrow" }, "The Voice You Owe"),
+      h(Sub, { ja:"あなたが借りのある声", ko:"당신이 빚진 목소리" }),
+      said ? [
+        h("h3", { key:"t" }, "You already said it."),
+        h(Sub, { key:"ts", ja:"あなたはもう、それを言った。", ko:"당신은 이미 그것을 말했다." }),
+        h("p", { key:"b", style:{ fontStyle:"italic" } }, "“" + said + "”"),
+        reply ? h("p", { key:"r", style:{ marginTop:"10px" } }, reply.en) : null,
+        reply ? h(Sub, { key:"rs", ja:reply.ja, ko:reply.ko }) : null
+      ] : [
+        h("p", { key:"p", className:"q-tagline", style:{ margin:"10px 0 0" } },
+          "Something in the burn has been waiting to be heard. Say it once — this page won't show it to anyone else."),
+        h(Sub, { key:"ps",
+          ja:"燃える中の何かが、聞いてもらうのをずっと待っている。一度だけ言ってみよう——このページは、あなた以外の誰にもそれを見せない。",
+          ko:"불타는 안쪽의 무언가가, 들려지기를 계속 기다려왔다. 한 번만 말해보라 — 이 페이지는 당신 외에는 아무에게도 그것을 보여주지 않는다." }),
+        h("form", { key:"f", onSubmit: submit, style:{ marginTop:"12px" } },
+          h("textarea", {
+            className:"feedback-input", maxLength:300, rows:3, placeholder:"Say it.",
+            value: draft, onChange: function(e){ setDraft(e.target.value); }
+          }),
+          h("button", { className:"q-btn primary bi", type:"submit", style:{ marginTop:"10px", width:"auto" } },
+            biLabel("Confess", "告白する", "고백하다"))
+        )
+      ]
+    );
+  }
+
   function CharacterCreator(props){
     var accountId = props.accountId;
     var dbRef = useRef(null);
@@ -1800,6 +1980,16 @@
 
     function update(patch){
       setCharacter(function(c){ return Object.assign({}, c, patch); });
+    }
+
+    // Separate from the skin/outfit/gender autosave effect above (which
+    // only fires on those three fields) — merges a patch straight into
+    // Firestore immediately, for the realm-specific one-time narrative
+    // fields below (oldName, pastLifeRevealed, confessionText/ReplyIdx).
+    function persistCharacterFields(patch){
+      setCharacter(function(c){ return Object.assign({}, c, patch); });
+      var ns = dbRef.current;
+      if(ns && accountId){ ns.doc("characters/" + accountId).set(patch, { merge:true }).catch(function(){}); }
     }
 
     var outfit = OUTFITS.filter(function(o){ return o.id === character.outfit; })[0] || OUTFITS[0];
@@ -1890,6 +2080,11 @@
           }, biLabel("Save & continue", "保存して進む", "저장하고 계속하기"))
         ) : null
       ),
+      loaded ? (
+        props.doorKey === "heaven" ? h(HeavenOldNameCard, { character: character, onSave: persistCharacterFields }) :
+        props.doorKey === "hell" ? h(HellConfessionCard, { character: character, onSave: persistCharacterFields }) :
+        h(EarthPastLifeCard, { accountId: accountId, character: character, onSave: persistCharacterFields })
+      ) : null,
       h("div", { className:"char-lore-link" },
         h("button", { className:"q-btn ghost tiny bi", type:"button", onClick: props.onOpenTasks },
           biLabel("Today's tasks", "今日の課題", "오늘의 과제")),
