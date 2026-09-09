@@ -872,6 +872,80 @@
     ]
   };
 
+  // A second narrative track per realm, same "earn it once, keep it
+  // forever" shape as VISIONS above (see unlockedChronicles in
+  // useDailyTasks), but each realm is gated on a different measure than
+  // the streak — one that doesn't reset when the streak does:
+  //   heaven — total times you've completed the task here, gaps and all
+  //   hell   — how many times a streak has actually broken, here
+  //   earth  — how many times you've been reborn into a different door
+  // Stored in its own array so its keys ("heaven:5") can never collide
+  // with a VISIONS key of the same shape.
+  var RETURN_MILESTONES = [5, 15, 40];
+  var FALL_MILESTONES = [1, 3, 7];
+  var REBIRTH_MILESTONES = [1, 3, 6];
+  var CHRONICLE_MILESTONES = { heaven: RETURN_MILESTONES, hell: FALL_MILESTONES, earth: REBIRTH_MILESTONES };
+  var CHRONICLE_TITLES = {
+    heaven: { en:"The Register", ja:"名簿", ko:"명부" },
+    hell:   { en:"The Reckoning", ja:"清算", ko:"결산" },
+    earth:  { en:"Past Lives", ja:"前世", ko:"전생" }
+  };
+  var CHRONICLE_UNIT = { heaven:"return", hell:"fall", earth:"life" };
+
+  var CHRONICLES = {
+    heaven: [
+      { at: 5,
+        title: "A Line Added", titleJa: "加えられた一行", titleKo: "추가된 한 줄",
+        en: "Five times now, streak broken or not, you've come back to this. The light was never counting days in a row — that was never its arithmetic. It counts returns. A line is added to a register you'll never get to read. It says only: still here.",
+        ja: "五度目だ、連続記録が途切れていようといまいと、あなたはここへ戻ってきた。光は連続した日数など数えていなかった——それはそもそも光の計算法ではない。光が数えるのは、戻ってきた回数だ。あなたが読むことのない名簿に、また一行が加えられる。そこにはただ、こう記されている——まだ、ここにいる。",
+        ko: "다섯 번째다. 연속 기록이 끊겼든 아니든, 당신은 다시 이곳으로 돌아왔다. 빛은 연속된 날수를 센 적이 없다 — 그것은 애초에 빛의 계산법이 아니었다. 빛이 세는 것은 돌아온 횟수다. 당신이 결코 읽을 수 없는 명부에 한 줄이 더해진다. 거기엔 이렇게만 적혀 있다 — 아직, 여기 있다." },
+      { at: 15,
+        title: "No Mark Against You", titleJa: "不利な印はひとつもない", titleKo: "불리한 표시는 없다",
+        en: "Fifteen returns, and somewhere in that number are the mornings you almost didn't — the days you came back late, or angry, or not sure why you bothered. None of it shows up differently in the register. The light keeps one column, not two: it never learned to write down absence as a debt.",
+        ja: "十五回目の帰還。その数の中には、危うく戻らなかった朝も含まれている——遅れて戻った日、怒りを抱えたまま戻った日、なぜそうしているのか自分でも分からなかった日。名簿の上では、そのどれもが違って見えることはない。光が保つのは一つの欄だけで、二つではない——不在を負債として書き記す方法を、光はついに覚えなかった。",
+        ko: "열다섯 번째 귀환. 그 숫자 안에는 거의 돌아오지 못할 뻔했던 아침들도 있다 — 늦게 돌아온 날, 화를 품은 채 돌아온 날, 왜 이러고 있는지 스스로도 알 수 없었던 날. 명부 위에서는 그 무엇도 다르게 보이지 않는다. 빛이 지키는 것은 하나의 칸뿐, 둘이 아니다 — 부재를 빚으로 적는 법을, 빛은 끝내 배우지 않았다." },
+      { at: 40,
+        title: "The Register Has No Last Page", titleJa: "名簿に最後のページはない", titleKo: "명부에는 마지막 페이지가 없다",
+        en: "Forty times you've stood back up and come here anyway. You start to understand the register isn't a scoreboard being filled toward some final number — it has no last page. It was never proof you'd earned anything. It was just a light, watching a door, glad every single time it opened.",
+        ja: "四十回、あなたは立ち上がり、それでもここへやって来た。名簿はある最終的な数字に向かって埋められていくスコアボードではないのだと、あなたは分かり始める——それには最後のページがない。それは何かを勝ち取った証明などでは、一度もなかった。ただの光が、一つの扉を見つめ、それが開くたびに、そのたびごとに喜んでいただけなのだ。",
+        ko: "마흔 번, 당신은 다시 일어나 그럼에도 이곳으로 왔다. 명부는 어떤 최종 숫자를 향해 채워지는 점수판이 아니라는 것을, 당신은 이제 알기 시작한다 — 거기엔 마지막 페이지가 없다. 그것은 당신이 무언가를 얻어냈다는 증거였던 적이 없다. 그저 하나의 빛이, 하나의 문을 바라보며, 그 문이 열릴 때마다 매번 기뻐했을 뿐이다." }
+    ],
+    hell: [
+      { at: 1,
+        title: "The First Time It Slipped", titleJa: "初めて滑り落ちたとき", titleKo: "처음 미끄러졌을 때",
+        en: "The streak broke, and you expected the fire to burn hotter for it. It didn't. It just marked the spot where you slipped — the exact day, the exact reason you'll half-remember later — and kept it. Not as a wound. As an address it can find you at again.",
+        ja: "連続記録が途切れ、あなたは炎がもっと激しく燃えるだろうと思った。そうはならなかった。炎はただ、あなたが滑り落ちた場所に印をつけただけだった——その正確な日、後で半分しか思い出せなくなる正確な理由。そしてそれを保管した。傷としてではない。またあなたを見つけ出せる、住所として。",
+        ko: "연속 기록이 끊겼고, 당신은 불꽃이 더 뜨겁게 타오를 거라 예상했다. 그렇지 않았다. 불꽃은 그저 당신이 미끄러진 자리에 표시를 남겼을 뿐이다 — 정확한 날짜, 나중엔 반쯤밖에 기억나지 않을 정확한 이유. 그리고 그것을 간직했다. 상처로서가 아니라, 다시 당신을 찾아낼 수 있는 주소로서." },
+      { at: 3,
+        title: "A Shape Made of Falling", titleJa: "落ちることでできた形", titleKo: "넘어짐으로 만들어진 형체",
+        en: "Three times broken now, and the fire has started sketching something out of the gaps themselves — not who you are when you show up, but who you are when you don't. It isn't angry about the pattern. It's just finally aiming at the right target.",
+        ja: "三度目の途切れ。炎は、その隙間そのものから何かを描き始めている——現れたときのあなたではなく、現れなかったときのあなたを。そのパターンに怒っているわけではない。ただようやく、正しい標的に狙いを定めつつあるだけだ。",
+        ko: "이제 세 번째로 끊겼다. 불꽃은 그 빈틈 자체로부터 무언가를 그려내기 시작한다 — 나타났을 때의 당신이 아니라, 나타나지 않았을 때의 당신을. 그 패턴에 화가 난 것은 아니다. 그저 마침내 올바른 표적을 겨냥하고 있을 뿐이다." },
+      { at: 7,
+        title: "What It Was Actually Counting", titleJa: "それが本当に数えていたもの", titleKo: "그것이 실제로 세고 있던 것",
+        en: "Seven falls, and you realize the fire was never counting your streak at all — that number was yours, not its. It was counting this one: how many times you came back after slipping. Seven. It has never once been the number that measures whether you're doing well. It's the only number that's ever mattered here.",
+        ja: "七度の転落。あなたは気づく——炎はそもそも、あなたの連続記録など数えていなかったのだと。あの数字はあなたのものであって、炎のものではなかった。炎が数えていたのはこちらだ。滑り落ちたあと、何度戻ってきたか。七回。それは一度たりとも、あなたがうまくやれているかを測る数字ではなかった。ここで意味を持つ数字は、これしかない。",
+        ko: "일곱 번의 추락. 당신은 깨닫는다 — 불꽃은 애초에 당신의 연속 기록 따위를 센 적이 없었다는 것을. 그 숫자는 당신의 것이었지, 불꽃의 것이 아니었다. 불꽃이 세고 있던 것은 이것이다. 미끄러진 뒤 몇 번이나 돌아왔는가. 일곱 번. 그것은 단 한 번도 당신이 잘하고 있는지를 재는 숫자였던 적이 없다. 이곳에서 의미를 가진 숫자는, 오직 이것뿐이다." }
+    ],
+    earth: [
+      { at: 1,
+        title: "The First Death You Don't Remember", titleJa: "あなたが覚えていない最初の死", titleKo: "당신이 기억하지 못하는 첫 번째 죽음",
+        en: "You left a door and walked through this one instead, and somewhere in that crossing, a small death happened that nobody marked. This body doesn't remember the life before it, not exactly — but it flinches at a sound it's never heard before, and you can't explain that any other way.",
+        ja: "あなたはある扉を離れ、代わりにこの扉をくぐった。その移行のどこかで、誰にも記されない小さな死が起きた。この体は、その前の生を正確には覚えていない——それでも、聞いたことのないはずの音に身をすくめることがあり、あなたにはそれを他に説明する方法がない。",
+        ko: "당신은 어떤 문을 떠나 대신 이 문을 지나왔다. 그 넘어감의 어딘가에서, 아무도 기록하지 않은 작은 죽음이 일어났다. 이 몸은 그 이전의 삶을 정확히 기억하지 못한다 — 그런데도 한 번도 들어본 적 없을 소리에 움찔한다. 당신은 그것을 달리 설명할 방법이 없다." },
+      { at: 3,
+        title: "Three Lives, One Set of Hands", titleJa: "三つの生、ひとつの手", titleKo: "세 개의 삶, 하나의 손",
+        en: "Third time back, and the pattern is impossible to miss anymore: different door, different disaster, same hands doing the flinching and the reaching. Three lives is enough to notice they're not starting from nothing. They're starting from each other.",
+        ja: "三度目の帰還。もはやそのパターンを見逃しようがない——違う扉、違う災い、それでも身をすくめ、手を伸ばすのは同じ手だ。三つの生を経れば、それらが無から始まっているのではないと気づくには十分だ。それらは、互いから始まっている。",
+        ko: "세 번째로 돌아왔고, 이제 그 패턴을 놓칠 수가 없다 — 다른 문, 다른 재난, 그러나 움츠리고 뻗는 것은 같은 손이다. 세 개의 삶이면, 그것들이 무(無)에서 시작된 게 아니라는 걸 알아차리기에 충분하다. 그것들은 서로에게서 시작되고 있다." },
+      { at: 6,
+        title: "What the Soil Never Actually Forgot", titleJa: "土が本当は忘れていなかったもの", titleKo: "흙이 사실은 잊지 않았던 것",
+        en: "Six lives now folded into this one, and you finally understand what \"starting over\" was hiding: the soil was never blank, and it was never really forgiving you, either. It was just patient — willing to grow the same person back, again and again, in a slightly different shape each time, until one of them stuck.",
+        ja: "六つの生が、今このひとつに折りたたまれている。あなたはようやく「やり直す」という言葉が何を隠していたのかを理解する——土は一度も白紙だったことはなく、本当にあなたを赦していたわけでもなかった。ただ辛抱強かっただけだ。同じ人間を、少しずつ違う形にして、何度でも育て直そうとしていた——そのうちの一人が、根づくまで。",
+        ko: "이제 여섯 개의 삶이 이 하나 속으로 접혀 들어와 있다. 당신은 마침내 '다시 시작한다'는 말이 무엇을 숨기고 있었는지 이해한다 — 흙은 한 번도 백지였던 적이 없었고, 사실 당신을 진짜로 용서하고 있었던 것도 아니었다. 그저 인내심이 많았을 뿐이다. 같은 사람을 조금씩 다른 모습으로, 몇 번이고 다시 길러내려 했다 — 그중 하나가 뿌리내릴 때까지." }
+    ]
+  };
+
   function dateKey(offsetDays){
     var d = new Date();
     if(offsetDays) d.setDate(d.getDate() + offsetDays);
@@ -912,13 +986,13 @@
   // actually pay for moving to a different door.
   function useDailyTasks(accountId){
     var dbRef = useRef(null);
-    var _s = useState({ streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], resolvedFor:null });
+    var _s = useState({ streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], totalCompletions:0, resets:0, doorSwitches:0, unlockedChronicles:[], resolvedFor:null });
     var state = _s[0], setState = _s[1];
     var loaded = !accountId || state.resolvedFor === accountId;
 
     useEffect(function(){
       if(!accountId){
-        setState(function(s){ return Object.assign({}, s, { streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], resolvedFor:null }); });
+        setState(function(s){ return Object.assign({}, s, { streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], totalCompletions:0, resets:0, doorSwitches:0, unlockedChronicles:[], resolvedFor:null }); });
         return;
       }
       var cancelled = false;
@@ -938,6 +1012,10 @@
             points: (found && found.points) || 0,
             lastCompletedDate: (found && found.lastCompletedDate) || null,
             unlockedVisions: (found && found.unlockedVisions) || [],
+            totalCompletions: (found && found.totalCompletions) || 0,
+            resets: (found && found.resets) || 0,
+            doorSwitches: (found && found.doorSwitches) || 0,
+            unlockedChronicles: (found && found.unlockedChronicles) || [],
             resolvedFor: accountId
           });
         }
@@ -948,10 +1026,17 @@
     async function markDone(realmKey, today){
       if(!accountId) return { ok:false };
       var wasYesterday = state.lastCompletedDate === dateKey(-1);
+      // A real reset only counts if there was a streak to break — not on
+      // the very first completion ever, when lastCompletedDate is still null.
+      var isReset = !!state.lastCompletedDate && !wasYesterday;
       var nextStreak = wasYesterday ? state.streak + 1 : 1;
       var nextPoints = state.points + POINTS_PER_TASK;
+      var nextTotal = realmKey === "heaven" ? (state.totalCompletions || 0) + 1 : (state.totalCompletions || 0);
+      var nextResets = (realmKey === "hell" && isReset) ? (state.resets || 0) + 1 : (state.resets || 0);
       var nextUnlocked = state.unlockedVisions.slice();
+      var nextChronicles = (state.unlockedChronicles || []).slice();
       var newVision = null;
+      var newChronicle = null;
       if(VISION_MILESTONES.indexOf(nextStreak) !== -1){
         var visionKey = realmKey + ":" + nextStreak;
         if(nextUnlocked.indexOf(visionKey) === -1){
@@ -959,21 +1044,37 @@
           newVision = visionKey;
         }
       }
+      if(realmKey === "heaven" && RETURN_MILESTONES.indexOf(nextTotal) !== -1){
+        var registerKey = "heaven:" + nextTotal;
+        if(nextChronicles.indexOf(registerKey) === -1){
+          nextChronicles.push(registerKey);
+          newChronicle = registerKey;
+        }
+      }
+      if(realmKey === "hell" && isReset && FALL_MILESTONES.indexOf(nextResets) !== -1){
+        var fallKey = "hell:" + nextResets;
+        if(nextChronicles.indexOf(fallKey) === -1){
+          nextChronicles.push(fallKey);
+          newChronicle = fallKey;
+        }
+      }
       var ns = dbRef.current;
       if(ns){
         try{
           // A full set(), not update() — matches the existing shape of this
           // doc, so every field this doc holds has to be listed here or it
-          // gets dropped, unlockedVisions included.
+          // gets dropped, unlockedVisions (and the newer chronicle fields)
+          // included.
           await ns.doc("dailytasks/" + accountId).set({
-            realm: realmKey, streak: nextStreak, points: nextPoints, lastCompletedDate: today, unlockedVisions: nextUnlocked
+            realm: realmKey, streak: nextStreak, points: nextPoints, lastCompletedDate: today, unlockedVisions: nextUnlocked,
+            totalCompletions: nextTotal, resets: nextResets, doorSwitches: state.doorSwitches || 0, unlockedChronicles: nextChronicles
           });
         }catch(e){
           return { ok:false };
         }
       }
-      setState(function(s){ return Object.assign({}, s, { streak:nextStreak, points:nextPoints, lastCompletedDate:today, unlockedVisions:nextUnlocked }); });
-      return { ok:true, newVision: newVision };
+      setState(function(s){ return Object.assign({}, s, { streak:nextStreak, points:nextPoints, lastCompletedDate:today, unlockedVisions:nextUnlocked, totalCompletions:nextTotal, resets:nextResets, unlockedChronicles:nextChronicles }); });
+      return { ok:true, newVision: newVision, newChronicle: newChronicle };
     }
 
     async function spend(amount){
@@ -991,7 +1092,37 @@
       return { ok:true };
     }
 
-    return { state: Object.assign({}, state, { loaded:loaded }), markDone: markDone, spend: spend };
+    // Records a door switch (paid move or free escape alike — both end
+    // one life and start another) toward earth's "Past Lives" chronicle.
+    // Uses set(..., {merge:true}) rather than update() because a switch
+    // can happen before this account has ever completed a daily task, in
+    // which case the dailytasks doc doesn't exist yet — update() would
+    // reject outright, merge:true creates it.
+    async function recordSwitch(newKey){
+      if(!accountId) return { ok:false };
+      var nextSwitches = (state.doorSwitches || 0) + 1;
+      var nextChronicles = (state.unlockedChronicles || []).slice();
+      var newChronicle = null;
+      if(newKey === "earth" && REBIRTH_MILESTONES.indexOf(nextSwitches) !== -1){
+        var rebirthKey = "earth:" + nextSwitches;
+        if(nextChronicles.indexOf(rebirthKey) === -1){
+          nextChronicles.push(rebirthKey);
+          newChronicle = rebirthKey;
+        }
+      }
+      var ns = dbRef.current;
+      if(ns){
+        try{
+          await ns.doc("dailytasks/" + accountId).set({ doorSwitches: nextSwitches, unlockedChronicles: nextChronicles }, { merge:true });
+        }catch(e){
+          return { ok:false };
+        }
+      }
+      setState(function(s){ return Object.assign({}, s, { doorSwitches:nextSwitches, unlockedChronicles:nextChronicles }); });
+      return { ok:true, newChronicle: newChronicle };
+    }
+
+    return { state: Object.assign({}, state, { loaded:loaded }), markDone: markDone, spend: spend, recordSwitch: recordSwitch };
   }
 
   // Door-opening sound, synthesized entirely with the Web Audio API — no
@@ -1898,7 +2029,7 @@
         h("button", { className:"q-btn ghost tiny bi", type:"button", onClick: props.onOpenLore },
           biLabel(realm.name + " lore →", realm.nameJa + "の伝承 →", realm.nameKo + "의 전승 →")),
         h("button", { className:"q-btn ghost tiny bi", type:"button", onClick: props.onOpenVisions },
-          h("span", { className:"btn-en" }, "Memories", props.hasNewVision ? h("span", { className:"vision-nav-dot" }) : null),
+          h("span", { className:"btn-en" }, "Memories", (props.hasNewVision || props.hasNewChronicle) ? h("span", { className:"vision-nav-dot" }) : null),
           h("span", { className:"btn-sub" }, "記憶 ・ 기억")),
         h("button", { className:"q-btn ghost tiny bi", type:"button", onClick: props.onDonate },
           biLabel("Support — $3/mo", "サポート — 月3ドル", "후원 — 월 $3")),
@@ -2884,9 +3015,16 @@
         ja:"連続記録を保つほど、それぞれの世界はより多くの姿を見せる。一度見た記憶は、あなたのものとして残り続ける。",
         ko:"연속 기록을 이어갈수록, 각 세계는 자신의 더 많은 모습을 드러낸다. 한 번 본 기억은 계속 당신의 것으로 남는다."
       }),
+      h("p", { className:"q-tagline" }, "Below that, a second thread each realm keeps on its own terms — not the streak, but how many times you came back, fell, or were reborn."),
+      h(Sub, {
+        ja:"その下にあるのは、各世界が独自の基準で保つもう一つの筋道——連続記録ではなく、あなたが何度戻ってきたか、何度倒れたか、何度生まれ変わったかだ。",
+        ko:"그 아래에는 각 세계가 자기만의 기준으로 지켜온 또 다른 흐름이 있다 — 연속 기록이 아니라, 당신이 몇 번 돌아왔는지, 몇 번 넘어졌는지, 몇 번 다시 태어났는지에 대한 것이다."
+      }),
       h("div", { className:"vision-groups" },
         DOORS.map(function(d){
           var realm = REALMS[d.key];
+          var chronicleTitle = CHRONICLE_TITLES[d.key];
+          var unlockedChronicles = props.unlockedChronicles || [];
           return h("div", { key: d.key },
             h("div", { className:"vision-group-title" },
               h("span", { className:"dot", style:{ background:"var(--" + d.key + ")" } }),
@@ -2907,6 +3045,32 @@
                         h(Sub, { key:"ts", ja:v.titleJa, ko:v.titleKo }),
                         h("p", { key:"b" }, v.en),
                         h(Sub, { key:"bs", ja:v.ja, ko:v.ko })
+                      ]
+                    : [
+                        h("h3", { key:"t" }, "Not yet reached"),
+                        h(Sub, { key:"ts", ja:"まだ届いていない", ko:"아직 닿지 않았다" })
+                      ]
+                );
+              })
+            ),
+            h("div", { className:"vision-group-title", style:{ marginTop:"18px" } },
+              h("span", { className:"dot", style:{ background:"var(--" + d.key + ")" } }),
+              chronicleTitle.en + " · " + chronicleTitle.ja + " · " + chronicleTitle.ko
+            ),
+            h("div", { className:"vision-list" },
+              (CHRONICLE_MILESTONES[d.key] || []).map(function(at){
+                var c = (CHRONICLES[d.key] || []).filter(function(x){ return x.at === at; })[0];
+                if(!c) return null;
+                var key = d.key + "#" + at;
+                var unlocked = unlockedChronicles.indexOf(d.key + ":" + at) !== -1;
+                return h("div", { key: key, className:"vision-item" + (unlocked ? " unlocked" : " locked") },
+                  h("span", { className:"vision-day" }, CHRONICLE_UNIT[d.key] + " " + at),
+                  unlocked
+                    ? [
+                        h("h3", { key:"t" }, c.title),
+                        h(Sub, { key:"ts", ja:c.titleJa, ko:c.titleKo }),
+                        h("p", { key:"b" }, c.en),
+                        h(Sub, { key:"bs", ja:c.ja, ko:c.ko })
                       ]
                     : [
                         h("h3", { key:"t" }, "Not yet reached"),
@@ -2967,6 +3131,7 @@
         onOpenExplore: props.onOpenExplore,
         onOpenVisions: props.onOpenVisions,
         hasNewVision: props.hasNewVision,
+        hasNewChronicle: props.hasNewChronicle,
         onDonate: props.onDonate,
         onTip: props.onTip,
         onManageSubscription: props.onManageSubscription
@@ -2983,6 +3148,7 @@
         key: "visions-" + props.accountId,
         doorKey: key,
         unlockedVisions: props.unlockedVisions,
+        unlockedChronicles: props.unlockedChronicles,
         onBack: props.onBackToCharacter
       });
     }else if(props.gamePhase === "tasks"){
@@ -3055,6 +3221,8 @@
     var soulStatsOpen = _ss[0], setSoulStatsOpen = _ss[1];
     var _nv = useState(false);
     var hasNewVision = _nv[0], setHasNewVision = _nv[1];
+    var _nc = useState(false);
+    var hasNewChronicle = _nc[0], setHasNewChronicle = _nc[1];
     var _e3d = useState(-1);
     var explore3dMarkerIdx = _e3d[0], setExplore3dMarkerIdx = _e3d[1];
     var doors = useDoorsDb(account ? account.id : null);
@@ -3211,6 +3379,12 @@
     function handleEscape(newKey){
       trackEvent("escape_door", { from: doors.state.myChoice, to: newKey });
       doors.choose(newKey);
+      dailyTasks.recordSwitch(newKey).then(function(result){
+        if(result && result.newChronicle){
+          trackEvent("unlock_chronicle", { chronicle: result.newChronicle });
+          setHasNewChronicle(true);
+        }
+      });
       setGamePhase("question");
     }
     function handleExit(){ setPhase("threshold"); setGamePhase("question"); }
@@ -3223,7 +3397,7 @@
       setGamePhase("explore3d");
     }
     function handleBackToExplore(){ setGamePhase("explore"); }
-    function handleOpenVisions(){ setHasNewVision(false); setGamePhase("visions"); }
+    function handleOpenVisions(){ setHasNewVision(false); setHasNewChronicle(false); setGamePhase("visions"); }
     function handleBackToCharacter(){ setGamePhase("character"); }
     async function handleMarkDone(){
       var result = await dailyTasks.markDone(doors.state.myChoice, dateKey(0));
@@ -3233,6 +3407,10 @@
           trackEvent("unlock_vision", { vision: result.newVision });
           setHasNewVision(true);
         }
+        if(result.newChronicle){
+          trackEvent("unlock_chronicle", { chronicle: result.newChronicle });
+          setHasNewChronicle(true);
+        }
       }
       return result;
     }
@@ -3241,6 +3419,11 @@
       if(!result.ok) return result;
       trackEvent("move_door", { from: doors.state.myChoice, to: newKey });
       doors.choose(newKey);
+      var switchResult = await dailyTasks.recordSwitch(newKey);
+      if(switchResult && switchResult.newChronicle){
+        trackEvent("unlock_chronicle", { chronicle: switchResult.newChronicle });
+        setHasNewChronicle(true);
+      }
       setGamePhase("character");
       return { ok:true };
     }
@@ -3349,6 +3532,8 @@
         dailyTasksState: dailyTasks.state,
         unlockedVisions: dailyTasks.state.unlockedVisions,
         hasNewVision: hasNewVision,
+        unlockedChronicles: dailyTasks.state.unlockedChronicles,
+        hasNewChronicle: hasNewChronicle,
         onSatisfied: handleSatisfied,
         onEscape: handleEscape,
         onExit: handleExit,
