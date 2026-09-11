@@ -388,6 +388,12 @@
   .vision-item p{ margin:8px 0 0; color:var(--ink-dim); line-height:1.65; font-size:0.88rem; }
   .vision-day{ font-family:'JetBrains Mono',ui-monospace,monospace; font-size:0.64rem; letter-spacing:0.1em; color:var(--ink-faint); text-transform:uppercase; }
   .vision-nav-dot{ display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--threshold-glow); margin-left:6px; box-shadow:0 0 8px var(--threshold-glow); vertical-align:middle; }
+  .sub-block{ margin-top:12px; padding-top:12px; border-top:1px solid var(--hairline); }
+  .sub-block:first-of-type{ margin-top:8px; padding-top:0; border-top:none; }
+  .sub-block.settled p{ color:var(--ink-faint); text-decoration:line-through; text-decoration-color:var(--hell); text-decoration-thickness:1px; }
+  .sub-block.settled .i18n-sub{ opacity:0.55; }
+  .sub-block.ledger-close{ border-top:1px solid var(--hairline); }
+  .sub-block.ledger-close p{ color:var(--ink); font-style:italic; }
 
   .explore-stage{
     margin-top:20px; position:relative; width:100%; max-width:480px; border-radius:16px; overflow:hidden;
@@ -872,6 +878,138 @@
     ]
   };
 
+  // Three more per-account narrative threads, one per realm, separate from
+  // the streak-milestone Visions above — these key off how many daily
+  // tasks you've *ever* completed in a realm (survives a broken streak)
+  // instead of a consecutive-day count, so they grow even for visitors who
+  // miss a day here and there. Only a small integer per realm is stored
+  // (heavenTaskCount/earthTaskCount/hellTaskCount on dailytasks/{accountId},
+  // already open read/write — no new collection, no rules change); the
+  // actual text is deterministically derived from the accountId with
+  // seededShuffle()/hashStr() below, so two visitors rarely see the same
+  // order and nothing extra needs to be written to Firestore to remember
+  // which lines they've seen.
+
+  // A small, seedable PRNG (mulberry32) plus a string hasher, used to turn
+  // an accountId into a per-account (but stable across sessions/devices)
+  // shuffle order — deterministic, no persistence needed for "which order
+  // did this visitor's lines come in."
+  function hashStr(str){
+    var h = 1779033703 ^ str.length;
+    for(var i = 0; i < str.length; i++){
+      h = Math.imul(h ^ str.charCodeAt(i), 3432918353);
+      h = (h << 13) | (h >>> 19);
+    }
+    return function(){
+      h = Math.imul(h ^ (h >>> 16), 2246822507);
+      h = Math.imul(h ^ (h >>> 13), 3266489909);
+      return (h ^= h >>> 16) >>> 0;
+    };
+  }
+  function mulberry32(seed){
+    var t = seed >>> 0;
+    return function(){
+      t = (t + 0x6D2B79F5) | 0;
+      var r = Math.imul(t ^ (t >>> 15), 1 | t);
+      r = (r + Math.imul(r ^ (r >>> 7), 61 | r)) ^ r;
+      return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function seededShuffle(arr, seedStr){
+    var rng = mulberry32(hashStr(String(seedStr))());
+    var out = arr.slice();
+    for(var i = out.length - 1; i > 0; i--){
+      var j = Math.floor(rng() * (i + 1));
+      var tmp = out[i]; out[i] = out[j]; out[j] = tmp;
+    }
+    return out;
+  }
+
+  // Heaven — "A Name From Before." Unlocks the moment a visitor completes
+  // their first Heaven daily task: one of these, picked deterministically
+  // from the accountId so it's stable forever once found, surfaces in
+  // Memories as something personal rather than something everyone shares —
+  // continuing the "old names let through" thread from the day-3 Vision
+  // above without repeating it.
+  var NAME_FRAGMENTS = [
+    { en:"Before this, they called you Wren. You don't remember choosing it — only that it fit, once, the way this new one hasn't quite fit yet.",
+      ja:"この場所より前、あなたはレンと呼ばれていた。選んだ覚えはない——ただ、かつてそれがしっくりきていたことだけを覚えている。この新しい名前が、まだそうなっていないように。",
+      ko:"이곳에 오기 전, 사람들은 당신을 렌이라 불렀다. 그 이름을 고른 기억은 없다 — 다만 한때 그것이 꼭 맞았다는 것만 기억할 뿐이다. 이 새 이름이 아직 그렇지 못한 것처럼." },
+    { en:"Someone down there still says a name that used to be yours, quietly, to an empty chair. The light lets you hear it, once, and doesn't explain why.",
+      ja:"下界の誰かが、かつてあなたのものだった名前を、今も静かに空いた椅子に向かって呼んでいる。光は一度だけそれを聞かせてくれる。理由は語らない。",
+      ko:"저 아래 누군가가, 한때 당신의 것이었던 이름을 지금도 조용히 빈 의자를 향해 부르고 있다. 빛은 그것을 단 한 번 들려준다. 이유는 말해주지 않는다." },
+    { en:"You were called something shorter, once — a nickname, not a name, the kind only people who loved you used. It surfaces here sometimes, uninvited, like breath fogging glass.",
+      ja:"かつてあなたは、もっと短い名で呼ばれていた——名前というより愛称で、あなたを愛した人だけが使ったものだ。ここでは時々、招かれもしないのにそれが浮かび上がる。ガラスに息が曇るように。",
+      ko:"한때 당신은 더 짧은 이름으로 불렸다 — 이름이라기보다 애칭에 가까운, 당신을 사랑했던 이들만이 쓰던 것. 여기서는 가끔, 부르지 않아도 그것이 떠오른다. 유리에 서린 입김처럼." },
+    { en:"There is a name carved somewhere you'll never see again, and it is yours, and it is older than the one you answer to here. The light doesn't erase it. It just stopped being urgent.",
+      ja:"もう二度と見ることのない場所に、名前が刻まれている。それはあなたのもので、ここで返事をしている名前よりも古い。光はそれを消したりはしない。ただ、急ぎではなくなっただけだ。",
+      ko:"다시는 보지 못할 어딘가에 이름 하나가 새겨져 있다. 그것은 당신의 것이며, 이곳에서 대답하는 이름보다 오래되었다. 빛은 그것을 지우지 않는다. 다만 더 이상 급한 일이 아니게 되었을 뿐이다." },
+    { en:"For a while after you arrived, you'd turn your head at the old name out of habit. You don't anymore. You're not sure when that stopped, or whether you should mind.",
+      ja:"ここに来てしばらくは、昔の名前を呼ばれると習慣で振り向いていた。今はもうそうしない。いつそれをやめたのか、気にすべきなのか、あなたには分からない。",
+      ko:"이곳에 온 지 얼마간은, 옛 이름을 부르면 습관처럼 고개를 돌리곤 했다. 이제는 그러지 않는다. 언제부터 그랬는지, 신경 써야 할 일인지조차 알 수 없다." },
+    { en:"Your old name is still spoken somewhere, at least once a year, by someone who has no idea you can still hear it. The light never tells you when. You just, sometimes, know.",
+      ja:"あなたの古い名前は、今もどこかで、少なくとも年に一度は口にされている——あなたがまだそれを聞けることなど知る由もない誰かによって。光はそれがいつかを教えてはくれない。ただ、時々、あなたにはなぜか分かる。",
+      ko:"당신의 옛 이름은 지금도 어딘가에서, 적어도 일 년에 한 번은 불린다 — 당신이 여전히 그것을 들을 수 있다는 걸 알 리 없는 누군가에 의해. 빛은 그때가 언제인지 알려주지 않는다. 다만 가끔, 당신은 그냥 안다." }
+  ];
+
+  // Reincarnation/Earth — "Habits You Didn't Learn." A slowly growing list
+  // instead of a single reveal: one more inherited habit surfaces every
+  // couple of completed daily tasks (see EARTH_HABIT_INTERVAL below),
+  // building out the "the body remembers what it wasn't taught" thread
+  // from the day-3/day-7 Visions with all-new lines.
+  var EARTH_HABIT_INTERVAL = 2;
+  var EARTH_HABITS = [
+    { en:"You always check over your left shoulder first. Nobody taught you that. It was already there, waiting in the muscle, when you arrived.",
+      ja:"あなたはいつも先に左肩越しを確認する。誰にも教わっていない。ここに来たとき、それはすでに筋肉の中で待っていた。",
+      ko:"당신은 항상 왼쪽 어깨 너머를 먼저 확인한다. 아무도 가르쳐주지 않았다. 이곳에 왔을 때, 그것은 이미 근육 속에서 기다리고 있었다." },
+    { en:"You hum the same three notes when your hands are busy and your mind isn't. You don't know the song. Your hands do.",
+      ja:"手が忙しく頭が空いているとき、あなたはいつも同じ三つの音を口ずさむ。曲の名前は知らない。でも、あなたの手は知っている。",
+      ko:"손은 바쁘고 마음은 비어 있을 때, 당신은 늘 같은 세 음을 흥얼거린다. 그 노래를 알지 못한다. 하지만 당신의 손은 안다." },
+    { en:"You flinch at a sound no one else in the room notices. Something before you flinched at it first, hard enough to leave a groove.",
+      ja:"その部屋にいる誰も気に留めない音に、あなたはびくりとする。あなたより前の誰かが、深い溝を残すほど強く、先にそれに怯えていたのだ。",
+      ko:"그 방의 누구도 신경 쓰지 않는 소리에 당신은 움찔한다. 당신보다 먼저 누군가가, 홈이 파일 만큼 강하게 그 소리에 놀랐던 적이 있다." },
+    { en:"You always leave a little food on the plate, even hungry. It isn't manners. It's older than that — something in you still isn't sure the next meal is coming.",
+      ja:"どれほど空腹でも、あなたは皿に少し食べ物を残す。行儀のためではない。それよりずっと古いものだ——あなたの中の何かは、次の食事が来るとまだ確信できずにいる。",
+      ko:"아무리 배가 고파도, 당신은 접시에 음식을 조금 남긴다. 예절 때문이 아니다. 그보다 더 오래된 것이다 — 당신 안의 무언가는 아직도 다음 끼니가 올 거라 확신하지 못한다." },
+    { en:"You count exits when you walk into a new room, without deciding to. Somebody who lived in this body before you needed to know that, badly, once.",
+      ja:"新しい部屋に入るとき、あなたは意識もせずに出口の数を数える。この体に以前住んでいた誰かが、かつて切実にそれを知る必要があったのだ。",
+      ko:"새로운 방에 들어설 때, 당신은 의식하지도 않고 출구의 수를 센다. 이 몸에 당신보다 먼저 살았던 누군가가, 한때 그것을 절실히 알아야 했던 것이다." },
+    { en:"You apologize to furniture when you bump into it. That one might actually be yours. The soil isn't sure either, and for once, doesn't say.",
+      ja:"家具にぶつかると、あなたは謝る。これはあなた自身の癖かもしれない。土もそれについては確信がなく、珍しく何も言わない。",
+      ko:"가구에 부딪히면 당신은 사과한다. 이건 어쩌면 정말로 당신의 것일지도 모른다. 흙도 그것만큼은 확신하지 못해, 드물게 아무 말도 하지 않는다." }
+  ];
+
+  // Hell — "The Ledger." The inverse shape on purpose: a fixed list that
+  // depletes instead of grows, one line settled per completed daily task,
+  // in a per-account shuffled order — and unlike the other two, it has an
+  // actual ending: a closing line once every debt is settled, the first
+  // real narrative payoff in the game rather than an open-ended thread.
+  var HELL_LEDGER = [
+    { en:"Owed: the apology you rehearsed and never gave.",
+      ja:"未払い：練習したのに、ついに口にしなかった謝罪。",
+      ko:"미납: 연습만 하고 끝내 하지 않은 사과." },
+    { en:"Owed: the truth you let someone else believe instead.",
+      ja:"未払い：代わりに誰かに信じさせたままにした真実。",
+      ko:"미납: 대신 다른 이가 믿게 내버려둔 진실." },
+    { en:"Owed: the minute you could have given, and spent on yourself instead.",
+      ja:"未払い：与えられたはずなのに、自分のために使った一分。",
+      ko:"미납: 줄 수 있었지만 대신 자신을 위해 써버린 그 1분." },
+    { en:"Owed: the credit for something you quietly let someone else take.",
+      ja:"未払い：あなたが静かに誰かに譲った、本来の功績。",
+      ko:"미납: 당신이 조용히 다른 이에게 넘긴 공로." },
+    { en:"Owed: the goodbye you meant to say properly, and didn't.",
+      ja:"未払い：ちゃんと言うつもりだったのに、言わなかった別れの言葉。",
+      ko:"미납: 제대로 하려 했지만 끝내 하지 못한 작별 인사." },
+    { en:"Owed: the version of yourself you promised to become, and quietly stopped trying to.",
+      ja:"未払い：なると誓ったのに、いつしか努力をやめた、もう一人の自分。",
+      ko:"미납: 되겠다고 약속했지만, 어느새 조용히 포기해버린 또 다른 자신." }
+  ];
+  var HELL_LEDGER_CLOSING = {
+    en:"The ledger is even, for now. The fire doesn't forgive you — it just has nothing left to collect today. Tomorrow it will start a new page.",
+    ja:"台帳は、今のところ清算された。炎はあなたを赦したわけではない——ただ今日、これ以上取り立てるものがないだけだ。明日には、また新しいページが始まる。",
+    ko:"장부는, 지금은 맞춰졌다. 불꽃이 당신을 용서한 것은 아니다 — 다만 오늘은 더 거둘 것이 없을 뿐이다. 내일이면 또 새로운 페이지가 시작된다."
+  };
+
   function dateKey(offsetDays){
     var d = new Date();
     if(offsetDays) d.setDate(d.getDate() + offsetDays);
@@ -912,13 +1050,15 @@
   // actually pay for moving to a different door.
   function useDailyTasks(accountId){
     var dbRef = useRef(null);
-    var _s = useState({ streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], resolvedFor:null });
+    var _s = useState({ streak:0, points:0, lastCompletedDate:null, unlockedVisions:[],
+      heavenTaskCount:0, earthTaskCount:0, hellTaskCount:0, resolvedFor:null });
     var state = _s[0], setState = _s[1];
     var loaded = !accountId || state.resolvedFor === accountId;
 
     useEffect(function(){
       if(!accountId){
-        setState(function(s){ return Object.assign({}, s, { streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], resolvedFor:null }); });
+        setState(function(s){ return Object.assign({}, s, { streak:0, points:0, lastCompletedDate:null, unlockedVisions:[],
+          heavenTaskCount:0, earthTaskCount:0, hellTaskCount:0, resolvedFor:null }); });
         return;
       }
       var cancelled = false;
@@ -938,6 +1078,9 @@
             points: (found && found.points) || 0,
             lastCompletedDate: (found && found.lastCompletedDate) || null,
             unlockedVisions: (found && found.unlockedVisions) || [],
+            heavenTaskCount: (found && found.heavenTaskCount) || 0,
+            earthTaskCount: (found && found.earthTaskCount) || 0,
+            hellTaskCount: (found && found.hellTaskCount) || 0,
             resolvedFor: accountId
           });
         }
@@ -959,21 +1102,39 @@
           newVision = visionKey;
         }
       }
+      // Lifetime-completion counters behind the three non-streak Memories
+      // threads (name fragment / habits / ledger) above — only the realm
+      // just completed advances; a broken streak doesn't reset these.
+      var nextHeaven = state.heavenTaskCount, nextEarth = state.earthTaskCount, nextHell = state.hellTaskCount;
+      var newMemory = false;
+      if(realmKey === "heaven"){
+        if(nextHeaven === 0) newMemory = true;
+        nextHeaven = nextHeaven + 1;
+      }else if(realmKey === "earth"){
+        if(Math.floor((nextEarth + 1) / EARTH_HABIT_INTERVAL) > Math.floor(nextEarth / EARTH_HABIT_INTERVAL)
+           && Math.floor((nextEarth + 1) / EARTH_HABIT_INTERVAL) <= EARTH_HABITS.length) newMemory = true;
+        nextEarth = nextEarth + 1;
+      }else if(realmKey === "hell"){
+        if(nextHell < HELL_LEDGER.length) newMemory = true;
+        nextHell = nextHell + 1;
+      }
       var ns = dbRef.current;
       if(ns){
         try{
           // A full set(), not update() — matches the existing shape of this
           // doc, so every field this doc holds has to be listed here or it
-          // gets dropped, unlockedVisions included.
+          // gets dropped, unlockedVisions/the three task counts included.
           await ns.doc("dailytasks/" + accountId).set({
-            realm: realmKey, streak: nextStreak, points: nextPoints, lastCompletedDate: today, unlockedVisions: nextUnlocked
+            realm: realmKey, streak: nextStreak, points: nextPoints, lastCompletedDate: today, unlockedVisions: nextUnlocked,
+            heavenTaskCount: nextHeaven, earthTaskCount: nextEarth, hellTaskCount: nextHell
           });
         }catch(e){
           return { ok:false };
         }
       }
-      setState(function(s){ return Object.assign({}, s, { streak:nextStreak, points:nextPoints, lastCompletedDate:today, unlockedVisions:nextUnlocked }); });
-      return { ok:true, newVision: newVision };
+      setState(function(s){ return Object.assign({}, s, { streak:nextStreak, points:nextPoints, lastCompletedDate:today, unlockedVisions:nextUnlocked,
+        heavenTaskCount:nextHeaven, earthTaskCount:nextEarth, hellTaskCount:nextHell }); });
+      return { ok:true, newVision: newVision, newMemory: newMemory };
     }
 
     async function spend(amount){
@@ -2868,11 +3029,70 @@
     );
   }
 
+  // The realm-specific extra thread shown under each door's vision list in
+  // Memories (see NAME_FRAGMENTS/EARTH_HABITS/HELL_LEDGER above) — kept as
+  // its own function since each realm's shape is genuinely different
+  // (single reveal / growing list / depleting ledger), not three copies of
+  // the same component.
+  function realmMemoryExtra(doorKey, props){
+    if(doorKey === "heaven"){
+      var found = props.heavenTaskCount > 0;
+      var fragment = NAME_FRAGMENTS[hashStr(String(props.accountId || ""))() % NAME_FRAGMENTS.length];
+      return h("div", { className:"vision-item" + (found ? " unlocked" : " locked") },
+        h("span", { className:"vision-day" }, found ? "found" : "not yet found"),
+        h("h3", { key:"t" }, "A Name From Before"),
+        h(Sub, { key:"ts", ja:"以前の名前", ko:"이전의 이름" }),
+        found
+          ? [ h("p", { key:"b" }, fragment.en), h(Sub, { key:"bs", ja: fragment.ja, ko: fragment.ko }) ]
+          : null
+      );
+    }
+    if(doorKey === "earth"){
+      var unlockedCount = Math.min(Math.floor(props.earthTaskCount / EARTH_HABIT_INTERVAL), EARTH_HABITS.length);
+      var order = seededShuffle(EARTH_HABITS, String(props.accountId || "") + ":earth");
+      return h("div", { className:"vision-item" + (unlockedCount > 0 ? " unlocked" : " locked") },
+        h("span", { className:"vision-day" }, unlockedCount + " of " + EARTH_HABITS.length + " found"),
+        h("h3", { key:"t" }, "Habits You Didn't Learn"),
+        h(Sub, { key:"ts", ja:"教わらなかった癖", ko:"배운 적 없는 버릇" }),
+        order.slice(0, unlockedCount).map(function(habit, i){
+          return h("div", { key:"h" + i, className:"sub-block" },
+            h("p", null, habit.en),
+            h(Sub, { ja: habit.ja, ko: habit.ko })
+          );
+        })
+      );
+    }
+    if(doorKey === "hell"){
+      var order2 = seededShuffle(HELL_LEDGER, String(props.accountId || "") + ":hell");
+      var settled = Math.min(props.hellTaskCount, HELL_LEDGER.length);
+      var complete = settled >= HELL_LEDGER.length;
+      return h("div", { className:"vision-item" + (settled > 0 ? " unlocked" : " locked") },
+        h("span", { className:"vision-day" }, settled + " of " + HELL_LEDGER.length + " settled"),
+        h("h3", { key:"t" }, "The Ledger"),
+        h(Sub, { key:"ts", ja:"台帳", ko:"장부" }),
+        order2.map(function(line, i){
+          return h("div", { key:"l" + i, className:"sub-block" + (i < settled ? " settled" : "") },
+            h("p", null, line.en),
+            h(Sub, { ja: line.ja, ko: line.ko })
+          );
+        }),
+        complete
+          ? h("div", { key:"close", className:"sub-block ledger-close" },
+              h("p", null, HELL_LEDGER_CLOSING.en),
+              h(Sub, { ja: HELL_LEDGER_CLOSING.ja, ko: HELL_LEDGER_CLOSING.ko })
+            )
+          : null
+      );
+    }
+    return null;
+  }
+
   // Milestone-vision journal: one section per realm's ladder of streak
   // milestones (see VISION_MILESTONES). Unlocked entries show their full
   // text permanently; locked ones stay dimmed teasers. Shows every realm,
   // not just the current one, so switching doors never orphans a vision
-  // already earned there.
+  // already earned there. Each realm's section also gets the extra thread
+  // from realmMemoryExtra() above, appended after its vision list.
   function VisionsScreen(props){
     return h("div", null,
       h("div", { className:"q-eyebrow" }, "Memories"),
@@ -2883,6 +3103,11 @@
       h(Sub, {
         ja:"連続記録を保つほど、それぞれの世界はより多くの姿を見せる。一度見た記憶は、あなたのものとして残り続ける。",
         ko:"연속 기록을 이어갈수록, 각 세계는 자신의 더 많은 모습을 드러낸다. 한 번 본 기억은 계속 당신의 것으로 남는다."
+      }),
+      h("p", { className:"q-tagline" }, "Underneath the visions, each realm keeps a second, quieter thread that grows just from showing up — streak or no streak."),
+      h(Sub, {
+        ja:"記憶の奥には、それぞれの世界がもう一つ静かな流れを保っている——連続記録の有無に関わらず、ただ通い続けることで育つものだ。",
+        ko:"기억들 아래에는, 각 세계가 또 하나의 조용한 흐름을 간직하고 있다 — 연속 기록과 상관없이, 그저 꾸준히 찾아오는 것만으로 자라나는 것이다."
       }),
       h("div", { className:"vision-groups" },
         DOORS.map(function(d){
@@ -2914,7 +3139,8 @@
                       ]
                 );
               })
-            )
+            ),
+            h("div", { className:"vision-list" }, realmMemoryExtra(d.key, props))
           );
         })
       ),
@@ -2982,7 +3208,11 @@
       content = h(VisionsScreen, {
         key: "visions-" + props.accountId,
         doorKey: key,
+        accountId: props.accountId,
         unlockedVisions: props.unlockedVisions,
+        heavenTaskCount: props.dailyTasksState.heavenTaskCount,
+        earthTaskCount: props.dailyTasksState.earthTaskCount,
+        hellTaskCount: props.dailyTasksState.hellTaskCount,
         onBack: props.onBackToCharacter
       });
     }else if(props.gamePhase === "tasks"){
@@ -3231,6 +3461,10 @@
         trackEvent("complete_daily_task", { door: doors.state.myChoice });
         if(result.newVision){
           trackEvent("unlock_vision", { vision: result.newVision });
+          setHasNewVision(true);
+        }
+        if(result.newMemory){
+          trackEvent("unlock_memory", { door: doors.state.myChoice });
           setHasNewVision(true);
         }
       }
