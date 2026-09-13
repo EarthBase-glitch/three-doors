@@ -872,6 +872,70 @@
     ]
   };
 
+  // The Pulse — unlike every entry in VISIONS above (personal, earned by
+  // streak, unlocked once and kept forever), this is shared and live: the
+  // same line for every visitor of a realm right now, driven by nothing
+  // an individual account did — only by how the realm's population (the
+  // same counts Soul Stats already shows) currently compares to the other
+  // two doors. Recomputed on every render from doors.state.counts, so it
+  // has no Firestore shape of its own and needs no rules change. Gives
+  // the population numbers, previously just a leaderboard, a narrative
+  // reason to matter.
+  var REALM_PULSE = {
+    heaven: {
+      most: { en:"Tonight the light is crowded — you are one of many it is choosing not to judge, and for once that feels less like being overlooked and more like being spared.",
+        ja:"今夜、光は混み合っている——あなたは、裁かれずにいる大勢のうちの一人だ。そしてそれは今、見過ごされているというより、免れているように感じられる。",
+        ko:"오늘 밤 빛은 붐빈다 — 당신은 심판받지 않기로 선택된 많은 이들 중 하나다. 그리고 지금은 그것이 무시당하는 것이 아니라 면제받는 것처럼 느껴진다." },
+      least: { en:"Tonight it's quiet up here. Fewer souls means the light has less to divide itself between — which means, tonight, more of it is on you than usual.",
+        ja:"今夜、ここは静かだ。魂が少ないということは、光が分け与える相手も少ないということ——つまり今夜は、いつもより多くの光があなたに注がれている。",
+        ko:"오늘 밤 이곳은 조용하다. 영혼이 적다는 것은 빛이 나눌 대상이 적다는 뜻이다 — 즉 오늘 밤은 평소보다 더 많은 빛이 당신에게 향해 있다." },
+      even: { en:"Heaven holds a steady number tonight — no surge, no thinning. The light doesn't seem to notice the difference between a crowd and a few. You might.",
+        ja:"今夜の天国は安定した数を保っている——急増も減少もない。光は、大勢と少数の違いに気づいていないようだ。あなたは、気づくかもしれない。",
+        ko:"오늘 밤 천국은 일정한 수를 유지하고 있다 — 급증도, 줄어듦도 없다. 빛은 많음과 적음의 차이를 모르는 듯하다. 당신은 알아챌지도 모른다." }
+    },
+    earth: {
+      most: { en:"The field is busy tonight — more hands turning the soil than usual, more feet pressing new rows into it. Your furrow is one among many being dug at once.",
+        ja:"今夜、畑は賑わっている——いつもより多くの手が土を耕し、多くの足が新しい畝を刻んでいる。あなたの畝は、同時に掘られている多くの畝のひとつにすぎない。",
+        ko:"오늘 밤 밭은 분주하다 — 평소보다 많은 손이 흙을 뒤엎고, 많은 발이 새 이랑을 밟아 다진다. 당신의 고랑은 동시에 파이고 있는 여러 고랑 중 하나일 뿐이다." },
+      least: { en:"Few are walking this field tonight. The soil has room to remember exactly whose weight presses into it — and tonight, that's mostly yours.",
+        ja:"今夜、この畑を歩く者は少ない。土には、誰の重みがかかっているかを正確に覚えておく余裕がある——そして今夜、それはほとんどあなたのものだ。",
+        ko:"오늘 밤 이 밭을 걷는 이는 드물다. 흙에게는 누구의 무게가 눌러오는지 정확히 기억할 여유가 있다 — 그리고 오늘 밤, 그것은 대부분 당신의 것이다." },
+      even: { en:"The field holds a steady number of hands tonight — some arriving, some drifting toward another door. The soil takes each of you the same, whichever way the count leans tomorrow.",
+        ja:"今夜の畑は、一定の数の手を保っている——到着する者もいれば、他の扉へと流れていく者もいる。明日の数がどちらに傾こうと、土はあなたたち一人ひとりを同じように受け入れる。",
+        ko:"오늘 밤 밭은 일정한 수의 손을 유지하고 있다 — 도착하는 이도, 다른 문으로 흘러가는 이도 있다. 내일의 수가 어느 쪽으로 기울든, 흙은 당신들 각자를 똑같이 받아들인다." }
+    },
+    hell: {
+      most: { en:"The fire is loud tonight — crowded with names it's learning to aim at all at once, yours somewhere in the noise, waiting its turn.",
+        ja:"今夜、炎は騒がしい——一度に狙いを覚えようとする名前で混み合っている。あなたの名もその騒音のどこかで、順番を待っている。",
+        ko:"오늘 밤 불꽃은 시끄럽다 — 한꺼번에 겨냥을 익히려는 이름들로 붐빈다. 당신의 이름도 그 소음 어딘가에서 차례를 기다리고 있다." },
+      least: { en:"The fire has fewer names to hold tonight. It burns close and undivided — and tonight, all of that attention is aimed at you alone.",
+        ja:"今夜、炎が抱える名前は少ない。それは近く、分かたれずに燃えている——そして今夜、その注意のすべてはあなただけに向けられている。",
+        ko:"오늘 밤 불꽃이 붙잡고 있는 이름은 적다. 그것은 가까이서, 나뉘지 않은 채로 타오른다 — 그리고 오늘 밤, 그 모든 관심은 오직 당신에게만 향한다." },
+      even: { en:"Hell holds a steady count tonight — no rush of new arrivals, no lull. It keeps burning at exactly the pace it always does, unbothered by the number.",
+        ja:"今夜の地獄は一定の数を保っている——新たな到着の急増も、途切れもない。数など気にせず、いつもと変わらぬ速さで燃え続けている。",
+        ko:"오늘 밤 지옥은 일정한 수를 유지하고 있다 — 새로 도착하는 급증도, 소강상태도 없다. 숫자에 개의치 않고 늘 그렇듯 정확히 같은 속도로 타오른다." }
+    }
+  };
+
+  // Ranks each door "most" / "least" / "even" by its current live count
+  // relative to the other two. Ties (including the all-zero startup
+  // state) fall through to "even" rather than guessing.
+  function realmPulseRank(counts){
+    counts = counts || {};
+    var vals = DOORS.map(function(d){ return counts[d.key] || 0; });
+    var max = Math.max.apply(null, vals);
+    var min = Math.min.apply(null, vals);
+    var ranks = {};
+    DOORS.forEach(function(d){
+      var c = counts[d.key] || 0;
+      if(max === min) ranks[d.key] = "even";
+      else if(c === max) ranks[d.key] = "most";
+      else if(c === min) ranks[d.key] = "least";
+      else ranks[d.key] = "even";
+    });
+    return ranks;
+  }
+
   function dateKey(offsetDays){
     var d = new Date();
     if(offsetDays) d.setDate(d.getDate() + offsetDays);
@@ -2874,6 +2938,7 @@
   // not just the current one, so switching doors never orphans a vision
   // already earned there.
   function VisionsScreen(props){
+    var pulseRanks = realmPulseRank(props.counts);
     return h("div", null,
       h("div", { className:"q-eyebrow" }, "Memories"),
       h(Sub, { ja:"記憶", ko:"기억" }),
@@ -2887,11 +2952,17 @@
       h("div", { className:"vision-groups" },
         DOORS.map(function(d){
           var realm = REALMS[d.key];
+          var pulse = REALM_PULSE[d.key][pulseRanks[d.key]];
           return h("div", { key: d.key },
             h("div", { className:"vision-group-title" },
               h("span", { className:"dot", style:{ background:"var(--" + d.key + ")" } }),
               realm.name + (d.key === props.doorKey ? " — your door" : ""),
               " · ", realm.nameJa, " · ", realm.nameKo
+            ),
+            h("div", { className:"vision-item" },
+              h("span", { className:"vision-day" }, "right now · 今 · 지금"),
+              h("p", null, pulse.en),
+              h(Sub, { ja: pulse.ja, ko: pulse.ko })
             ),
             h("div", { className:"vision-list" },
               VISION_MILESTONES.map(function(day){
@@ -2983,6 +3054,7 @@
         key: "visions-" + props.accountId,
         doorKey: key,
         unlockedVisions: props.unlockedVisions,
+        counts: props.counts,
         onBack: props.onBackToCharacter
       });
     }else if(props.gamePhase === "tasks"){
@@ -3348,6 +3420,7 @@
         todaysTask: doors.state.myChoice ? taskOfTheDay(doors.state.myChoice) : null,
         dailyTasksState: dailyTasks.state,
         unlockedVisions: dailyTasks.state.unlockedVisions,
+        counts: doors.state.counts,
         hasNewVision: hasNewVision,
         onSatisfied: handleSatisfied,
         onEscape: handleEscape,
