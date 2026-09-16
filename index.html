@@ -872,6 +872,35 @@
     ]
   };
 
+  // Departures — a one-time line each realm leaves you with the moment you
+  // actually go: either escaping straight from the satisfied/escape
+  // question on a fresh choice, or spending points later to move doors
+  // (see unlockDeparture in useDailyTasks). Unlike VISIONS, which rewards
+  // staying, this rewards the leaving itself — every realm gets exactly
+  // one, permanent the first time you walk out of it, and it's the other
+  // half of the same streak/points infrastructure finally paying out in
+  // story instead of just utility.
+  var DEPARTURES = {
+    heaven: {
+      title: "The Light Lets You Go", titleJa: "光があなたを解き放つ", titleKo: "빛이 당신을 놓아주다",
+      en: "The light never once asked you to stay, and it isn't asking now. But you feel it dim, just slightly, the moment the door closes behind you — the specific quiet of a room where someone finished waiting and didn't say so.",
+      ja: "光は一度もあなたに留まるよう頼んだことはない。今もそれを頼んではいない。ただ、扉があなたの背後で閉じる瞬間、ほんの少し光が弱まるのを感じる——それは、誰かが待つのをやめ、そのことを口にしなかった部屋の、あの特有の静けさだ。",
+      ko: "빛은 한 번도 당신에게 머물러 달라고 부탁한 적이 없고, 지금도 부탁하지 않는다. 다만 문이 당신 뒤에서 닫히는 순간, 빛이 아주 조금 어두워지는 것을 느낀다 — 누군가 기다리기를 그만두고도 그것을 말하지 않은 방의, 그 특유의 고요함이다."
+    },
+    earth: {
+      title: "The Row You Left", titleJa: "あなたが去った畝", titleKo: "당신이 떠난 이랑",
+      en: "The soil doesn't beg you to stay in this life. It just keeps the row you were planted in exactly as you left it, in case whatever you become next ever wants to remember where it started.",
+      ja: "土はこの生に留まるよう懇願したりしない。ただ、あなたが植えられていた畝を、去った時のままそっと残しておく——次に何になろうとも、いつか自分がどこから始まったのかを思い出したくなる時のために。",
+      ko: "흙은 이 삶에 머물러 달라고 애원하지 않는다. 그저 당신이 심겨 있던 이랑을 떠났던 그대로 남겨둘 뿐이다 — 다음에 무엇이 되든, 언젠가 자신이 어디서 시작했는지를 기억하고 싶어질 때를 위해서."
+    },
+    hell: {
+      title: "The Fire Keeps the Seat Warm", titleJa: "炎は席を温めたままにする", titleKo: "불꽃은 자리를 데운 채로 둔다",
+      en: "Nothing in the fire tries to stop you leaving — it doesn't need to. It just keeps your shape burned faintly into the floor where you stood, the way a name remembers you long after you've stopped answering to it.",
+      ja: "炎の中の何一つ、あなたが去るのを止めようとはしない——そんな必要はないからだ。ただ、あなたが立っていた場所の床に、あなたの形をかすかに焼き付けたまま残す——名前が、あなたがもう答えなくなった後もずっとあなたを覚えているのと同じように。",
+      ko: "불꽃 속 어느 것도 당신이 떠나는 것을 막으려 하지 않는다 — 그럴 필요가 없기 때문이다. 다만 당신이 서 있던 자리의 바닥에 당신의 형체를 희미하게 태워 남겨둘 뿐이다 — 이름이, 당신이 더 이상 대답하지 않게 된 후에도 오랫동안 당신을 기억하는 것처럼."
+    }
+  };
+
   function dateKey(offsetDays){
     var d = new Date();
     if(offsetDays) d.setDate(d.getDate() + offsetDays);
@@ -912,13 +941,13 @@
   // actually pay for moving to a different door.
   function useDailyTasks(accountId){
     var dbRef = useRef(null);
-    var _s = useState({ streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], resolvedFor:null });
+    var _s = useState({ streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], unlockedDepartures:[], resolvedFor:null });
     var state = _s[0], setState = _s[1];
     var loaded = !accountId || state.resolvedFor === accountId;
 
     useEffect(function(){
       if(!accountId){
-        setState(function(s){ return Object.assign({}, s, { streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], resolvedFor:null }); });
+        setState(function(s){ return Object.assign({}, s, { streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], unlockedDepartures:[], resolvedFor:null }); });
         return;
       }
       var cancelled = false;
@@ -938,6 +967,7 @@
             points: (found && found.points) || 0,
             lastCompletedDate: (found && found.lastCompletedDate) || null,
             unlockedVisions: (found && found.unlockedVisions) || [],
+            unlockedDepartures: (found && found.unlockedDepartures) || [],
             resolvedFor: accountId
           });
         }
@@ -964,9 +994,9 @@
         try{
           // A full set(), not update() — matches the existing shape of this
           // doc, so every field this doc holds has to be listed here or it
-          // gets dropped, unlockedVisions included.
+          // gets dropped, unlockedVisions and unlockedDepartures included.
           await ns.doc("dailytasks/" + accountId).set({
-            realm: realmKey, streak: nextStreak, points: nextPoints, lastCompletedDate: today, unlockedVisions: nextUnlocked
+            realm: realmKey, streak: nextStreak, points: nextPoints, lastCompletedDate: today, unlockedVisions: nextUnlocked, unlockedDepartures: state.unlockedDepartures
           });
         }catch(e){
           return { ok:false };
@@ -991,7 +1021,28 @@
       return { ok:true };
     }
 
-    return { state: Object.assign({}, state, { loaded:loaded }), markDone: markDone, spend: spend };
+    // Fires once ever, the first time a given realm's door is actually
+    // left (either escaped straight from the satisfied/escape question, or
+    // moved away from via spent points) — see DEPARTURES. A merge:true set
+    // instead of update() because this can be the very first write this
+    // account ever makes to its dailytasks doc, if it escapes immediately.
+    async function unlockDeparture(realmKey){
+      if(!accountId) return { ok:false };
+      if(state.unlockedDepartures.indexOf(realmKey) !== -1) return { ok:true, already:true };
+      var nextUnlocked = state.unlockedDepartures.concat([realmKey]);
+      var ns = dbRef.current;
+      if(ns){
+        try{
+          await ns.doc("dailytasks/" + accountId).set({ unlockedDepartures: nextUnlocked }, { merge:true });
+        }catch(e){
+          return { ok:false };
+        }
+      }
+      setState(function(s){ return Object.assign({}, s, { unlockedDepartures: nextUnlocked }); });
+      return { ok:true, realm: realmKey };
+    }
+
+    return { state: Object.assign({}, state, { loaded:loaded }), markDone: markDone, spend: spend, unlockDeparture: unlockDeparture };
   }
 
   // Door-opening sound, synthesized entirely with the Web Audio API — no
@@ -2869,10 +2920,11 @@
   }
 
   // Milestone-vision journal: one section per realm's ladder of streak
-  // milestones (see VISION_MILESTONES). Unlocked entries show their full
+  // milestones (see VISION_MILESTONES), plus one closing "on leaving" entry
+  // per realm for its DEPARTURES line. Unlocked entries show their full
   // text permanently; locked ones stay dimmed teasers. Shows every realm,
   // not just the current one, so switching doors never orphans a vision
-  // already earned there.
+  // (or departure) already earned there.
   function VisionsScreen(props){
     return h("div", null,
       h("div", { className:"q-eyebrow" }, "Memories"),
@@ -2913,7 +2965,25 @@
                         h(Sub, { key:"ts", ja:"まだ届いていない", ko:"아직 닿지 않았다" })
                       ]
                 );
-              })
+              }),
+              (function(){
+                var dep = DEPARTURES[d.key];
+                var depUnlocked = props.unlockedDepartures && props.unlockedDepartures.indexOf(d.key) !== -1;
+                return h("div", { key: d.key + ":leaving", className:"vision-item" + (depUnlocked ? " unlocked" : " locked") },
+                  h("span", { className:"vision-day" }, "on leaving"),
+                  depUnlocked
+                    ? [
+                        h("h3", { key:"t" }, dep.title),
+                        h(Sub, { key:"ts", ja:dep.titleJa, ko:dep.titleKo }),
+                        h("p", { key:"b" }, dep.en),
+                        h(Sub, { key:"bs", ja:dep.ja, ko:dep.ko })
+                      ]
+                    : [
+                        h("h3", { key:"t" }, "Not yet walked out"),
+                        h(Sub, { key:"ts", ja:"まだ歩み出ていない", ko:"아직 걸어 나가지 않았다" })
+                      ]
+                );
+              })()
             )
           );
         })
@@ -2983,6 +3053,7 @@
         key: "visions-" + props.accountId,
         doorKey: key,
         unlockedVisions: props.unlockedVisions,
+        unlockedDepartures: props.unlockedDepartures,
         onBack: props.onBackToCharacter
       });
     }else if(props.gamePhase === "tasks"){
@@ -3208,10 +3279,13 @@
       doors.confirm();
       setGamePhase("character");
     }
-    function handleEscape(newKey){
+    async function handleEscape(newKey){
       trackEvent("escape_door", { from: doors.state.myChoice, to: newKey });
+      var fromKey = doors.state.myChoice;
       doors.choose(newKey);
       setGamePhase("question");
+      var dep = await dailyTasks.unlockDeparture(fromKey);
+      if(dep && dep.ok && !dep.already) setHasNewVision(true);
     }
     function handleExit(){ setPhase("threshold"); setGamePhase("question"); }
     function handleOpenLore(){ setGamePhase("lore"); }
@@ -3239,9 +3313,12 @@
     async function handleMoveDoor(newKey){
       var result = await dailyTasks.spend(MOVE_DOOR_COST);
       if(!result.ok) return result;
-      trackEvent("move_door", { from: doors.state.myChoice, to: newKey });
+      var fromKey = doors.state.myChoice;
+      trackEvent("move_door", { from: fromKey, to: newKey });
       doors.choose(newKey);
       setGamePhase("character");
+      var dep = await dailyTasks.unlockDeparture(fromKey);
+      if(dep && dep.ok && !dep.already) setHasNewVision(true);
       return { ok:true };
     }
 
@@ -3348,6 +3425,7 @@
         todaysTask: doors.state.myChoice ? taskOfTheDay(doors.state.myChoice) : null,
         dailyTasksState: dailyTasks.state,
         unlockedVisions: dailyTasks.state.unlockedVisions,
+        unlockedDepartures: dailyTasks.state.unlockedDepartures,
         hasNewVision: hasNewVision,
         onSatisfied: handleSatisfied,
         onEscape: handleEscape,
