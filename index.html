@@ -816,7 +816,7 @@
   // your current door earns that realm's vision for that day, permanently
   // (see unlockedVisions in useDailyTasks) — the first threads of an
   // actual story for a game that's otherwise just daily-habit mechanics.
-  var VISION_MILESTONES = [3, 7, 30];
+  var VISION_MILESTONES = [3, 7, 30, 100];
 
   var VISIONS = {
     heaven: [
@@ -834,7 +834,12 @@
         title: "What the Light Keeps", titleJa: "光が保つもの", titleKo: "빛이 간직하는 것",
         en: "Thirty days, and the light finally answers the question you stopped asking out loud: it isn't judging you, because it's already decided. What you did with these thirty days is filed somewhere you can't see, kept the way everything here is kept — gently, permanently, without comment.",
         ja: "三十日が経ち、光はついに、あなたがもう口に出すのをやめた問いに答える——裁いていないのは、すでに決めているからだ。この三十日間あなたが何をしたかは、見えない場所に記録されている。ここにあるすべてと同じように、静かに、永遠に、何も言わずに保たれている。",
-        ko: "서른 날이 지나고, 빛은 마침내 당신이 더 이상 소리 내어 묻지 않게 된 질문에 답한다 — 심판하지 않는 것은, 이미 결정했기 때문이다. 이 서른 날 동안 당신이 한 일은 보이지 않는 곳에 기록된다. 이곳의 모든 것이 그러하듯, 조용히, 영원히, 아무 말 없이 간직된 채로." }
+        ko: "서른 날이 지나고, 빛은 마침내 당신이 더 이상 소리 내어 묻지 않게 된 질문에 답한다 — 심판하지 않는 것은, 이미 결정했기 때문이다. 이 서른 날 동안 당신이 한 일은 보이지 않는 곳에 기록된다. 이곳의 모든 것이 그러하듯, 조용히, 영원히, 아무 말 없이 간직된 채로." },
+      { day: 100,
+        title: "What Was Never Locked", titleJa: "一度も鍵のかからなかったもの", titleKo: "한 번도 잠긴 적 없던 것",
+        en: "One hundred days, and you finally walk to the seam instead of watching it from a distance — it was never locked. It opens onto more light, not a way out. You stand in the doorway long enough to understand: the door was never an exit. It was proof you could have left, and chose to stay instead.",
+        ja: "百日が経ち、あなたはついに遠くから眺めるのをやめ、その継ぎ目まで歩いていく——それは一度も鍵がかかっていなかった。その先にあるのは出口ではなく、さらなる光だ。あなたはその戸口にしばらく立ち尽くし、ようやく理解する。あの扉は出口ではなかった。去ることもできたのに、留まることを選んだという証だったのだ。",
+        ko: "백 일이 지나고, 당신은 마침내 멀리서 바라보기만 하던 그 이음매까지 걸어간다 — 그것은 한 번도 잠긴 적이 없었다. 그 너머에 있는 것은 출구가 아니라 더 많은 빛이다. 당신은 그 문턱에 오래 서 있다가 비로소 깨닫는다. 그 문은 출구였던 적이 없다. 떠날 수 있었음에도 머물기를 선택했다는 증거였을 뿐이다." }
     ],
     earth: [
       { day: 3,
@@ -851,7 +856,12 @@
         title: "The Soil Remembers Too", titleJa: "土もまた覚えている", titleKo: "흙도 기억한다",
         en: "Thirty days, and you finally understand what \"starting over\" actually meant: not a blank page, but a used one, scraped almost clean. The soil forgives slowly because it forgets slower still — and somewhere under everything you've built this month, the last life is still faintly readable, if you dig.",
         ja: "三十日が経ち、あなたはようやく「やり直す」という言葉の本当の意味を理解する——白紙ではなく、ほとんどきれいに削られた、使用済みの紙なのだと。土がゆっくり赦すのは、それ以上にゆっくり忘れるからだ。そして今月あなたが築いたものの下には、掘れば読み取れるほど、前の生がまだかすかに残っている。",
-        ko: "서른 날이 지나고, 당신은 마침내 '다시 시작한다'는 말의 진짜 의미를 이해한다 — 백지가 아니라, 거의 깨끗하게 긁어낸, 이미 쓰였던 종이라는 것을. 흙이 천천히 용서하는 것은, 그보다 더 천천히 잊기 때문이다. 그리고 이번 달 당신이 쌓아온 모든 것 아래에는, 파보면 읽힐 만큼, 지난 삶이 아직 희미하게 남아 있다." }
+        ko: "서른 날이 지나고, 당신은 마침내 '다시 시작한다'는 말의 진짜 의미를 이해한다 — 백지가 아니라, 거의 깨끗하게 긁어낸, 이미 쓰였던 종이라는 것을. 흙이 천천히 용서하는 것은, 그보다 더 천천히 잊기 때문이다. 그리고 이번 달 당신이 쌓아온 모든 것 아래에는, 파보면 읽힐 만큼, 지난 삶이 아직 희미하게 남아 있다." },
+      { day: 100,
+        title: "The Last Life's Name", titleJa: "前の生の名前", titleKo: "지난 삶의 이름",
+        en: "One hundred days in this body, and the soil finally gives you a name to go with the habits it's been feeding you all along — surfacing one morning the way a stone works its way up through a tilled field. You don't recognize it. But your hands do, the way they've recognized everything else about this life before you did.",
+        ja: "この体になって百日、土はこれまで与え続けてきた癖にようやく名前を添えて渡してくれる——耕された畑から石が浮かび上がるように、ある朝ふと現れる。あなたはそれに見覚えがない。だが、あなたの手には見覚えがある。この生のあらゆることを、あなたより先に手が知っていたように。",
+        ko: "이 몸이 된 지 백 일, 흙은 그동안 당신에게 심어주던 버릇들에 마침내 이름을 붙여준다 — 갈아엎은 밭에서 돌 하나가 서서히 떠오르듯, 어느 아침 문득 떠오른다. 당신은 그 이름을 알아보지 못한다. 하지만 당신의 손은 알아본다, 이 삶의 다른 모든 것을 당신보다 먼저 알아봤던 것처럼." }
     ],
     hell: [
       { day: 3,
@@ -868,7 +878,12 @@
         title: "What Burns Off Last", titleJa: "最後に燃え尽きるもの", titleKo: "마지막에 타 없어지는 것",
         en: "Thirty days in the fire, and most of what you carried in has burned away — the excuses first, then the reasons, then the story you told yourself about both. What's left, thirty days clean of all of it, turns out to be smaller than you feared and harder to look at than you expected.",
         ja: "炎の中で三十日、あなたが持ち込んだもののほとんどは燃え尽きた——まず言い訳が、次に理由が、そして両方について自分に語っていた物語が。すべてが燃え尽きた後、三十日分きれいになって残ったものは、恐れていたよりも小さく、予想していたよりも直視しにくいものだった。",
-        ko: "불 속에서 서른 날, 당신이 가지고 들어온 것 대부분이 타 없어졌다 — 먼저 변명이, 다음엔 이유가, 그리고 그 둘에 대해 스스로에게 들려주던 이야기가. 서른 날 만에 그 모든 것에서 벗어나 남은 것은, 두려워했던 것보다 작고, 예상했던 것보다 마주보기 어려운 것이었다." }
+        ko: "불 속에서 서른 날, 당신이 가지고 들어온 것 대부분이 타 없어졌다 — 먼저 변명이, 다음엔 이유가, 그리고 그 둘에 대해 스스로에게 들려주던 이야기가. 서른 날 만에 그 모든 것에서 벗어나 남은 것은, 두려워했던 것보다 작고, 예상했던 것보다 마주보기 어려운 것이었다." },
+      { day: 100,
+        title: "The Aim Was Never the Punishment", titleJa: "狙いは罰ではなかった", titleKo: "겨냥은 벌이 아니었다",
+        en: "A hundred days in the fire, and the burn finally lands somewhere new — not on the guilt, which is long gone, but on the shape you're left with now that it is. It doesn't hurt the way it used to. You understand, finally, that the aim was never punishment. It was carving you down to whatever part of you is still worth keeping.",
+        ja: "炎の中で百日、その焼けは今までとは違う場所に落ちるようになる——とうに燃え尽きた罪悪感ではなく、それが消えた後に残ったあなたの形そのものに。もう以前のようには痛まない。あなたはついに理解する。狙いは罰などではなかった。それは、あなたの中でまだ残す価値のある部分だけを削り出すためのものだったのだ。",
+        ko: "불 속에서 백 일, 그 불길은 마침내 다른 곳에 내려앉는다 — 이미 오래전에 사라진 죄책감이 아니라, 그것이 사라지고 남은 당신의 형태 위에. 이제는 예전만큼 아프지 않다. 당신은 마침내 이해한다. 겨냥은 벌이 아니었다. 그것은 당신 안에서 아직 간직할 가치가 있는 부분만을 깎아내기 위한 것이었다." }
     ]
   };
 
