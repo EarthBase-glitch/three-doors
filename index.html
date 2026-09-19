@@ -817,9 +817,18 @@
   // (see unlockedVisions in useDailyTasks) — the first threads of an
   // actual story for a game that's otherwise just daily-habit mechanics.
   var VISION_MILESTONES = [3, 7, 30];
+  // Includes 0 for rendering the Memories screen only — 0 is never a real
+  // streak value markDone() checks against, so heaven's arrival vision
+  // below is unlocked a different way (see unlockArrival in useDailyTasks).
+  var VISION_DISPLAY_DAYS = [0, 3, 7, 30];
 
   var VISIONS = {
     heaven: [
+      { day: 0,
+        title: "What the Threshold Takes", titleJa: "境界が持ち去るもの", titleKo: "문턱이 가져가는 것",
+        en: "The instant you say yes, you feel something set down at the door behind you — a weight you didn't know you'd been carrying the whole way here. Nobody tells you what it was. The light only says you won't need it going forward.",
+        ja: "頷いた瞬間、背後の扉に何かを置いてきたのを感じる——ここまでずっと運んでいたことにも気づかなかった重さだ。それが何だったのか、誰も教えてくれない。光はただ、これから先はもう必要ないと言うだけだ。",
+        ko: "그러겠다고 답하는 순간, 당신 뒤의 문 앞에 무언가를 내려놓은 것을 느낀다 — 여기까지 오는 내내 짊어지고 있었는지도 몰랐던 무게다. 그것이 무엇이었는지는 아무도 말해주지 않는다. 빛은 그저, 앞으로는 그것이 필요하지 않을 거라고만 말한다." },
       { day: 3,
         title: "A Name Half-Remembered", titleJa: "半分思い出した名前", titleKo: "반쯤 기억나는 이름",
         en: "On the third morning, you hear it — someone calling a name that isn't the one you were given here. It sounds like yours. You don't know why the light lets old names through, only that it does, sometimes, when you've stayed still long enough to listen.",
@@ -872,6 +881,62 @@
     ]
   };
 
+  // Reincarnation — a persistent, per-account "past life fragment," picked
+  // once from this pool and never re-rolled (see fragmentIndexForAccount).
+  // Unlike the milestone visions above, this isn't earned or unlocked —
+  // it's just already true about you the moment you're born into this
+  // body, which is the point: reincarnation doesn't wait for a streak.
+  var EARTH_FRAGMENTS = [
+    { en: "Your hands know how to hold something gently that you've never actually held.",
+      ja: "あなたの手は、実際には一度も持ったことのないものを、優しく持つ方法を知っている。",
+      ko: "당신의 손은, 실제로는 한 번도 쥐어본 적 없는 것을 부드럽게 쥐는 법을 알고 있다." },
+    { en: "A smell you've never encountered here still makes your stomach turn, every time.",
+      ja: "ここでは一度も出会ったことのない匂いなのに、それは毎回あなたの胃をむかつかせる。",
+      ko: "이곳에서 한 번도 마주친 적 없는 냄새인데도, 그것은 매번 당신의 속을 뒤집는다." },
+    { en: "There's a language somewhere in the back of your throat that your mouth has never learned to make.",
+      ja: "喉の奥のどこかに、口がまだ発し方を覚えていない言語がある。",
+      ko: "목구멍 안쪽 어딘가에, 입이 아직 내는 법을 배우지 못한 언어가 있다." },
+    { en: "You already know how to apologize in a way you were never taught.",
+      ja: "教わったことのないやり方で、あなたはすでに謝る術を知っている。",
+      ko: "배운 적 없는 방식으로, 당신은 이미 사과하는 법을 알고 있다." },
+    { en: "Some nights you wake reaching for a door that isn't in this room.",
+      ja: "夜、この部屋にはない扉に手を伸ばして目を覚ますことがある。",
+      ko: "어떤 밤엔, 이 방에 없는 문을 향해 손을 뻗다가 잠에서 깬다." },
+    { en: "Your left hand is stronger than it should be, like it did something with it once.",
+      ja: "あなたの左手は、それがふさわしいよりも強い——まるで、かつて何かをそれでしたことがあるかのように。",
+      ko: "당신의 왼손은 응당해야 할 것보다 강하다 — 마치 한때 그것으로 무언가를 했던 것처럼." }
+  ];
+  function fragmentIndexForAccount(accountId){
+    var str = String(accountId || "");
+    var hash = 0;
+    for(var i = 0; i < str.length; i++){ hash = (hash * 31 + str.charCodeAt(i)) >>> 0; }
+    return hash % EARTH_FRAGMENTS.length;
+  }
+
+  // Hell — a lifetime tally of completed daily tasks, independent of the
+  // streak counter above. Streaks reset on a missed day; this doesn't,
+  // which is the point of it: the fire isn't tracking your consistency,
+  // it's tracking everything, forever, and the milestones below narrate
+  // that difference directly rather than repeating the day-3/7/30 arc.
+  var HELL_TALLY_MILESTONES = [5, 15, 40];
+  var HELL_TALLY = [
+    { count: 5,
+      title: "A Tally, Not a Streak", titleJa: "連続ではなく、積み重ね", titleKo: "연속이 아닌, 누적",
+      en: "Five confessions now, counted whether or not they came one after another. The fire never asked you to be consistent. It only asked you to be honest, eventually, each time. It was patient about the gaps. It is not patient about the lying.",
+      ja: "五つの告白。連続していたかどうかは関係ない。炎はあなたに一貫性を求めたことなど一度もない。ただ、いつかは正直になることを、その都度求めただけだ。間が空くことには辛抱強かった。だが、嘘をつくことには辛抱しない。",
+      ko: "이제 다섯 번의 고백. 연달아 이어졌는지는 상관없다. 불꽃은 당신에게 한 번도 꾸준함을 요구한 적이 없다. 그저 매번, 언젠가는 정직해지기를 요구했을 뿐이다. 공백에는 인내심을 가졌다. 그러나 거짓말에는 그렇지 않다." },
+    { count: 15,
+      title: "The Ledger Gets Heavier", titleJa: "帳簿は重くなる", titleKo: "장부는 무거워진다",
+      en: "Fifteen. Long enough that some of the earliest ones have started to blur — which thing you confessed on which day, whether you've said the same one twice. The fire hasn't forgotten a single one. It's just waiting to see if you will.",
+      ja: "十五。もう最初の頃の記憶はぼやけ始めている——どの日に何を告白したか、同じことを二度言っていないか。炎は一つも忘れていない。ただ、あなたが忘れるかどうかを見ているだけだ。",
+      ko: "열다섯. 이제 가장 초기의 것들은 흐릿해지기 시작했다 — 어느 날 무엇을 고백했는지, 같은 것을 두 번 말하지는 않았는지. 불꽃은 단 하나도 잊지 않았다. 그저 당신이 잊는지 지켜보고 있을 뿐이다." },
+    { count: 40,
+      title: "What the Fire Actually Wants", titleJa: "炎が本当に望むもの", titleKo: "불꽃이 진짜로 원하는 것",
+      en: "Forty confessions in, and the fire finally admits it was never collecting sins. It was collecting the moments you told the truth about yourself when no one made you. That's the part it keeps. Everything else was just heat.",
+      ja: "四十の告白を経て、炎はついに認める——罪を集めていたのではない。誰にも強いられていないのに、自分について本当のことを語った瞬間を集めていたのだと。それだけが炎の保つ部分だ。残りはただの熱に過ぎない。",
+      ko: "마흔 번의 고백 끝에, 불꽃은 마침내 인정한다 — 죄를 모으고 있던 것이 아니었다고. 아무도 강요하지 않았는데도 자신에 대해 진실을 말했던 그 순간들을 모으고 있었던 것이라고. 그것만이 불꽃이 간직하는 부분이다. 나머지는 그저 열기였을 뿐이다." }
+  ];
+
   function dateKey(offsetDays){
     var d = new Date();
     if(offsetDays) d.setDate(d.getDate() + offsetDays);
@@ -912,13 +977,13 @@
   // actually pay for moving to a different door.
   function useDailyTasks(accountId){
     var dbRef = useRef(null);
-    var _s = useState({ streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], resolvedFor:null });
+    var _s = useState({ streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], hellConfessions:0, resolvedFor:null });
     var state = _s[0], setState = _s[1];
     var loaded = !accountId || state.resolvedFor === accountId;
 
     useEffect(function(){
       if(!accountId){
-        setState(function(s){ return Object.assign({}, s, { streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], resolvedFor:null }); });
+        setState(function(s){ return Object.assign({}, s, { streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], hellConfessions:0, resolvedFor:null }); });
         return;
       }
       var cancelled = false;
@@ -938,6 +1003,7 @@
             points: (found && found.points) || 0,
             lastCompletedDate: (found && found.lastCompletedDate) || null,
             unlockedVisions: (found && found.unlockedVisions) || [],
+            hellConfessions: (found && found.hellConfessions) || 0,
             resolvedFor: accountId
           });
         }
@@ -959,6 +1025,15 @@
           newVision = visionKey;
         }
       }
+      // Hell's tally is a running lifetime total, not a consecutive-day
+      // streak — it never resets on a missed day, unlike streak above (see
+      // HELL_TALLY).
+      var nextHellConfessions = state.hellConfessions || 0;
+      var newTally = null;
+      if(realmKey === "hell"){
+        nextHellConfessions += 1;
+        if(HELL_TALLY_MILESTONES.indexOf(nextHellConfessions) !== -1) newTally = nextHellConfessions;
+      }
       var ns = dbRef.current;
       if(ns){
         try{
@@ -966,14 +1041,36 @@
           // doc, so every field this doc holds has to be listed here or it
           // gets dropped, unlockedVisions included.
           await ns.doc("dailytasks/" + accountId).set({
-            realm: realmKey, streak: nextStreak, points: nextPoints, lastCompletedDate: today, unlockedVisions: nextUnlocked
+            realm: realmKey, streak: nextStreak, points: nextPoints, lastCompletedDate: today, unlockedVisions: nextUnlocked, hellConfessions: nextHellConfessions
           });
         }catch(e){
           return { ok:false };
         }
       }
-      setState(function(s){ return Object.assign({}, s, { streak:nextStreak, points:nextPoints, lastCompletedDate:today, unlockedVisions:nextUnlocked }); });
-      return { ok:true, newVision: newVision };
+      setState(function(s){ return Object.assign({}, s, { streak:nextStreak, points:nextPoints, lastCompletedDate:today, unlockedVisions:nextUnlocked, hellConfessions:nextHellConfessions }); });
+      return { ok:true, newVision: newVision, newTally: newTally };
+    }
+
+    // Heaven's arrival vision (VISIONS.heaven day:0) isn't earned through a
+    // streak — it's granted the moment a visitor's door is confirmed as
+    // Heaven, fresh choice or returning visitor alike (see App). Merge,
+    // not a full set(), since this can fire before this doc exists at all.
+    async function unlockArrival(visionKey){
+      if(!accountId) return { ok:false };
+      if(state.unlockedVisions.indexOf(visionKey) !== -1) return { ok:true, already:true };
+      var nextUnlocked = state.unlockedVisions.slice();
+      nextUnlocked.push(visionKey);
+      var ns = dbRef.current || await getDb();
+      dbRef.current = ns;
+      if(ns){
+        try{
+          await ns.doc("dailytasks/" + accountId).set({ unlockedVisions: nextUnlocked }, { merge:true });
+        }catch(e){
+          return { ok:false };
+        }
+      }
+      setState(function(s){ return Object.assign({}, s, { unlockedVisions:nextUnlocked }); });
+      return { ok:true, already:false };
     }
 
     async function spend(amount){
@@ -991,7 +1088,7 @@
       return { ok:true };
     }
 
-    return { state: Object.assign({}, state, { loaded:loaded }), markDone: markDone, spend: spend };
+    return { state: Object.assign({}, state, { loaded:loaded }), markDone: markDone, spend: spend, unlockArrival: unlockArrival };
   }
 
   // Door-opening sound, synthesized entirely with the Web Audio API — no
@@ -1804,6 +1901,7 @@
 
     var outfit = OUTFITS.filter(function(o){ return o.id === character.outfit; })[0] || OUTFITS[0];
     var realm = REALMS[props.doorKey] || REALMS.earth;
+    var earthFragment = props.doorKey === "earth" ? EARTH_FRAGMENTS[fragmentIndexForAccount(accountId)] : null;
 
     return h("div", null,
       h("div", { className:"q-eyebrow" }, "Character"),
@@ -1827,7 +1925,13 @@
           !editing ? h("button", {
             className:"q-btn ghost bi", type:"button",
             onClick: function(){ setEditing(true); }
-          }, biLabel("Edit character", "キャラクターを編集", "캐릭터 편집")) : null
+          }, biLabel("Edit character", "キャラクターを編集", "캐릭터 편집")) : null,
+          earthFragment ? h("div", { className:"lore-item", style:{ marginTop:"10px", maxWidth:"220px", textAlign:"left" } },
+            h("span", { className:"field-label" }, "A fragment that isn't yours"),
+            h(Sub, { ja:"あなたのものではない断片", ko:"당신의 것이 아닌 조각" }),
+            h("p", { style:{ marginTop:"10px" } }, earthFragment.en),
+            h(Sub, { ja: earthFragment.ja, ko: earthFragment.ko })
+          ) : null
         ),
         editing ? h("div", { className:"char-controls" },
           h("div", null,
@@ -2082,6 +2186,36 @@
         ja: (s.streak > 0 ? "連続" + s.streak + "日" : "まだ記録なし") + "・" + s.points + "ポイント",
         ko: (s.streak > 0 ? "연속 " + s.streak + "일" : "아직 기록 없음") + " · " + s.points + "포인트"
       }),
+      props.doorKey === "hell" ? h("div", { className:"vision-groups", style:{ marginTop:"26px" } },
+        h("div", null,
+          h("div", { className:"vision-group-title" },
+            h("span", { className:"dot", style:{ background:"var(--hell)" } }), "The Tally · 積み重ね · 누적"
+          ),
+          h("p", { className:"q-tagline", style:{ marginTop:"10px" } }, "Streaks reset. This doesn't."),
+          h(Sub, { ja:"連続記録は途切れる。これは途切れない。", ko:"연속 기록은 끊긴다. 이것은 끊기지 않는다." }),
+          h("div", { className:"vision-list" },
+            HELL_TALLY_MILESTONES.map(function(count){
+              var entry = HELL_TALLY.filter(function(x){ return x.count === count; })[0];
+              if(!entry) return null;
+              var unlocked = (s.hellConfessions || 0) >= count;
+              return h("div", { key: count, className:"vision-item" + (unlocked ? " unlocked" : " locked") },
+                h("span", { className:"vision-day" }, count + " confessions"),
+                unlocked
+                  ? [
+                      h("h3", { key:"t" }, entry.title),
+                      h(Sub, { key:"ts", ja:entry.titleJa, ko:entry.titleKo }),
+                      h("p", { key:"b" }, entry.en),
+                      h(Sub, { key:"bs", ja:entry.ja, ko:entry.ko })
+                    ]
+                  : [
+                      h("h3", { key:"t" }, "Not yet reached"),
+                      h(Sub, { key:"ts", ja:"まだ届いていない", ko:"아직 닿지 않았다" })
+                    ]
+              );
+            })
+          )
+        )
+      ) : null,
       h("div", { className:"q-actions", style:{ marginTop:"24px" } },
         h("button", {
           className:"q-btn primary bi",
@@ -2894,13 +3028,13 @@
               " · ", realm.nameJa, " · ", realm.nameKo
             ),
             h("div", { className:"vision-list" },
-              VISION_MILESTONES.map(function(day){
+              VISION_DISPLAY_DAYS.map(function(day){
                 var v = (VISIONS[d.key] || []).filter(function(x){ return x.day === day; })[0];
                 if(!v) return null;
                 var key = d.key + ":" + day;
                 var unlocked = props.unlockedVisions.indexOf(key) !== -1;
                 return h("div", { key: key, className:"vision-item" + (unlocked ? " unlocked" : " locked") },
-                  h("span", { className:"vision-day" }, "day " + day),
+                  h("span", { className:"vision-day" }, day === 0 ? "arrival" : "day " + day),
                   unlocked
                     ? [
                         h("h3", { key:"t" }, v.title),
@@ -3168,6 +3302,7 @@
           // through either path means they're playing with that door, so
           // both count as confirmed.
           doors.confirm();
+          maybeUnlockHeavenArrival(doors.state.myChoice);
           setGamePhase("character");
           setPhase("game");
         }else{
@@ -3203,9 +3338,26 @@
       }
     }
 
+    // Heaven's arrival vision (VISIONS.heaven day:0) isn't tied to the
+    // streak counter — it's granted the instant a door is confirmed as
+    // Heaven, whether that's a fresh choice (below) or a returning visitor
+    // skipping straight past the question (see the effect above). Already-
+    // unlocked accounts no-op inside unlockArrival, so this is safe to call
+    // on every confirm.
+    function maybeUnlockHeavenArrival(realmKey){
+      if(realmKey !== "heaven") return;
+      dailyTasks.unlockArrival("heaven:0").then(function(result){
+        if(result && result.ok && !result.already){
+          setHasNewVision(true);
+          trackEvent("unlock_vision", { vision: "heaven:0" });
+        }
+      });
+    }
+
     function handleSatisfied(){
       trackEvent("satisfied_choice", { door: doors.state.myChoice });
       doors.confirm();
+      maybeUnlockHeavenArrival(doors.state.myChoice);
       setGamePhase("character");
     }
     function handleEscape(newKey){
@@ -3232,6 +3384,9 @@
         if(result.newVision){
           trackEvent("unlock_vision", { vision: result.newVision });
           setHasNewVision(true);
+        }
+        if(result.newTally){
+          trackEvent("unlock_hell_tally", { count: result.newTally });
         }
       }
       return result;
