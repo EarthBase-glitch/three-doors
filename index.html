@@ -388,6 +388,10 @@
   .vision-item p{ margin:8px 0 0; color:var(--ink-dim); line-height:1.65; font-size:0.88rem; }
   .vision-day{ font-family:'JetBrains Mono',ui-monospace,monospace; font-size:0.64rem; letter-spacing:0.1em; color:var(--ink-faint); text-transform:uppercase; }
   .vision-nav-dot{ display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--threshold-glow); margin-left:6px; box-shadow:0 0 8px var(--threshold-glow); vertical-align:middle; }
+  .vision-subtitle{ margin-top:16px; font-family:'JetBrains Mono',ui-monospace,monospace; font-size:0.62rem; letter-spacing:0.14em; text-transform:uppercase; color:var(--ink-faint); opacity:0.8; }
+  .vision-item.log{ opacity:1; }
+  .vision-item.log .vision-day{ text-transform:none; }
+  .vision-empty{ color:var(--ink-faint); font-size:0.82rem; font-style:italic; padding:2px 2px; }
 
   .explore-stage{
     margin-top:20px; position:relative; width:100%; max-width:480px; border-radius:16px; overflow:hidden;
@@ -872,6 +876,94 @@
     ]
   };
 
+  // Heaven — "Grace": a second, cumulative ladder alongside the streak
+  // milestones above. Where VISION_MILESTONES rewards consecutive days and
+  // resets the moment one is missed, Grace counts every Heaven task ever
+  // completed, gaps included — because "the light does not judge" ought to
+  // mean the mechanic that measures Heaven doesn't punish a broken streak
+  // the way Hell's below does. Stored as heavenTotalDays on the same
+  // dailytasks/{accountId} document, unlocked keys in unlockedGrace.
+  var HEAVEN_GRACE_MILESTONES = [10, 25, 60];
+
+  var GRACE_VISIONS = {
+    heaven: [
+      { count: 10,
+        title: "Ten Mornings, Out of Order", titleJa: "十の朝、順不同で", titleKo: "순서 없는 열 번의 아침",
+        en: "Some of these ten came back to back. Some had gaps you don't want to explain. The light adds them up the same way regardless — it was never counting in a row, only counting.",
+        ja: "この十日のうち、いくつかは続けて来た。いくつかには、説明したくない間隔があった。光はそれでも同じように数を足していく——最初から連続を数えていたのではなく、ただ数えていただけだから。",
+        ko: "이 열흘 중 몇 번은 연달아 왔다. 몇 번은 설명하고 싶지 않은 간격이 있었다. 그래도 빛은 똑같이 더해나간다 — 애초에 연속을 세고 있던 것이 아니라, 그저 세고 있었을 뿐이므로." },
+      { count: 25,
+        title: "The Ledger Nobody Grades", titleJa: "誰も採点しない台帳", titleKo: "누구도 채점하지 않는 장부",
+        en: "Twenty-five now, scattered across however many weeks it actually took. Nobody here has ever asked you to explain the gaps. That's not because they weren't noticed. It's because noticing was never the same as judging.",
+        ja: "今、二十五日。実際にはどれほどの週数がかかったかは、ばらばらだ。ここで誰もその間隔を説明しろとは言わなかった。気づかれなかったからではない。気づくことと裁くことは、最初から同じではなかったからだ。",
+        ko: "이제 스물다섯 번. 실제로 얼마나 많은 주가 걸렸는지는 제각각이다. 여기서 누구도 그 간격을 설명하라 하지 않았다. 알아채지 못해서가 아니다. 알아채는 것과 심판하는 것은 애초에 같지 않았기 때문이다." },
+      { count: 60,
+        title: "However They Fell", titleJa: "どこに落ちていたとしても", titleKo: "어디에 떨어져 있었든",
+        en: "Sixty mornings, however they fell across the calendar — that's the whole entry. Not a streak, not a score, just a total the light was keeping quietly the entire time, in case you ever needed proof it doesn't only love you when you're consistent.",
+        ja: "六十回の朝、カレンダーのどこに落ちていたとしても——それが記録のすべてだ。連続でも得点でもなく、ただの合計。光はずっと静かにそれを数えていた。あなたが一貫していない時でさえ愛されている、その証拠がいつか必要になった時のために。",
+        ko: "예순 번의 아침, 달력 어디에 떨어져 있었든 — 그것이 기록의 전부다. 연속도 점수도 아닌, 그저 총합. 빛은 그동안 내내 조용히 그것을 세고 있었다. 당신이 한결같지 않을 때조차 사랑받고 있다는 증거가, 언젠가 필요할 경우를 위해." }
+    ]
+  };
+
+  // Hell — "The Fire Remembers": unlike the ladders above, this one isn't a
+  // fixed set of milestones. Every time a streak that was actually worth
+  // something breaks while Hell is the realm you're completing a task in,
+  // the fire logs it — a short line drawn from FALL pool below, cycling so
+  // repeat falls don't read identically. Fits Hell's tagline directly: the
+  // fire remembers your name, including the times you slipped. Stored as
+  // hellFalls (capped, most recent last) on dailytasks/{accountId}.
+  var HELL_FALL_LINES = [
+    { en: "The fire remembers the {n} days before this one. It doesn't forget a streak when it breaks — it just stops pretending the count was ever for you.",
+      ja: "炎はこの日より前の{n}日間を覚えている。連続記録が途切れても、それを忘れることはない——ただ、その数がずっとあなたのためのものだった、というふりをやめるだけだ。",
+      ko: "불꽃은 이 날 이전의 {n}일을 기억한다. 연속 기록이 끊겨도 잊지는 않는다 — 다만 그 숫자가 줄곧 당신을 위한 것이었다는 척을 그만둘 뿐이다." },
+    { en: "{n} days, gone in one missed one. Somewhere in the burn, that number is filed next to your name — not as punishment, just as something true it won't let you unknow.",
+      ja: "{n}日が、たった一日の見逃しで消えた。燃え盛るどこかに、その数字はあなたの名前の隣に記録される——罰としてではなく、あなたに知らないふりをさせない、ただ真実として。",
+      ko: "{n}일이 단 하루의 실수로 사라졌다. 불타는 어딘가에, 그 숫자는 당신의 이름 옆에 기록된다 — 벌로서가 아니라, 모른 척하게 두지 않는 하나의 진실로서." },
+    { en: "You had {n}. Now you have zero and a fire that knows exactly how far you'd gotten before you stopped. It isn't cruelty. It's just paying closer attention than you'd like.",
+      ja: "あなたには{n}日あった。今はゼロと、あなたがどこまで進んでどこで止まったかを正確に知る炎がある。それは残酷さではない。ただ、あなたが望むよりも注意深く見ているだけだ。",
+      ko: "당신에게는 {n}일이 있었다. 지금은 0과, 당신이 어디까지 갔다가 멈췄는지 정확히 아는 불꽃이 있을 뿐이다. 그것은 잔인함이 아니다. 그저 당신이 바라는 것보다 더 자세히 지켜보고 있을 뿐이다." }
+  ];
+
+  // Reincarnation/Earth — "Past Lives": every time points are spent to move
+  // to a different door, the realm just left behind writes one short
+  // fragment about the life ending there, keyed by which realm it was.
+  // Filed under Earth's column in Memories since Earth/Reincarnation is
+  // the realm the whole idea of "a life ending and a new one starting"
+  // belongs to. Stored as pastLives (capped, most recent last) on
+  // dailytasks/{accountId}.
+  var PAST_LIFE_LINES = {
+    heaven: [
+      { en: "The life you're leaving here was quiet, mostly. Whatever you didn't finish stays filed under the light, waiting the way it waits for everything — without urgency, without a deadline.",
+        ja: "ここで終える生は、たいてい静かだった。やり残したことは光の下に記録されたまま、すべてがそうであるように待ち続ける——急かされることも、期限もなく。",
+        ko: "이곳에서 끝맺는 삶은 대체로 조용했다. 끝내지 못한 것은 빛 아래 기록된 채, 모든 것이 그러하듯 기다린다 — 재촉도, 기한도 없이。" },
+      { en: "You're stepping out of a life that never once raised its voice at you. The soil will note that, when it takes you in — it isn't used to receiving anyone this undamaged.",
+        ja: "一度もあなたを責め立てなかった生から、あなたは踏み出そうとしている。土はそれを記憶するだろう——これほど傷のない者を受け入れることに、まだ慣れていないから。",
+        ko: "한 번도 당신을 몰아세운 적 없는 삶에서, 당신은 이제 발을 뗀다. 흙은 그것을 눈여겨볼 것이다 — 이토록 상하지 않은 자를 받아들이는 데 아직 익숙하지 않으므로." }
+    ],
+    hell: [
+      { en: "What you're leaving behind in the fire doesn't go out just because you did. It keeps burning at the shape you left, the way a room stays warm after someone's gone.",
+        ja: "炎の中に置いていくものは、あなたが去ったからといって消えはしない。あなたが残した形のまま燃え続ける——誰かが去った後も部屋が温かいままであるように。",
+        ko: "불 속에 두고 가는 것은 당신이 떠났다고 해서 꺼지지 않는다. 당신이 남긴 모양 그대로 계속 타오른다 — 누군가 떠난 뒤에도 방이 한동안 따뜻한 것처럼。" },
+      { en: "You carry less out of Hell than you think. Most of it stays there on purpose, filed as unfinished — the fire's way of making sure you have a reason to come back and look.",
+        ja: "地獄から持ち出すものは、思っているより少ない。ほとんどはわざとそこに残される、未完了として記録されて——それは炎が、あなたに戻って確かめる理由を持たせるためのやり方だ。",
+        ko: "지옥에서 가지고 나오는 것은 생각보다 적다. 대부분은 일부러 그곳에 남겨진다, 미완으로 기록된 채로 — 그것은 불꽃이 당신에게 돌아와 확인할 이유를 남겨두는 방식이다." }
+    ],
+    earth: [
+      { en: "The body you're leaving behind doesn't disappear — it just stops being the one you're wearing. Somewhere, the soil keeps the shape of it a little longer than seems fair.",
+        ja: "残していく体は消えるわけではない——ただ、あなたがまとう体ではなくなるだけだ。どこかで、土はその形をあなたが思うよりも少し長く保ち続ける。",
+        ko: "두고 가는 몸은 사라지지 않는다 — 단지 당신이 걸치던 몸이기를 멈출 뿐이다. 어딘가에서, 흙은 그 형태를 생각보다 조금 더 오래 간직한다." },
+      { en: "Every habit you picked up down here gets left in the soil for whoever's next. That's not loss. That's just how starting over has always worked, on both ends of it.",
+        ja: "ここで身につけた癖はすべて、次に来る誰かのために土の中に残される。それは喪失ではない。やり直すということは、その両側で、ずっとそうやって機能してきただけだ。",
+        ko: "여기서 몸에 밴 습관은 모두, 다음에 올 누군가를 위해 흙 속에 남겨진다. 그것은 상실이 아니다. 다시 시작한다는 것은, 양쪽 모두에서 늘 그런 식으로 작동해왔을 뿐이다." }
+    ]
+  };
+
+  function fallLine(lang, streakLost, lineIndex){
+    var pool = HELL_FALL_LINES;
+    var text = pool[lineIndex % pool.length][lang];
+    return text.replace("{n}", String(streakLost));
+  }
+
   function dateKey(offsetDays){
     var d = new Date();
     if(offsetDays) d.setDate(d.getDate() + offsetDays);
@@ -910,15 +1002,21 @@
 
   // Shared with App (not just the Tasks screen) so points earned here can
   // actually pay for moving to a different door.
+  var EMPTY_DAILY_STATE = {
+    streak:0, points:0, lastCompletedDate:null, unlockedVisions:[],
+    heavenTotalDays:0, unlockedGrace:[], hellFalls:[], pastLives:[],
+    resolvedFor:null
+  };
+
   function useDailyTasks(accountId){
     var dbRef = useRef(null);
-    var _s = useState({ streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], resolvedFor:null });
+    var _s = useState(EMPTY_DAILY_STATE);
     var state = _s[0], setState = _s[1];
     var loaded = !accountId || state.resolvedFor === accountId;
 
     useEffect(function(){
       if(!accountId){
-        setState(function(s){ return Object.assign({}, s, { streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], resolvedFor:null }); });
+        setState(Object.assign({}, EMPTY_DAILY_STATE));
         return;
       }
       var cancelled = false;
@@ -938,6 +1036,10 @@
             points: (found && found.points) || 0,
             lastCompletedDate: (found && found.lastCompletedDate) || null,
             unlockedVisions: (found && found.unlockedVisions) || [],
+            heavenTotalDays: (found && found.heavenTotalDays) || 0,
+            unlockedGrace: (found && found.unlockedGrace) || [],
+            hellFalls: (found && found.hellFalls) || [],
+            pastLives: (found && found.pastLives) || [],
             resolvedFor: accountId
           });
         }
@@ -959,35 +1061,69 @@
           newVision = visionKey;
         }
       }
+
+      // Heaven — Grace: counts every completion, streak or no streak.
+      var nextHeavenTotalDays = state.heavenTotalDays;
+      var nextUnlockedGrace = state.unlockedGrace.slice();
+      var newGrace = null;
+      if(realmKey === "heaven"){
+        nextHeavenTotalDays = state.heavenTotalDays + 1;
+        if(HEAVEN_GRACE_MILESTONES.indexOf(nextHeavenTotalDays) !== -1){
+          var graceKey = "heaven:" + nextHeavenTotalDays;
+          if(nextUnlockedGrace.indexOf(graceKey) === -1){
+            nextUnlockedGrace.push(graceKey);
+            newGrace = graceKey;
+          }
+        }
+      }
+
+      // Hell — the fire remembers a streak breaking, but only when it was
+      // actually worth something (state.streak > 1) and the break is being
+      // discovered on a Hell task specifically.
+      var nextHellFalls = state.hellFalls.slice();
+      var newFall = null;
+      if(realmKey === "hell" && !wasYesterday && state.streak > 1){
+        var fallEntry = { streakLost: state.streak, date: today, lineIndex: nextHellFalls.length % HELL_FALL_LINES.length };
+        nextHellFalls = nextHellFalls.concat([fallEntry]).slice(-30);
+        newFall = fallEntry;
+      }
+
       var ns = dbRef.current;
       if(ns){
         try{
           // A full set(), not update() — matches the existing shape of this
           // doc, so every field this doc holds has to be listed here or it
-          // gets dropped, unlockedVisions included.
+          // gets dropped, unlockedVisions (and the newer fields) included.
           await ns.doc("dailytasks/" + accountId).set({
-            realm: realmKey, streak: nextStreak, points: nextPoints, lastCompletedDate: today, unlockedVisions: nextUnlocked
+            realm: realmKey, streak: nextStreak, points: nextPoints, lastCompletedDate: today,
+            unlockedVisions: nextUnlocked,
+            heavenTotalDays: nextHeavenTotalDays, unlockedGrace: nextUnlockedGrace,
+            hellFalls: nextHellFalls, pastLives: state.pastLives
           });
         }catch(e){
           return { ok:false };
         }
       }
-      setState(function(s){ return Object.assign({}, s, { streak:nextStreak, points:nextPoints, lastCompletedDate:today, unlockedVisions:nextUnlocked }); });
-      return { ok:true, newVision: newVision };
+      setState(function(s){ return Object.assign({}, s, {
+        streak:nextStreak, points:nextPoints, lastCompletedDate:today, unlockedVisions:nextUnlocked,
+        heavenTotalDays:nextHeavenTotalDays, unlockedGrace:nextUnlockedGrace, hellFalls:nextHellFalls
+      }); });
+      return { ok:true, newVision: newVision, newGrace: newGrace, newFall: newFall };
     }
 
-    async function spend(amount){
+    async function spend(amount, extraFields){
       if(state.points < amount) return { ok:false, reason:"points" };
       var nextPoints = state.points - amount;
       var ns = dbRef.current;
+      var payload = Object.assign({ points: nextPoints }, extraFields || {});
       if(ns && accountId){
         try{
-          await ns.doc("dailytasks/" + accountId).update({ points: nextPoints });
+          await ns.doc("dailytasks/" + accountId).update(payload);
         }catch(e){
           return { ok:false, reason:"save" };
         }
       }
-      setState(function(s){ return Object.assign({}, s, { points:nextPoints }); });
+      setState(function(s){ return Object.assign({}, s, payload); });
       return { ok:true };
     }
 
@@ -2887,6 +3023,71 @@
       h("div", { className:"vision-groups" },
         DOORS.map(function(d){
           var realm = REALMS[d.key];
+          var s = props.state || EMPTY_DAILY_STATE;
+          var extra = [];
+
+          if(d.key === "heaven"){
+            extra.push(h("div", { key:"grace-h", className:"vision-subtitle" }, biLabel("Grace — every day counts, streak or no streak", "恩寵——連続でなくても、すべての日が数えられる", "은총 — 연속이 아니어도 모든 날이 헤아려진다")));
+            extra.push(h("div", { key:"grace-list", className:"vision-list" },
+              HEAVEN_GRACE_MILESTONES.map(function(count){
+                var v = GRACE_VISIONS.heaven.filter(function(x){ return x.count === count; })[0];
+                if(!v) return null;
+                var key = "heaven:" + count;
+                var unlocked = (s.unlockedGrace || []).indexOf(key) !== -1;
+                return h("div", { key: key, className:"vision-item" + (unlocked ? " unlocked" : " locked") },
+                  h("span", { className:"vision-day" }, count + " days total"),
+                  unlocked
+                    ? [
+                        h("h3", { key:"t" }, v.title),
+                        h(Sub, { key:"ts", ja:v.titleJa, ko:v.titleKo }),
+                        h("p", { key:"b" }, v.en),
+                        h(Sub, { key:"bs", ja:v.ja, ko:v.ko })
+                      ]
+                    : [
+                        h("h3", { key:"t" }, "Not yet reached"),
+                        h(Sub, { key:"ts", ja:"まだ届いていない", ko:"아직 닿지 않았다" })
+                      ]
+                );
+              })
+            ));
+          }
+
+          if(d.key === "hell"){
+            var falls = s.hellFalls || [];
+            extra.push(h("div", { key:"falls-h", className:"vision-subtitle" }, biLabel("The Fire Remembers — every streak that broke here", "炎は覚えている——ここで途切れたすべての連続記録", "불꽃은 기억한다 — 이곳에서 끊긴 모든 연속 기록")));
+            extra.push(h("div", { key:"falls-list", className:"vision-list" },
+              falls.length === 0
+                ? h("p", { className:"vision-empty" }, biLabel("No falls recorded yet. May it stay that way.", "まだ何も記録されていない。このままでありますように。", "아직 기록된 것이 없다. 계속 그러하기를."))
+                : falls.slice().reverse().map(function(f, i){
+                    return h("div", { key: "fall-" + (falls.length - 1 - i), className:"vision-item log unlocked" },
+                      h("span", { className:"vision-day" }, f.date),
+                      h("p", null, fallLine("en", f.streakLost, f.lineIndex)),
+                      h(Sub, { ja: fallLine("ja", f.streakLost, f.lineIndex), ko: fallLine("ko", f.streakLost, f.lineIndex) })
+                    );
+                  })
+            ));
+          }
+
+          if(d.key === "earth"){
+            var lives = s.pastLives || [];
+            extra.push(h("div", { key:"lives-h", className:"vision-subtitle" }, biLabel("Past Lives — a fragment of every realm you've left", "前世——去ったすべての世界の断片", "전생 — 떠나온 모든 세계의 조각")));
+            extra.push(h("div", { key:"lives-list", className:"vision-list" },
+              lives.length === 0
+                ? h("p", { className:"vision-empty" }, biLabel("No lives ended yet. This is still the first one.", "まだ終わった生はない。これはまだ最初の生だ。", "아직 끝난 삶이 없다. 이것은 아직 첫 번째 삶이다."))
+                : lives.slice().reverse().map(function(life, i){
+                    var pool = PAST_LIFE_LINES[life.from] || PAST_LIFE_LINES.earth;
+                    var line = pool[life.lineIndex % pool.length];
+                    var fromRealm = REALMS[life.from] || REALMS.earth;
+                    var toRealm = REALMS[life.to] || REALMS.earth;
+                    return h("div", { key: "life-" + (lives.length - 1 - i), className:"vision-item log unlocked" },
+                      h("span", { className:"vision-day" }, life.date + " · " + fromRealm.name + " → " + toRealm.name),
+                      h("p", null, line.en),
+                      h(Sub, { ja: line.ja, ko: line.ko })
+                    );
+                  })
+            ));
+          }
+
           return h("div", { key: d.key },
             h("div", { className:"vision-group-title" },
               h("span", { className:"dot", style:{ background:"var(--" + d.key + ")" } }),
@@ -2914,7 +3115,8 @@
                       ]
                 );
               })
-            )
+            ),
+            extra
           );
         })
       ),
@@ -2983,6 +3185,7 @@
         key: "visions-" + props.accountId,
         doorKey: key,
         unlockedVisions: props.unlockedVisions,
+        state: props.dailyTasksState,
         onBack: props.onBackToCharacter
       });
     }else if(props.gamePhase === "tasks"){
@@ -3233,13 +3436,26 @@
           trackEvent("unlock_vision", { vision: result.newVision });
           setHasNewVision(true);
         }
+        if(result.newGrace){
+          trackEvent("unlock_grace", { grace: result.newGrace });
+          setHasNewVision(true);
+        }
+        if(result.newFall){
+          trackEvent("hell_fall", { streak_lost: result.newFall.streakLost });
+          setHasNewVision(true);
+        }
       }
       return result;
     }
     async function handleMoveDoor(newKey){
-      var result = await dailyTasks.spend(MOVE_DOOR_COST);
+      var fromRealm = doors.state.myChoice;
+      var pool = PAST_LIFE_LINES[fromRealm] || PAST_LIFE_LINES.earth;
+      var priorCount = dailyTasks.state.pastLives.filter(function(p){ return p.from === fromRealm; }).length;
+      var lifeEntry = { from: fromRealm, to: newKey, date: dateKey(0), lineIndex: priorCount % pool.length };
+      var nextPastLives = dailyTasks.state.pastLives.concat([lifeEntry]).slice(-30);
+      var result = await dailyTasks.spend(MOVE_DOOR_COST, { pastLives: nextPastLives });
       if(!result.ok) return result;
-      trackEvent("move_door", { from: doors.state.myChoice, to: newKey });
+      trackEvent("move_door", { from: fromRealm, to: newKey });
       doors.choose(newKey);
       setGamePhase("character");
       return { ok:true };
