@@ -389,6 +389,10 @@
   .vision-day{ font-family:'JetBrains Mono',ui-monospace,monospace; font-size:0.64rem; letter-spacing:0.1em; color:var(--ink-faint); text-transform:uppercase; }
   .vision-nav-dot{ display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--threshold-glow); margin-left:6px; box-shadow:0 0 8px var(--threshold-glow); vertical-align:middle; }
 
+  .echo-progress{ font-family:'JetBrains Mono',ui-monospace,monospace; font-size:0.68rem; letter-spacing:0.08em; color:var(--ink-faint); text-transform:uppercase; margin-bottom:10px; }
+  .echo-chips{ display:flex; gap:8px; flex-wrap:wrap; }
+  .echo-chip{ display:inline-block; border:1px solid var(--hairline); border-radius:999px; padding:0.4em 1.1em; font-family:'Cinzel',serif; font-size:0.84rem; color:var(--realm-color); background:rgba(255,255,255,0.02); }
+
   .explore-stage{
     margin-top:20px; position:relative; width:100%; max-width:480px; border-radius:16px; overflow:hidden;
     border:1px solid var(--hairline); background:#000; aspect-ratio:20/14;
@@ -872,6 +876,91 @@
     ]
   };
 
+  // "Echoes" — a second, non-streak narrative thread alongside the visions
+  // above, one distinct mechanic per realm, each continuing a thread the
+  // milestone visions already opened rather than repeating them:
+  //   heaven — the "name half-remembered"/"seam" visions (day 3 & 7) pay
+  //     off as an actual growing ledger of names overheard through the
+  //     seam, one at a time, as Heaven's daily task gets completed.
+  //   hell — the day-7 vision's voice ("wants to be heard once") actually
+  //     gets to speak, one more line of a short testimony per completed
+  //     Hell task, building to a finished monologue.
+  //   earth — the day-3/day-7/day-30 visions about an inherited body and a
+  //     soil that "remembers too" resolve into one concrete, permanent
+  //     past-life vignette per account, picked once a visitor has proven
+  //     (by finishing at least one task) that they're staying.
+  // All of it is per-account and permanent once surfaced — see
+  // useDailyTasks (namesHeard/testimonyStage) and EchoesScreen (pastLife).
+  function hashString(str){
+    var hash = 0;
+    for(var i = 0; i < str.length; i++){
+      hash = (hash * 31 + str.charCodeAt(i)) | 0;
+    }
+    return Math.abs(hash);
+  }
+
+  var NAME_POOL = [
+    "Soren", "Imelda", "Tobias", "Nerys", "Castor", "Wren", "Amara", "Elian",
+    "Ysolde", "Bastian", "Fenna", "Corwin", "Liora", "Dashiell", "Permilla",
+    "Osric", "Thessaly", "Marek", "Idris", "Rosalind"
+  ];
+
+  var TESTIMONY_LINES = [
+    { en: "It starts with my name, which you let die with everyone else who said it.",
+      ja: "始まりは私の名前——あなたは、それを口にしていた他の誰もと一緒に、死なせてしまった。",
+      ko: "시작은 내 이름이었다 — 당신은 그것을 부르던 다른 모든 이와 함께, 그 이름을 죽게 내버려두었다." },
+    { en: "I waited longer than the burn should allow, for you to turn around even once.",
+      ja: "この炎が許すはずのない長さを、私は待った——あなたが一度でも振り返ってくれるのを。",
+      ko: "이 불꽃이 허락할 리 없는 시간만큼, 나는 기다렸다 — 당신이 한 번이라도 돌아보기를." },
+    { en: "You wouldn't have recognized me by the time you stopped looking.",
+      ja: "あなたが探すのをやめた頃には、もう私だと気づけなかっただろう。",
+      ko: "당신이 찾기를 멈출 무렵엔, 이미 나를 알아보지 못했을 것이다." },
+    { en: "The fire isn't making me say this. I asked it to wait long enough that I could.",
+      ja: "炎がこれを言わせているわけではない。私がそう言えるまで待ってくれと、炎に頼んだのだ。",
+      ko: "불꽃이 나에게 이 말을 시키는 것이 아니다. 내가 이 말을 할 수 있을 때까지 기다려달라고, 내가 불꽃에게 부탁한 것이다." },
+    { en: "I don't want forgiveness. I had that for free once, and you spent it on something else.",
+      ja: "赦しが欲しいわけじゃない。それは一度、無償で持っていたのに、あなたは他のことに使ってしまった。",
+      ko: "용서를 원하는 게 아니다. 그건 한 번 공짜로 가지고 있었는데, 당신이 다른 일에 써버렸다." },
+    { en: "Say my name back to me, even wrong, and I'll stop needing the fire to remember I existed.",
+      ja: "間違っていてもいい、私の名前を返して——そうすれば、私が存在したことを覚えるために、もう炎を必要としなくなる。",
+      ko: "틀려도 괜찮으니, 내 이름을 다시 불러줘 — 그러면 내가 존재했음을 기억하기 위해, 더는 불꽃이 필요하지 않을 것이다." }
+  ];
+
+  var PAST_LIVES = [
+    { title: "The Ferryman", titleJa: "渡し守", titleKo: "뱃사공",
+      en: "You were a ferryman once, on a river that's since changed course. You rowed strangers across for coins you never counted, and the habit is still in your hands — you reach for an oar that isn't there when a room goes quiet.",
+      ja: "かつてあなたは渡し守だった、今では流れを変えてしまった川で。数えもしなかった硬貨のために、見知らぬ者たちを渡し続けた。その癖は今もあなたの手に残っている——部屋が静まると、そこにないはずの櫂に手を伸ばしてしまう。",
+      ko: "당신은 한때 뱃사공이었다, 지금은 흐름이 바뀌어버린 강에서. 세어보지도 않은 동전을 받고 낯선 이들을 건너편으로 실어 날랐다. 그 버릇은 아직 당신의 손에 남아 있다 — 방이 조용해지면, 거기 없는 노를 향해 손을 뻗는다." },
+    { title: "The Seamstress", titleJa: "仕立て屋", titleKo: "바느질하는 사람",
+      en: "You were a seamstress, in a town that burned twice before anyone rebuilt it right. You could mend anything except the one tear that mattered, and some nights your fingers still move like they're threading a needle that was never found.",
+      ja: "あなたは仕立て屋だった、誰かが正しく再建する前に二度焼けた町で。何でも繕うことができたが、本当に大切な一つの裂け目だけは直せなかった。今でも夜になると、見つからなかった針を通すかのように指が動くことがある。",
+      ko: "당신은 바느질하는 사람이었다, 누군가 제대로 재건하기 전에 두 번이나 불탄 마을에서. 무엇이든 꿰맬 수 있었지만, 정말 중요했던 그 하나의 찢어진 자리만은 고치지 못했다. 지금도 밤이면, 끝내 찾지 못한 바늘을 꿰듯 손가락이 움직일 때가 있다." },
+    { title: "The Blacksmith", titleJa: "鍛冶屋", titleKo: "대장장이",
+      en: "You spent a life as a blacksmith, in a pass that saw three wars come through and only ever asked you for blades. You never once used one yourself, and the relief of that still sits oddly in your chest, like a debt that was somehow paid without you.",
+      ja: "あなたは鍛冶屋として生きた、三つの戦争が通り過ぎた峠で、求められるのはいつも刃だけだった。あなた自身は一度も刃を使わなかった。その安堵は今でも胸の中で奇妙に座っている——自分の知らぬ間に払われた借りのように。",
+      ko: "당신은 대장장이로 한 생을 보냈다, 세 번의 전쟁이 지나간 고개에서, 사람들이 요구한 것은 언제나 칼날뿐이었다. 당신 자신은 한 번도 그것을 쓴 적이 없었다. 그 안도감은 지금도 가슴속에 이상하게 남아 있다 — 자신도 모르게 대신 갚아진 빚처럼." },
+    { title: "The Midwife", titleJa: "産婆", titleKo: "산파",
+      en: "You were a midwife in a village with one well, and you counted more first breaths than anyone else there ever would. You don't remember most of the faces. You remember, impossibly, every single cry — and sometimes still flinch awake at one that isn't yours to hear.",
+      ja: "あなたは一つの井戸しかない村の産婆だった。他の誰よりも多くの最初の呼吸を数えた。顔のほとんどは覚えていない。それでも、ありえないほどに、すべての泣き声だけは覚えている——今でも時折、聞くはずのないその声に目を覚まし、びくりとする。",
+      ko: "당신은 우물이 하나뿐인 마을의 산파였다. 그곳의 누구보다도 많은 첫 숨을 세었다. 얼굴은 대부분 기억나지 않는다. 그런데도, 믿기지 않게, 모든 울음소리만은 기억한다 — 지금도 가끔, 들을 일이 없는 그 소리에 놀라 깨어난다." },
+    { title: "The Gravedigger", titleJa: "墓掘り人", titleKo: "무덤 파는 사람",
+      en: "You dug graves for a living, in soil that never once asked who deserved one. You buried strangers and, eventually, people you knew, with the exact same care — and some part of you still believes that was the only fair thing you ever did.",
+      ja: "あなたは墓を掘って生計を立てていた、誰がそれにふさわしいかなど一度も問わない土の中で。見知らぬ者も、やがて知る者も、まったく同じ丁寧さで埋めた——その公平さだけが、自分がしたことの中で唯一正しかったのだと、今も心のどこかで思っている。",
+      ko: "당신은 무덤을 파며 생계를 이었다, 누가 그 자격이 있는지 한 번도 묻지 않는 흙 속에서. 낯선 이도, 나중엔 아는 이도, 똑같은 정성으로 묻었다 — 그 공평함만이 자신이 한 일 중 유일하게 올바른 것이었다고, 지금도 마음 어딘가에서 믿고 있다." },
+    { title: "The Clockmaker", titleJa: "時計職人", titleKo: "시계공",
+      en: "You made clocks, in a city that doesn't exist anymore, and you were better at building time than at keeping it — you were late to the one thing you should have been early for. Your hands still move in small, exact, useless motions, like they're still winding something that ran down a long time ago.",
+      ja: "あなたは時計を作っていた、今はもう存在しない都市で。時を作ることには長けていたのに、守ることは苦手だった——本当に早く駆けつけるべきだった、たった一つのことに遅れた。今でもあなたの手は、小さく正確で無意味な動きをする——まるで、はるか昔に止まった何かをまだ巻き続けているかのように。",
+      ko: "당신은 시계를 만들었다, 지금은 존재하지 않는 도시에서. 시간을 만드는 데는 뛰어났지만, 지키는 데는 서툴렀다 — 정말로 서둘러야 했던 단 한 가지 일에 늦고 말았다. 지금도 당신의 손은 작고 정확하지만 쓸모없는 움직임을 한다 — 마치 오래전에 멈춰버린 무언가를 아직도 감고 있는 것처럼." },
+    { title: "The Shepherd", titleJa: "羊飼い", titleKo: "양치는 사람",
+      en: "You kept sheep on a mountain that's since worn down to a hill, alone more often than not, and you learned to talk to yourself out loud just to hear a voice. You still do it now, without noticing, mid-task, to no one — an old habit the soil never bothered to take back.",
+      ja: "あなたは羊を飼っていた、今ではただの丘になってしまった山で、たいてい一人だった。声を聞くためだけに、独り言を口に出す癖がついた。今でも気づかぬうちに、何かをしている最中に、誰に向けてでもなく話しかけてしまう——土が取り戻そうとしなかった、古い癖だ。",
+      ko: "당신은 양을 치며 지냈다, 지금은 그저 언덕이 되어버린 산에서, 대개는 혼자였다. 목소리를 듣기 위해서만, 혼자 소리 내어 말하는 버릇이 생겼다. 지금도 모르는 사이에, 무언가를 하다가, 누구에게도 아닌 말을 건넬 때가 있다 — 흙이 굳이 되돌려 받지 않은, 오래된 버릇이다." },
+    { title: "The Scribe", titleJa: "書記", titleKo: "필경사",
+      en: "You copied other people's words for a living, in a trade that paid you to disappear into someone else's sentence. You wrote a thousand things you didn't believe, and only one you did — and you still, to this day, can't remember which one it was.",
+      ja: "あなたは他人の言葉を書き写して生計を立てていた——誰か他の人の文章の中に自分を消してしまう仕事だった。信じていないことを千も書き、信じていたことはたった一つだけ書いた——それが何だったのか、今でも思い出せない。",
+      ko: "당신은 다른 이들의 말을 베껴 적으며 생계를 이었다 — 누군가 다른 사람의 문장 속으로 자신을 사라지게 만드는 일이었다. 믿지 않는 것을 천 번 썼고, 믿는 것은 단 한 번 썼다 — 그것이 무엇이었는지, 지금도 기억나지 않는다." }
+  ];
+
   function dateKey(offsetDays){
     var d = new Date();
     if(offsetDays) d.setDate(d.getDate() + offsetDays);
@@ -912,13 +1001,13 @@
   // actually pay for moving to a different door.
   function useDailyTasks(accountId){
     var dbRef = useRef(null);
-    var _s = useState({ streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], resolvedFor:null });
+    var _s = useState({ streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], namesHeard:[], testimonyStage:0, resolvedFor:null });
     var state = _s[0], setState = _s[1];
     var loaded = !accountId || state.resolvedFor === accountId;
 
     useEffect(function(){
       if(!accountId){
-        setState(function(s){ return Object.assign({}, s, { streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], resolvedFor:null }); });
+        setState(function(s){ return Object.assign({}, s, { streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], namesHeard:[], testimonyStage:0, resolvedFor:null }); });
         return;
       }
       var cancelled = false;
@@ -938,6 +1027,8 @@
             points: (found && found.points) || 0,
             lastCompletedDate: (found && found.lastCompletedDate) || null,
             unlockedVisions: (found && found.unlockedVisions) || [],
+            namesHeard: (found && found.namesHeard) || [],
+            testimonyStage: (found && found.testimonyStage) || 0,
             resolvedFor: accountId
           });
         }
@@ -959,21 +1050,41 @@
           newVision = visionKey;
         }
       }
+      // Echoes: a second, non-streak narrative thread (see the comment
+      // above PAST_LIVES) that advances per completed task instead of per
+      // milestone day — a name overheard in Heaven, one more line of
+      // Hell's testimony. Earth's half is handled entirely in
+      // EchoesScreen, against the characters/{accountId} doc instead.
+      var nextNamesHeard = state.namesHeard.slice();
+      var nextTestimonyStage = state.testimonyStage;
+      var newEcho = false;
+      if(realmKey === "heaven" && nextNamesHeard.length < NAME_POOL.length && Math.random() < 0.7){
+        var remaining = NAME_POOL.filter(function(n){ return nextNamesHeard.indexOf(n) === -1; });
+        if(remaining.length){
+          nextNamesHeard.push(remaining[Math.floor(Math.random() * remaining.length)]);
+          newEcho = true;
+        }
+      }
+      if(realmKey === "hell" && nextTestimonyStage < TESTIMONY_LINES.length){
+        nextTestimonyStage = nextTestimonyStage + 1;
+        newEcho = true;
+      }
       var ns = dbRef.current;
       if(ns){
         try{
           // A full set(), not update() — matches the existing shape of this
           // doc, so every field this doc holds has to be listed here or it
-          // gets dropped, unlockedVisions included.
+          // gets dropped, unlockedVisions/namesHeard/testimonyStage included.
           await ns.doc("dailytasks/" + accountId).set({
-            realm: realmKey, streak: nextStreak, points: nextPoints, lastCompletedDate: today, unlockedVisions: nextUnlocked
+            realm: realmKey, streak: nextStreak, points: nextPoints, lastCompletedDate: today, unlockedVisions: nextUnlocked,
+            namesHeard: nextNamesHeard, testimonyStage: nextTestimonyStage
           });
         }catch(e){
           return { ok:false };
         }
       }
-      setState(function(s){ return Object.assign({}, s, { streak:nextStreak, points:nextPoints, lastCompletedDate:today, unlockedVisions:nextUnlocked }); });
-      return { ok:true, newVision: newVision };
+      setState(function(s){ return Object.assign({}, s, { streak:nextStreak, points:nextPoints, lastCompletedDate:today, unlockedVisions:nextUnlocked, namesHeard:nextNamesHeard, testimonyStage:nextTestimonyStage }); });
+      return { ok:true, newVision: newVision, newEcho: newEcho };
     }
 
     async function spend(amount){
@@ -1900,6 +2011,9 @@
         h("button", { className:"q-btn ghost tiny bi", type:"button", onClick: props.onOpenVisions },
           h("span", { className:"btn-en" }, "Memories", props.hasNewVision ? h("span", { className:"vision-nav-dot" }) : null),
           h("span", { className:"btn-sub" }, "記憶 ・ 기억")),
+        h("button", { className:"q-btn ghost tiny bi", type:"button", onClick: props.onOpenEchoes },
+          h("span", { className:"btn-en" }, "Echoes", props.hasNewEcho ? h("span", { className:"vision-nav-dot" }) : null),
+          h("span", { className:"btn-sub" }, "エコー ・ 메아리")),
         h("button", { className:"q-btn ghost tiny bi", type:"button", onClick: props.onDonate },
           biLabel("Support — $3/mo", "サポート — 月3ドル", "후원 — 월 $3")),
         h("span", { className:"char-tip-label" }, "or tip:"),
@@ -2924,6 +3038,128 @@
     );
   }
 
+  // The second narrative thread — see the comment above PAST_LIVES. One
+  // distinct mechanic per realm, sharing a single screen and nav entry.
+  function EchoesScreen(props){
+    var doorKey = props.doorKey;
+    var realm = REALMS[doorKey] || REALMS.earth;
+    var s = props.dailyTasksState;
+    var _pastLife = useState(null);
+    var pastLife = _pastLife[0], setPastLife = _pastLife[1];
+    var _loaded = useState(false);
+    var pastLifeLoaded = _loaded[0], setPastLifeLoaded = _loaded[1];
+    var eligible = s.streak > 0 || !!s.lastCompletedDate;
+
+    useEffect(function(){
+      if(doorKey !== "earth" || !props.accountId) return;
+      var cancelled = false;
+      (async function(){
+        var ns = await getDb();
+        if(!ns || cancelled) return;
+        var ref = ns.doc("characters/" + props.accountId);
+        var idx = null;
+        try{
+          var snap = await ref.get();
+          if(snap.exists && snap.data() && typeof snap.data().pastLifeIndex === "number"){
+            idx = snap.data().pastLifeIndex;
+          }
+        }catch(e){}
+        if(idx === null && eligible){
+          idx = hashString(props.accountId) % PAST_LIVES.length;
+          // set(..., {merge:true}) rather than update() — the characters
+          // doc may not exist yet if this visitor has never touched the
+          // avatar controls, and update() throws on a missing doc.
+          try{ await ref.set({ pastLifeIndex: idx }, { merge:true }); }catch(e){}
+        }
+        if(!cancelled){
+          setPastLife(idx === null ? null : PAST_LIVES[idx]);
+          setPastLifeLoaded(true);
+        }
+      })();
+      return function(){ cancelled = true; };
+    }, [doorKey, props.accountId, eligible]);
+
+    var eyebrow = realm.name + " · echoes";
+    var heading, headingSub, tagline, taglineSub, body;
+
+    if(doorKey === "heaven"){
+      heading = "Names that slip through the seam.";
+      headingSub = { ja:"継ぎ目から漏れてくる名前たち。", ko:"이음매 사이로 흘러드는 이름들." };
+      tagline = "None of them are yours. Each one wants to be heard, once, by someone.";
+      taglineSub = { ja:"どれもあなたの名前ではない。それぞれが、誰かに一度だけ聞いてもらいたいのだ。", ko:"그 어느 것도 당신의 이름이 아니다. 각각은 누군가에게 단 한 번이라도 들리고 싶어한다." };
+      body = h("div", null,
+        h("div", { className:"echo-progress" }, s.namesHeard.length + " / " + NAME_POOL.length + " heard"),
+        s.namesHeard.length === 0
+          ? h("p", { className:"lore-empty" },
+              "Nothing's come through yet. Keep returning.  ·  まだ何も届いていない。通い続けよう。  ·  아직 아무것도 도착하지 않았다. 계속 돌아오라."
+            )
+          : h("div", { className:"echo-chips" },
+              s.namesHeard.map(function(name){
+                return h("span", { className:"echo-chip", key:name }, name);
+              })
+            ),
+        s.namesHeard.length === NAME_POOL.length
+          ? h("p", { className:"lore-note", style:{ marginTop:"14px" } },
+              "Every name the seam had to give has reached you now.  ·  継ぎ目が与えられるすべての名前が、今あなたに届いた。  ·  이음매가 줄 수 있는 모든 이름이, 이제 당신에게 닿았다."
+            )
+          : null
+      );
+    }else if(doorKey === "hell"){
+      heading = "What the voice needed to say.";
+      headingSub = { ja:"その声が言わねばならなかったこと。", ko:"그 목소리가 말해야 했던 것." };
+      tagline = "It speaks a little more each time you finish what you started.";
+      taglineSub = { ja:"やり遂げるたびに、その声は少しずつ多くを語る。", ko:"끝낼 때마다, 그 목소리는 조금씩 더 많이 말한다." };
+      body = h("div", { className:"vision-list" },
+        TESTIMONY_LINES.map(function(line, idx){
+          var unlocked = idx < s.testimonyStage;
+          return h("div", { key: idx, className:"vision-item" + (unlocked ? " unlocked" : " locked") },
+            h("span", { className:"vision-day" }, "line " + (idx + 1)),
+            unlocked
+              ? [ h("p", { key:"b" }, line.en), h(Sub, { key:"bs", ja:line.ja, ko:line.ko }) ]
+              : [ h("p", { key:"b" }, "···"), h(Sub, { key:"bs", ja:"まだ語られていない。", ko:"아직 말해지지 않았다." }) ]
+          );
+        }),
+        s.testimonyStage >= TESTIMONY_LINES.length
+          ? h("p", { className:"lore-note" },
+              "The voice has said what it came to say. It doesn't speak again.  ·  その声は、言うべきことを言い終えた。もう二度と語らない。  ·  그 목소리는 하려던 말을 다 했다. 다시는 말하지 않는다."
+            )
+          : null
+      );
+    }else{
+      heading = "Who you were, before.";
+      headingSub = { ja:"以前のあなたは、誰だったのか。", ko:"이전의 당신은, 누구였는가." };
+      tagline = "The soil only shows you this once you've proven you'll stay.";
+      taglineSub = { ja:"あなたが留まり続けると証明した時にだけ、土はこれを見せる。", ko:"당신이 계속 머물 것임을 증명했을 때만, 흙은 이것을 보여준다." };
+      if(!pastLifeLoaded){
+        body = null;
+      }else if(!pastLife){
+        body = h("p", { className:"lore-empty" },
+          "Not surfaced yet — finish a task first.  ·  まだ浮かび上がっていない——まず課題を終えよう。  ·  아직 떠오르지 않았다 — 먼저 과제를 끝내라."
+        );
+      }else{
+        body = h("div", { className:"vision-item unlocked" },
+          h("h3", null, pastLife.title),
+          h(Sub, { ja:pastLife.titleJa, ko:pastLife.titleKo }),
+          h("p", { style:{ marginTop:"10px" } }, pastLife.en),
+          h(Sub, { ja:pastLife.ja, ko:pastLife.ko })
+        );
+      }
+    }
+
+    return h("div", null,
+      h("div", { className:"q-eyebrow" }, eyebrow),
+      h(Sub, { ja: realm.nameJa + "・エコー", ko: realm.nameKo + " · 메아리" }),
+      h("h2", { className:"q-heading" }, heading),
+      h(Sub, headingSub),
+      h("p", { className:"q-tagline" }, tagline),
+      h(Sub, taglineSub),
+      h("div", { style:{ marginTop:"22px" } }, body),
+      h("div", { className:"q-actions", style:{ marginTop:"24px" } },
+        h("button", { className:"q-btn ghost bi", type:"button", onClick: props.onBack }, biLabel("Back", "戻る", "뒤로"))
+      )
+    );
+  }
+
   function QuestionScreen(props){
     var realm = REALMS[props.doorKey] || REALMS.earth;
     var others = DOORS.filter(function(d){ return d.key !== props.doorKey; });
@@ -2967,6 +3203,8 @@
         onOpenExplore: props.onOpenExplore,
         onOpenVisions: props.onOpenVisions,
         hasNewVision: props.hasNewVision,
+        onOpenEchoes: props.onOpenEchoes,
+        hasNewEcho: props.hasNewEcho,
         onDonate: props.onDonate,
         onTip: props.onTip,
         onManageSubscription: props.onManageSubscription
@@ -2983,6 +3221,14 @@
         key: "visions-" + props.accountId,
         doorKey: key,
         unlockedVisions: props.unlockedVisions,
+        onBack: props.onBackToCharacter
+      });
+    }else if(props.gamePhase === "echoes"){
+      content = h(EchoesScreen, {
+        key: "echoes-" + props.accountId,
+        doorKey: key,
+        accountId: props.accountId,
+        dailyTasksState: props.dailyTasksState,
         onBack: props.onBackToCharacter
       });
     }else if(props.gamePhase === "tasks"){
@@ -3055,6 +3301,8 @@
     var soulStatsOpen = _ss[0], setSoulStatsOpen = _ss[1];
     var _nv = useState(false);
     var hasNewVision = _nv[0], setHasNewVision = _nv[1];
+    var _ne = useState(false);
+    var hasNewEcho = _ne[0], setHasNewEcho = _ne[1];
     var _e3d = useState(-1);
     var explore3dMarkerIdx = _e3d[0], setExplore3dMarkerIdx = _e3d[1];
     var doors = useDoorsDb(account ? account.id : null);
@@ -3224,6 +3472,7 @@
     }
     function handleBackToExplore(){ setGamePhase("explore"); }
     function handleOpenVisions(){ setHasNewVision(false); setGamePhase("visions"); }
+    function handleOpenEchoes(){ setHasNewEcho(false); setGamePhase("echoes"); }
     function handleBackToCharacter(){ setGamePhase("character"); }
     async function handleMarkDone(){
       var result = await dailyTasks.markDone(doors.state.myChoice, dateKey(0));
@@ -3232,6 +3481,9 @@
         if(result.newVision){
           trackEvent("unlock_vision", { vision: result.newVision });
           setHasNewVision(true);
+        }
+        if(result.newEcho){
+          setHasNewEcho(true);
         }
       }
       return result;
@@ -3349,6 +3601,7 @@
         dailyTasksState: dailyTasks.state,
         unlockedVisions: dailyTasks.state.unlockedVisions,
         hasNewVision: hasNewVision,
+        hasNewEcho: hasNewEcho,
         onSatisfied: handleSatisfied,
         onEscape: handleEscape,
         onExit: handleExit,
@@ -3356,6 +3609,7 @@
         onOpenTasks: handleOpenTasks,
         onOpenExplore: handleOpenExplore,
         onOpenVisions: handleOpenVisions,
+        onOpenEchoes: handleOpenEchoes,
         onBackToCharacter: handleBackToCharacter,
         explore3dMarkerIdx: explore3dMarkerIdx,
         onEnterGame: handleEnterGame,
