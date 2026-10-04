@@ -816,7 +816,17 @@
   // your current door earns that realm's vision for that day, permanently
   // (see unlockedVisions in useDailyTasks) — the first threads of an
   // actual story for a game that's otherwise just daily-habit mechanics.
-  var VISION_MILESTONES = [3, 7, 30];
+  // 3/7/30 are shared across all three realms; each realm also gets one
+  // extra milestone tied to a number with real weight in that realm's own
+  // tradition rather than another generic round number — Heaven's 40
+  // (the Bible's number of trial/transformation: the flood, the fast,
+  // Lent), Hell's 9 (Dante's nine circles), Reincarnation's 49 (the
+  // Bardo Thodol's 49-day wait between death and rebirth).
+  var VISION_MILESTONES = {
+    heaven: [3, 7, 30, 40],
+    earth:  [3, 7, 30, 49],
+    hell:   [3, 7, 9, 30]
+  };
 
   var VISIONS = {
     heaven: [
@@ -834,7 +844,12 @@
         title: "What the Light Keeps", titleJa: "光が保つもの", titleKo: "빛이 간직하는 것",
         en: "Thirty days, and the light finally answers the question you stopped asking out loud: it isn't judging you, because it's already decided. What you did with these thirty days is filed somewhere you can't see, kept the way everything here is kept — gently, permanently, without comment.",
         ja: "三十日が経ち、光はついに、あなたがもう口に出すのをやめた問いに答える——裁いていないのは、すでに決めているからだ。この三十日間あなたが何をしたかは、見えない場所に記録されている。ここにあるすべてと同じように、静かに、永遠に、何も言わずに保たれている。",
-        ko: "서른 날이 지나고, 빛은 마침내 당신이 더 이상 소리 내어 묻지 않게 된 질문에 답한다 — 심판하지 않는 것은, 이미 결정했기 때문이다. 이 서른 날 동안 당신이 한 일은 보이지 않는 곳에 기록된다. 이곳의 모든 것이 그러하듯, 조용히, 영원히, 아무 말 없이 간직된 채로." }
+        ko: "서른 날이 지나고, 빛은 마침내 당신이 더 이상 소리 내어 묻지 않게 된 질문에 답한다 — 심판하지 않는 것은, 이미 결정했기 때문이다. 이 서른 날 동안 당신이 한 일은 보이지 않는 곳에 기록된다. 이곳의 모든 것이 그러하듯, 조용히, 영원히, 아무 말 없이 간직된 채로." },
+      { day: 40,
+        title: "The Unfinished Room", titleJa: "未完の部屋", titleKo: "미완성의 방",
+        en: "Forty days, and you finally see what the light was building this whole time: not a verdict, a room. It isn't finished — scaffolding still crosses part of the ceiling, and no one's in a hurry to take it down. You get the sense you're not just filling a seat in paradise. You're one of the reasons it's still under construction.",
+        ja: "四十日が経ち、光がずっと作り続けていたものがようやく見える——それは裁きではなく、一つの部屋だった。まだ完成していない。天井の一部には今も足場が架かっていて、誰もそれを急いで外そうとしない。あなたは、自分が楽園の席を一つ埋めているだけではないと気づく。あなたこそが、それがまだ建設中である理由の一つなのだ。",
+        ko: "마흔 날이 지나고, 빛이 그동안 계속 짓고 있던 것이 무엇인지 마침내 보인다 — 심판이 아니라, 하나의 방이었다. 아직 완성되지 않았다. 천장 일부에는 여전히 비계가 가로질러 있고, 누구도 그것을 서둘러 치우려 하지 않는다. 당신은 자신이 그저 천국의 자리 하나를 채우고 있는 게 아니라는 느낌을 받는다. 당신이야말로, 그것이 아직 공사 중인 이유 중 하나다." }
     ],
     earth: [
       { day: 3,
@@ -851,7 +866,12 @@
         title: "The Soil Remembers Too", titleJa: "土もまた覚えている", titleKo: "흙도 기억한다",
         en: "Thirty days, and you finally understand what \"starting over\" actually meant: not a blank page, but a used one, scraped almost clean. The soil forgives slowly because it forgets slower still — and somewhere under everything you've built this month, the last life is still faintly readable, if you dig.",
         ja: "三十日が経ち、あなたはようやく「やり直す」という言葉の本当の意味を理解する——白紙ではなく、ほとんどきれいに削られた、使用済みの紙なのだと。土がゆっくり赦すのは、それ以上にゆっくり忘れるからだ。そして今月あなたが築いたものの下には、掘れば読み取れるほど、前の生がまだかすかに残っている。",
-        ko: "서른 날이 지나고, 당신은 마침내 '다시 시작한다'는 말의 진짜 의미를 이해한다 — 백지가 아니라, 거의 깨끗하게 긁어낸, 이미 쓰였던 종이라는 것을. 흙이 천천히 용서하는 것은, 그보다 더 천천히 잊기 때문이다. 그리고 이번 달 당신이 쌓아온 모든 것 아래에는, 파보면 읽힐 만큼, 지난 삶이 아직 희미하게 남아 있다." }
+        ko: "서른 날이 지나고, 당신은 마침내 '다시 시작한다'는 말의 진짜 의미를 이해한다 — 백지가 아니라, 거의 깨끗하게 긁어낸, 이미 쓰였던 종이라는 것을. 흙이 천천히 용서하는 것은, 그보다 더 천천히 잊기 때문이다. 그리고 이번 달 당신이 쌓아온 모든 것 아래에는, 파보면 읽힐 만큼, 지난 삶이 아직 희미하게 남아 있다." },
+      { day: 49,
+        title: "The Forty-Ninth Day", titleJa: "四十九日目", titleKo: "마흔아홉째 날",
+        en: "Forty-nine days of wandering between what you were and what you're about to be, and on the last one the soil finally asks instead of tells: not what you did, but what you want to carry forward. Whatever you answer becomes the first thing about the next life that was actually yours to choose.",
+        ja: "かつてのあなたとこれからのあなたの間を四十九日間漂い、最後の日になって初めて、土はようやく告げるのではなく問いかける——何をしたかではなく、何を持って進みたいかを。あなたが答えたことが、次の生の中で初めて、本当にあなた自身が選んだものになる。",
+        ko: "예전의 당신과 앞으로의 당신 사이를 마흔아홉 날 동안 떠돌다가, 마지막 날이 되어서야 흙은 비로소 말해주는 대신 묻는다 — 무엇을 했는지가 아니라, 무엇을 가지고 나아가고 싶은지를. 당신이 답한 것이, 다음 삶에서 처음으로 진짜 당신 스스로 선택한 것이 된다." }
     ],
     hell: [
       { day: 3,
@@ -864,6 +884,11 @@
         en: "On the seventh day something speaks from inside the burn, using a voice you recognize but can't place — not one of the damned, and not yours. It asks nothing. It just wants to be heard once, the way you never let it be heard when it mattered.",
         ja: "七日目、燃える中から声がする——聞き覚えはあるのに、誰のものか分からない。それは呪われた者の声でもなく、あなたの声でもない。何も求めていない。ただ一度、聞いてもらいたいだけだ——それが大切だった時、あなたが決して聞かなかったように。",
         ko: "일곱째 날, 불타는 안쪽에서 목소리가 들린다 — 낯익지만 누구의 것인지 알 수 없다. 저주받은 자의 목소리도, 당신의 목소리도 아니다. 아무것도 요구하지 않는다. 그저 한 번, 들어달라는 것뿐이다 — 그것이 중요했던 그 순간, 당신이 결코 들어주지 않았던 것처럼." },
+      { day: 9,
+        title: "Nine Rooms, One Door", titleJa: "九つの部屋、一つの扉", titleKo: "아홉 개의 방, 하나의 문",
+        en: "By the ninth day you've been walked through every room the fire keeps — nine of them, you count now, each colder at the center than the last, which nobody warned you about. You've met a version of yourself in each one. None of them were lying. The fire just hasn't decided yet which one it's going to keep.",
+        ja: "九日目までに、炎が抱えるすべての部屋を歩かされた——九つ、今では数えられる。どれも前よりも中心が冷たく、それについて誰も警告してくれなかった。あなたはそれぞれの部屋で、自分自身の別の姿に会った。誰も嘘をついていなかった。炎はまだ、どの自分を残すか決めていないだけだ。",
+        ko: "아홉째 날이 되자, 불이 품고 있는 모든 방을 지나왔다 — 아홉 개, 이제는 셀 수 있다. 하나같이 중심이 전보다 더 차가웠고, 아무도 그것을 미리 경고해주지 않았다. 당신은 각 방에서 또 다른 자신을 만났다. 누구도 거짓을 말하지 않았다. 불꽃은 아직 어느 쪽을 남길지 정하지 못했을 뿐이다." },
       { day: 30,
         title: "What Burns Off Last", titleJa: "最後に燃え尽きるもの", titleKo: "마지막에 타 없어지는 것",
         en: "Thirty days in the fire, and most of what you carried in has burned away — the excuses first, then the reasons, then the story you told yourself about both. What's left, thirty days clean of all of it, turns out to be smaller than you feared and harder to look at than you expected.",
@@ -952,7 +977,7 @@
       var nextPoints = state.points + POINTS_PER_TASK;
       var nextUnlocked = state.unlockedVisions.slice();
       var newVision = null;
-      if(VISION_MILESTONES.indexOf(nextStreak) !== -1){
+      if((VISION_MILESTONES[realmKey] || []).indexOf(nextStreak) !== -1){
         var visionKey = realmKey + ":" + nextStreak;
         if(nextUnlocked.indexOf(visionKey) === -1){
           nextUnlocked.push(visionKey);
@@ -2894,7 +2919,7 @@
               " · ", realm.nameJa, " · ", realm.nameKo
             ),
             h("div", { className:"vision-list" },
-              VISION_MILESTONES.map(function(day){
+              (VISION_MILESTONES[d.key] || []).map(function(day){
                 var v = (VISIONS[d.key] || []).filter(function(x){ return x.day === day; })[0];
                 if(!v) return null;
                 var key = d.key + ":" + day;
