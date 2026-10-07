@@ -322,6 +322,8 @@
   .char-preview{ flex:0 0 auto; display:flex; flex-direction:column; align-items:center; gap:12px; }
   .char-avatar{ width:150px; height:210px; }
   .char-chip{ font-family:'JetBrains Mono',ui-monospace,monospace; font-size:0.68rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--ink-dim); border:1px solid var(--hairline); padding:0.3em 0.9em; border-radius:999px; }
+  .origin-echo{ max-width:230px; text-align:center; font-size:0.78rem; font-style:italic; color:var(--ink-faint); line-height:1.55; }
+  .origin-echo p{ margin:0; }
   .char-controls{ flex:1 1 260px; min-width:240px; display:flex; flex-direction:column; gap:22px; }
   .field-label{ display:block; margin-bottom:10px; }
   .swatch-row{ display:flex; gap:9px; flex-wrap:wrap; }
@@ -872,6 +874,72 @@
     ]
   };
 
+  // The first-day origin question — a one-time, player-CHOSEN narrative
+  // beat per realm, distinct from the Memories/VISIONS ladder above (which
+  // rewards time, not a decision). Triggered the moment an account
+  // completes a given realm's daily task for the very first time ever (see
+  // realmsStarted in useDailyTasks), not by a streak or a lifetime count,
+  // so it can't be delayed or sped up — only answered, once. The choice is
+  // permanent (stored on characters/{accountId}.originChoice) and echoes
+  // back as a quiet line on the character screen from then on: the game's
+  // first bit of story that the visitor wrote part of themselves.
+  var ORIGIN_CHOICES = {
+    heaven: {
+      question: { en:"Before anything else, it asks you one thing.", ja:"何よりも先に、それはあなたに一つだけ尋ねる。", ko:"다른 무엇보다 먼저, 그것은 당신에게 한 가지를 묻는다." },
+      tagline: { en:"Not a test. Just the first thing it wants to know.", ja:"試験ではない。ただ、最初に知りたいことだけだ。", ko:"시험이 아니다. 그저 가장 먼저 알고 싶은 것일 뿐이다." },
+      options: [
+        { id:"unsure", en:"I don't know why I'm here.", ja:"なぜここにいるのか、分からない。", ko:"내가 왜 여기 있는지 모르겠다.",
+          echoEn:"The light never asked again. Not knowing was answer enough for it.",
+          echoJa:"光は二度と尋ねなかった。分からないということ自体が、十分な答えだった。",
+          echoKo:"빛은 다시 묻지 않았다. 모른다는 것 자체로 충분한 대답이었다." },
+        { id:"certain", en:"I know exactly why I'm here.", ja:"なぜここにいるのか、はっきり分かっている。", ko:"내가 왜 여기 있는지 정확히 안다.",
+          echoEn:"The light didn't check the answer against anything. It just kept it, the way it keeps everything.",
+          echoJa:"光はその答えを何かと照らし合わせたりしなかった。ただ、すべてをそうするように、それを保っただけだ。",
+          echoKo:"빛은 그 대답을 무언가와 맞춰보지 않았다. 그저 다른 모든 것을 대하듯, 그것을 간직했을 뿐이다." },
+        { id:"withhold", en:"I'd rather not say.", ja:"言いたくない。", ko:"말하고 싶지 않다.",
+          echoEn:"The light let the silence stand. It doesn't need an answer to not judge you.",
+          echoJa:"光はその沈黙をそのままにした。裁かないために、答えなど必要なかった。",
+          echoKo:"빛은 그 침묵을 그대로 두었다. 심판하지 않기 위해 대답 따위는 필요 없었다." }
+      ]
+    },
+    earth: {
+      question: { en:"Before the first task is even done, the soil wants to know one thing.", ja:"最初の課題を終える前から、土は一つだけ知りたがっている。", ko:"첫 번째 과제를 마치기도 전에, 흙은 한 가지를 알고 싶어한다." },
+      tagline: { en:"Whatever you answer, it's already in you somewhere. This just names it.", ja:"どう答えようと、それはすでにあなたの中のどこかにある。これはただ、それに名前をつけるだけだ。", ko:"무엇을 답하든, 그것은 이미 당신 안 어딘가에 있다. 이것은 그저 그것에 이름을 붙이는 것일 뿐이다." },
+      options: [
+        { id:"name", en:"A name I don't recognize, somewhere under my own.", ja:"自分の名前の下に、見覚えのない名前が一つ。", ko:"내 이름 아래, 알아보지 못할 이름 하나가.",
+          echoEn:"You never did find out whose it was. The soil didn't offer, and you stopped asking.",
+          echoJa:"結局それが誰のものかは分からなかった。土は教えてくれず、あなたも尋ねるのをやめた。",
+          echoKo:"결국 그것이 누구의 것인지는 알아내지 못했다. 흙은 알려주지 않았고, 당신도 더는 묻지 않았다." },
+        { id:"habit", en:"A habit I never chose — it was just already mine.", ja:"選んだわけでもない癖——それはただ、最初から自分のものだった。", ko:"선택한 적 없는 버릇 — 그것은 그냥 처음부터 내 것이었다.",
+          echoEn:"It's still there, small and unexplained. You've stopped trying to unlearn it.",
+          echoJa:"それは今も、小さく、説明のつかないまま残っている。もう手放そうとはしていない。",
+          echoKo:"그것은 지금도, 작고 설명할 수 없는 채로 남아 있다. 이제는 떼어내려 하지 않는다." },
+        { id:"nothing", en:"Nothing I can name. Just a weight, where a name should be.", ja:"名付けられるものは何もない。ただ、名前があるべき場所に重みがあるだけだ。", ko:"이름 붙일 수 있는 것은 없다. 그저 이름이 있어야 할 자리에 무게만 있을 뿐이다.",
+          echoEn:"The weight never got lighter. It just stopped feeling like someone else's.",
+          echoJa:"その重みは軽くなることはなかった。ただ、誰かのものだという感覚だけが消えていった。",
+          echoKo:"그 무게는 가벼워지지 않았다. 다만 다른 누군가의 것이라는 느낌만 사라져갔다." }
+      ]
+    },
+    hell: {
+      question: { en:"Before the fire does anything else, it wants to know what you brought down with you.", ja:"炎が他の何かをする前に、それはあなたが何を持って降りてきたのかを知りたがる。", ko:"불꽃이 다른 무엇을 하기도 전에, 그것은 당신이 무엇을 가지고 내려왔는지 알고 싶어한다." },
+      tagline: { en:"It isn't asking what you did. Just what you're still carrying.", ja:"何をしたかを尋ねているわけではない。ただ、今も抱えているものを尋ねている。", ko:"무엇을 했는지를 묻는 것이 아니다. 그저 지금도 짊어지고 있는 것을 묻는 것이다." },
+      options: [
+        { id:"unfinished", en:"Something I never finished saying to someone.", ja:"誰かに、言い終えられなかった何か。", ko:"누군가에게, 끝맺지 못한 말 하나.",
+          echoEn:"The fire didn't finish it for you. It just kept the shape of the sentence, unburned.",
+          echoJa:"炎はそれを代わりに終わらせはしなかった。ただ、その言葉の形だけを、燃やさずに残した。",
+          echoKo:"불꽃은 그것을 대신 끝내주지 않았다. 그저 그 말의 형태만을, 태우지 않은 채 남겨두었다." },
+        { id:"unforgiven", en:"Something I never forgave myself for.", ja:"自分自身を決して許せなかった何か。", ko:"스스로를 결코 용서하지 못한 일 하나.",
+          echoEn:"The fire doesn't forgive it either. It just burns it at a temperature you can stand.",
+          echoJa:"炎もそれを許すわけではない。ただ、あなたが耐えられる温度でそれを燃やしているだけだ。",
+          echoKo:"불꽃도 그것을 용서하지는 않는다. 그저 당신이 견딜 수 있는 온도로 그것을 태우고 있을 뿐이다." },
+        { id:"unknown", en:"I don't know yet. I'll find out down here.", ja:"まだ分からない。ここで、それを見つけることになる。", ko:"아직 모른다. 여기서 그것을 알아가게 될 것이다.",
+          echoEn:"The fire is patient about this one. It has plenty of time, and so, it turns out, do you.",
+          echoJa:"この件について、炎は辛抱強い。時間はたっぷりある——そして、あなたにも、同じだけあるらしい。",
+          echoKo:"이 일에 대해서는 불꽃도 참을성이 있다. 시간은 충분하다 — 그리고 알고 보니, 당신에게도 그렇다." }
+      ]
+    }
+  };
+
   function dateKey(offsetDays){
     var d = new Date();
     if(offsetDays) d.setDate(d.getDate() + offsetDays);
@@ -912,13 +980,13 @@
   // actually pay for moving to a different door.
   function useDailyTasks(accountId){
     var dbRef = useRef(null);
-    var _s = useState({ streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], resolvedFor:null });
+    var _s = useState({ streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], realmsStarted:[], resolvedFor:null });
     var state = _s[0], setState = _s[1];
     var loaded = !accountId || state.resolvedFor === accountId;
 
     useEffect(function(){
       if(!accountId){
-        setState(function(s){ return Object.assign({}, s, { streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], resolvedFor:null }); });
+        setState(function(s){ return Object.assign({}, s, { streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], realmsStarted:[], resolvedFor:null }); });
         return;
       }
       var cancelled = false;
@@ -938,6 +1006,7 @@
             points: (found && found.points) || 0,
             lastCompletedDate: (found && found.lastCompletedDate) || null,
             unlockedVisions: (found && found.unlockedVisions) || [],
+            realmsStarted: (found && found.realmsStarted) || [],
             resolvedFor: accountId
           });
         }
@@ -959,21 +1028,31 @@
           newVision = visionKey;
         }
       }
+      // The origin question fires exactly once per realm, the very first
+      // time an account ever completes a task there — unlike the streak
+      // ladder above, it can't be chased by playing more and can't be
+      // missed by missing a day.
+      var nextRealmsStarted = (state.realmsStarted || []).slice();
+      var newOrigin = null;
+      if(nextRealmsStarted.indexOf(realmKey) === -1){
+        nextRealmsStarted.push(realmKey);
+        newOrigin = realmKey;
+      }
       var ns = dbRef.current;
       if(ns){
         try{
           // A full set(), not update() — matches the existing shape of this
           // doc, so every field this doc holds has to be listed here or it
-          // gets dropped, unlockedVisions included.
+          // gets dropped, unlockedVisions/realmsStarted included.
           await ns.doc("dailytasks/" + accountId).set({
-            realm: realmKey, streak: nextStreak, points: nextPoints, lastCompletedDate: today, unlockedVisions: nextUnlocked
+            realm: realmKey, streak: nextStreak, points: nextPoints, lastCompletedDate: today, unlockedVisions: nextUnlocked, realmsStarted: nextRealmsStarted
           });
         }catch(e){
           return { ok:false };
         }
       }
-      setState(function(s){ return Object.assign({}, s, { streak:nextStreak, points:nextPoints, lastCompletedDate:today, unlockedVisions:nextUnlocked }); });
-      return { ok:true, newVision: newVision };
+      setState(function(s){ return Object.assign({}, s, { streak:nextStreak, points:nextPoints, lastCompletedDate:today, unlockedVisions:nextUnlocked, realmsStarted:nextRealmsStarted }); });
+      return { ok:true, newVision: newVision, newOrigin: newOrigin };
     }
 
     async function spend(amount){
@@ -1824,6 +1903,16 @@
               return g ? (g.en + " · " + g.ja + " · " + g.ko) : character.gender;
             })()
           ) : null,
+          (function(){
+            var oc = ORIGIN_CHOICES[props.doorKey];
+            var chosenId = character.originChoice && character.originChoice[props.doorKey];
+            var opt = oc && chosenId ? oc.options.filter(function(o){ return o.id === chosenId; })[0] : null;
+            if(!opt) return null;
+            return h("div", { className:"origin-echo" },
+              h("p", null, opt.echoEn),
+              h(Sub, { ja: opt.echoJa, ko: opt.echoKo })
+            );
+          })(),
           !editing ? h("button", {
             className:"q-btn ghost bi", type:"button",
             onClick: function(){ setEditing(true); }
@@ -2948,6 +3037,35 @@
     );
   }
 
+  // Shown exactly once per realm, right after the first daily task ever
+  // completed there (see newOrigin in useDailyTasks). Unlike the Memories
+  // ladder, nothing here is locked or graded — picking an answer is the
+  // whole mechanic, and the choice echoes back permanently on the
+  // character screen afterward (see ORIGIN_CHOICES / the origin-echo block
+  // in CharacterCreator).
+  function OriginScreen(props){
+    var key = props.doorKey || "earth";
+    var realm = REALMS[key] || REALMS.earth;
+    var oc = ORIGIN_CHOICES[key];
+    if(!oc) return null;
+    return h("div", null,
+      h("div", { className:"q-eyebrow" }, realm.name + " · first day"),
+      h(Sub, { ja: realm.nameJa + "・最初の日", ko: realm.nameKo + " · 첫날" }),
+      h("h2", { className:"q-heading" }, oc.question.en),
+      h(Sub, { ja: oc.question.ja, ko: oc.question.ko }),
+      h("p", { className:"q-tagline" }, oc.tagline.en),
+      h(Sub, { ja: oc.tagline.ja, ko: oc.tagline.ko }),
+      h("div", { className:"q-actions" },
+        oc.options.map(function(o, i){
+          return h("button", {
+            key: o.id, className:"q-btn " + (i === 0 ? "primary" : "ghost") + " bi", type:"button",
+            onClick: function(){ props.onChoose(o.id); }
+          }, biLabel(o.en, o.ja, o.ko));
+        })
+      )
+    );
+  }
+
   function GameScreen(props){
     var key = props.doorKey || "earth";
     var styleVars = {
@@ -2995,6 +3113,12 @@
         onMarkDone: props.onMarkDone,
         onMove: props.onMove,
         onBack: props.onBackToCharacter
+      });
+    }else if(props.gamePhase === "origin"){
+      content = h(OriginScreen, {
+        key: "origin-" + key,
+        doorKey: key,
+        onChoose: props.onChooseOrigin
       });
     }else if(props.gamePhase === "explore"){
       content = h(ExploreScreen, {
@@ -3233,8 +3357,37 @@
           trackEvent("unlock_vision", { vision: result.newVision });
           setHasNewVision(true);
         }
+        if(result.newOrigin){
+          trackEvent("origin_question_shown", { door: result.newOrigin });
+          setGamePhase("origin");
+        }
       }
       return result;
+    }
+    // Writes the answer directly to characters/{accountId} rather than
+    // through CharacterCreator's own local state — this screen can be
+    // reached without CharacterCreator ever having mounted yet this
+    // session, so there's no in-memory character object here to update.
+    // Read-merge-write (rather than a Firestore merge:true) keeps this
+    // correct however nested-object merges behave, without needing to
+    // know that detail.
+    async function handleChooseOrigin(optionId){
+      var realmKey = doors.state.myChoice;
+      trackEvent("choose_origin", { door: realmKey, choice: optionId });
+      if(account && realmKey){
+        try{
+          var ns = await getDb();
+          if(ns){
+            var ref = ns.doc("characters/" + account.id);
+            var snap = await ref.get();
+            var existing = (snap.exists && snap.data()) || {};
+            var nextOrigin = Object.assign({}, existing.originChoice);
+            nextOrigin[realmKey] = optionId;
+            await ref.set(Object.assign({}, existing, { originChoice: nextOrigin }));
+          }
+        }catch(e){}
+      }
+      setGamePhase("tasks");
     }
     async function handleMoveDoor(newKey){
       var result = await dailyTasks.spend(MOVE_DOOR_COST);
@@ -3361,6 +3514,7 @@
         onEnterGame: handleEnterGame,
         onBackToExplore: handleBackToExplore,
         onMarkDone: handleMarkDone,
+        onChooseOrigin: handleChooseOrigin,
         onMove: handleMoveDoor,
         onDonate: handleDonate,
         onTip: handleTip,
