@@ -378,6 +378,18 @@
   .lore-item p{ margin:0; color:var(--ink); line-height:1.6; font-size:0.92rem; }
   .lore-author{ display:block; margin-top:10px; font-size:0.72rem; color:var(--ink-faint); }
 
+  /* One-time reveal shown when a visitor's own lore submission is found
+     among the realm's approved entries (see LoreScreen's onSnapshot and
+     ackLore in useDailyTasks) — a payoff for the previously-silent
+     submit-and-wait-for-review loop. */
+  .lore-ack{
+    margin-top:22px; padding:18px 20px; border-radius:16px;
+    border:1px solid var(--realm-color); background:rgba(255,255,255,0.03);
+    box-shadow:0 0 40px -18px var(--realm-color);
+  }
+  .lore-ack h3{ margin:0.4em 0 0; font-family:'Cinzel',serif; font-weight:600; font-size:1.02rem; color:var(--ink); }
+  .lore-ack p{ margin:10px 0 0; color:var(--ink-dim); line-height:1.65; font-size:0.9rem; }
+
   .vision-groups{ margin-top:28px; display:flex; flex-direction:column; gap:26px; }
   .vision-group-title{ display:flex; align-items:center; gap:8px; font-family:'JetBrains Mono',ui-monospace,monospace; font-size:0.68rem; letter-spacing:0.16em; text-transform:uppercase; color:var(--ink-faint); }
   .vision-group-title .dot{ width:7px; height:7px; border-radius:50%; display:inline-block; }
@@ -872,6 +884,34 @@
     ]
   };
 
+  // One-time per-realm acknowledgment shown the first time a visitor finds
+  // their own submitted lore among a realm's approved entries (see
+  // LoreScreen) — unlike VISIONS above, this isn't gated on a streak or
+  // completion count at all; it's triggered by the existing community-lore
+  // review pipeline, which previously gave the author no feedback once
+  // they hit submit. Persisted as `loreAcknowledged` on the same
+  // dailytasks/{accountId} doc the vision ladder already uses.
+  var LORE_ACK = {
+    heaven: {
+      title: "Kept, Not Judged", titleJa: "裁かれず、ただ留め置かれて", titleKo: "심판받지 않고, 간직된",
+      en: "Someone read what you wrote about this place. It wasn't sent back, corrected, or improved — it was kept, exactly as you wrote it, the same way everything else here is kept. That's the only verdict Heaven gives anyone.",
+      ja: "あなたがこの場所について書いたものを、誰かが読んだ。それは送り返されることも、直されることもなく、ただ留め置かれた——ここにあるすべてがそうであるように、そのままの形で。それが天国が誰にでも下す、唯一の裁きだ。",
+      ko: "당신이 이 곳에 대해 쓴 글을 누군가가 읽었다. 돌려보내지지도, 고쳐지지도 않고, 그저 쓴 그대로 간직되었다 — 이곳의 모든 것이 그러하듯. 그것이 천국이 누구에게든 내리는 유일한 심판이다."
+    },
+    earth: {
+      title: "Planted, Not Composted", titleJa: "堆肥ではなく、植えられて", titleKo: "퇴비가 아니라, 심어진",
+      en: "What you wrote about this place didn't get thrown back on the pile with everything unfinished. It got planted instead — mixed into the soil other lives will grow out of, whether they ever know your name or not.",
+      ja: "あなたがこの場所について書いたものは、未完成のものの山に戻されなかった。代わりに植えられた——他の誰かの名前を知ることがなくとも、他の生がそこから育っていく土に、混ぜ込まれたのだ。",
+      ko: "당신이 이 곳에 대해 쓴 글은 미완성인 것들의 더미로 되돌려지지 않았다. 대신 심어졌다 — 다른 삶이 그 이름을 알든 모르든, 그로부터 자라날 흙 속에 섞여 들어갔다."
+    },
+    hell: {
+      title: "It Didn't Burn", titleJa: "それは燃え尽きなかった", titleKo: "타지 않았다",
+      en: "Your testimony went into the fire like everything else does down here — and came back out instead of turning to ash. Something decided it was true enough to keep. Nobody tells you that out loud. This is as close as the fire gets to saying it.",
+      ja: "あなたの証言は、ここの他のすべてと同じように炎の中に投じられた——そして灰になる代わりに、戻ってきた。何かが、それを留めておくに値する真実だと判断したのだ。誰もそれを声にして告げてはくれない。これが、炎がそれを伝える、いちばん近い形だ。",
+      ko: "당신의 증언은 이곳의 다른 모든 것처럼 불 속으로 던져졌다 — 그리고 재가 되는 대신 되돌아왔다. 무언가가 그것을 간직할 만큼 진실하다고 판단한 것이다. 아무도 그것을 입 밖으로 말해주지 않는다. 이것이 불이 그것을 전하는, 가장 가까운 방식이다."
+    }
+  };
+
   function dateKey(offsetDays){
     var d = new Date();
     if(offsetDays) d.setDate(d.getDate() + offsetDays);
@@ -912,13 +952,13 @@
   // actually pay for moving to a different door.
   function useDailyTasks(accountId){
     var dbRef = useRef(null);
-    var _s = useState({ streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], resolvedFor:null });
+    var _s = useState({ streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], loreAcknowledged:[], resolvedFor:null });
     var state = _s[0], setState = _s[1];
     var loaded = !accountId || state.resolvedFor === accountId;
 
     useEffect(function(){
       if(!accountId){
-        setState(function(s){ return Object.assign({}, s, { streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], resolvedFor:null }); });
+        setState(function(s){ return Object.assign({}, s, { streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], loreAcknowledged:[], resolvedFor:null }); });
         return;
       }
       var cancelled = false;
@@ -938,6 +978,7 @@
             points: (found && found.points) || 0,
             lastCompletedDate: (found && found.lastCompletedDate) || null,
             unlockedVisions: (found && found.unlockedVisions) || [],
+            loreAcknowledged: (found && found.loreAcknowledged) || [],
             resolvedFor: accountId
           });
         }
@@ -964,9 +1005,10 @@
         try{
           // A full set(), not update() — matches the existing shape of this
           // doc, so every field this doc holds has to be listed here or it
-          // gets dropped, unlockedVisions included.
+          // gets dropped, unlockedVisions and loreAcknowledged included.
           await ns.doc("dailytasks/" + accountId).set({
-            realm: realmKey, streak: nextStreak, points: nextPoints, lastCompletedDate: today, unlockedVisions: nextUnlocked
+            realm: realmKey, streak: nextStreak, points: nextPoints, lastCompletedDate: today,
+            unlockedVisions: nextUnlocked, loreAcknowledged: state.loreAcknowledged
           });
         }catch(e){
           return { ok:false };
@@ -991,7 +1033,30 @@
       return { ok:true };
     }
 
-    return { state: Object.assign({}, state, { loaded:loaded }), markDone: markDone, spend: spend };
+    // Marks a realm's one-time lore-acceptance reveal (see LORE_ACK) as
+    // seen, permanently. A set(..., {merge:true}) rather than update() —
+    // unlike markDone/spend above, this can legitimately be the very first
+    // write to this account's dailytasks doc (a visitor can get their lore
+    // approved before ever completing a daily task), and merge:true creates
+    // the doc fine in that case without clobbering fields set elsewhere.
+    async function ackLore(realmKey){
+      if(!accountId) return { ok:false };
+      if(state.loreAcknowledged.indexOf(realmKey) !== -1) return { ok:true, already:true };
+      var nextAck = state.loreAcknowledged.concat([realmKey]);
+      var ns = dbRef.current || await getDb();
+      dbRef.current = ns;
+      if(ns){
+        try{
+          await ns.doc("dailytasks/" + accountId).set({ loreAcknowledged: nextAck }, { merge:true });
+        }catch(e){
+          return { ok:false };
+        }
+      }
+      setState(function(s){ return Object.assign({}, s, { loreAcknowledged: nextAck }); });
+      return { ok:true };
+    }
+
+    return { state: Object.assign({}, state, { loaded:loaded }), markDone: markDone, spend: spend, ackLore: ackLore };
   }
 
   // Door-opening sound, synthesized entirely with the Web Audio API — no
@@ -1927,7 +1992,13 @@
     var text = _text[0], setText = _text[1];
     var _status = useState("idle");
     var status = _status[0], setStatus = _status[1];
+    var _showAck = useState(false);
+    var showAck = _showAck[0], setShowAck = _showAck[1];
     var unsubRef = useRef(null);
+    // Captured once at mount, not re-read per snapshot — this is a one-time
+    // reveal, so whether it already fired before this screen opened is all
+    // that matters; ackLore() itself is idempotent either way.
+    var alreadyAckedRef = useRef(props.alreadyAcked);
 
     useEffect(function(){
       var cancelled = false;
@@ -1942,6 +2013,14 @@
               var docs = snap.docs.map(function(d){ return Object.assign({ id:d.id }, d.data()); });
               docs.sort(function(a,b){ return (b.createdAt||0) - (a.createdAt||0); });
               if(!cancelled) setItems(docs);
+              if(!cancelled && !alreadyAckedRef.current && props.accountId){
+                var mine = docs.some(function(d){ return d.accountId === props.accountId; });
+                if(mine){
+                  alreadyAckedRef.current = true;
+                  setShowAck(true);
+                  if(props.onAckLore) props.onAckLore(props.doorKey);
+                }
+              }
             }, function(){});
           unsubRef.current = unsub;
         }catch(e){}
@@ -1961,6 +2040,7 @@
           realm: props.doorKey,
           text: trimmed.slice(0, 600),
           authorName: props.authorName || "anonymous",
+          accountId: props.accountId || null,
           status: "pending",
           createdAt: Date.now()
         });
@@ -1982,6 +2062,17 @@
         ja: realm.nameJa + "のあなた自身の情景を加えよう。他の人に表示される前に審査される。",
         ko: realm.nameKo + "의 당신만의 장면을 더하라. 다른 사람에게 보이기 전에 검토된다."
       }),
+      showAck ? (function(){
+        var ack = LORE_ACK[props.doorKey] || LORE_ACK.earth;
+        return h("div", { className:"lore-ack" },
+          h("div", { className:"q-eyebrow" }, "your lore, accepted"),
+          h(Sub, { ja:"あなたの伝承が受け入れられた", ko:"당신의 전승이 받아들여졌다" }),
+          h("h3", null, ack.title),
+          h(Sub, { ja: ack.titleJa, ko: ack.titleKo }),
+          h("p", null, ack.en),
+          h(Sub, { ja: ack.ja, ko: ack.ko })
+        );
+      })() : null,
       h("form", { className:"lore-form", onSubmit: submit },
         h("textarea", {
           className:"lore-input", maxLength:600, rows:4,
@@ -2976,6 +3067,9 @@
         key: "lore-" + key,
         doorKey: key,
         authorName: props.authorName,
+        accountId: props.accountId,
+        alreadyAcked: (props.loreAcknowledged || []).indexOf(key) !== -1,
+        onAckLore: props.onAckLore,
         onBack: props.onBackToCharacter
       });
     }else if(props.gamePhase === "visions"){
@@ -3236,6 +3330,10 @@
       }
       return result;
     }
+    function handleAckLore(realmKey){
+      trackEvent("ack_lore", { door: realmKey });
+      return dailyTasks.ackLore(realmKey);
+    }
     async function handleMoveDoor(newKey){
       var result = await dailyTasks.spend(MOVE_DOOR_COST);
       if(!result.ok) return result;
@@ -3348,6 +3446,7 @@
         todaysTask: doors.state.myChoice ? taskOfTheDay(doors.state.myChoice) : null,
         dailyTasksState: dailyTasks.state,
         unlockedVisions: dailyTasks.state.unlockedVisions,
+        loreAcknowledged: dailyTasks.state.loreAcknowledged,
         hasNewVision: hasNewVision,
         onSatisfied: handleSatisfied,
         onEscape: handleEscape,
@@ -3361,6 +3460,7 @@
         onEnterGame: handleEnterGame,
         onBackToExplore: handleBackToExplore,
         onMarkDone: handleMarkDone,
+        onAckLore: handleAckLore,
         onMove: handleMoveDoor,
         onDonate: handleDonate,
         onTip: handleTip,
