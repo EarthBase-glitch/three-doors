@@ -872,6 +872,34 @@
     ]
   };
 
+  // Echoes — the realm's one-time reply to your community lore, once one
+  // of your submissions for that realm is approved (see submissions/{id}
+  // and useEchoUnlocks). A second narrative thread alongside Memories
+  // above: that one rewards staying, day over day; this one rewards
+  // giving the realm something true about itself. Unlike Memories there's
+  // no ladder — one echo per realm, granted the first time the realm
+  // accepts what you told it.
+  var ECHOES = {
+    heaven: {
+      title: "Kept, Not Judged", titleJa: "裁かれず、保たれて", titleKo: "심판받지 않고, 간직되어",
+      en: "Someone else read what you wrote about this place and let it stand as true. The light doesn't need to judge it to keep it — it just adds your line to everything else it already holds without comment, and it will show it, eventually, to someone who hasn't arrived yet.",
+      ja: "誰かが、あなたがこの場所について書いたものを読み、それを真実として残した。光はそれを裁く必要などない——ただ、それ以外のすべてに加えて、何も言わずに保つだけだ。そしていつか、まだ到着していない誰かに、それを見せる。",
+      ko: "누군가 당신이 이곳에 대해 쓴 것을 읽고, 그것을 진실로 남겨두었다. 빛은 그것을 심판할 필요가 없다 — 그저 아무 말 없이 간직해온 다른 모든 것에 당신의 한 줄을 더할 뿐이다. 그리고 언젠가, 아직 도착하지 않은 누군가에게 그것을 보여줄 것이다."
+    },
+    earth: {
+      title: "Something You Planted Took", titleJa: "あなたが植えたものが根付いた", titleKo: "당신이 심은 것이 뿌리내렸다",
+      en: "What you planted took root. It's in the soil now, next to the habits and the half-remembered names, and it will surface again — seed-like, unannounced — for someone who hasn't been born into this yet.",
+      ja: "あなたが植えたものは根付いた。今はその土の中にある——癖や半分思い出した名前のすぐそばに。そしてそれは再び、まだこの生に生まれていない誰かのために、種のように、何の前触れもなく浮かび上がる。",
+      ko: "당신이 심은 것이 뿌리내렸다. 이제 그것은 흙 속에, 버릇과 반쯤 기억나는 이름들 바로 옆에 있다. 그리고 그것은 다시, 아직 이 삶에 태어나지 않은 누군가를 위해, 씨앗처럼 예고 없이 떠오를 것이다."
+    },
+    hell: {
+      title: "The Fire Keeps What You Gave It", titleJa: "炎はあなたが差し出したものを保つ", titleKo: "불꽃은 당신이 건넨 것을 간직한다",
+      en: "Someone else read what you wrote about this fire and let it stand. That means it's not only yours anymore — it's filed in beside everything else the fire keeps, and it will show it to the next one who looks around instead of just burning.",
+      ja: "誰かが、あなたがこの炎について書いたものを読み、それを残した。つまりそれはもう、あなただけのものではない——炎が保つすべてのものの中に差し込まれ、ただ燃えるだけでなく周りを見回す次の者に、それを見せるだろう。",
+      ko: "누군가 당신이 이 불꽃에 대해 쓴 것을 읽고, 그것을 남겨두었다. 그것은 더 이상 당신만의 것이 아니라는 뜻이다 — 불꽃이 간직한 다른 모든 것 곁에 끼워졌고, 그저 타오르기만 하지 않고 주위를 둘러보는 다음 사람에게 그것을 보여줄 것이다."
+    }
+  };
+
   function dateKey(offsetDays){
     var d = new Date();
     if(offsetDays) d.setDate(d.getDate() + offsetDays);
@@ -912,13 +940,13 @@
   // actually pay for moving to a different door.
   function useDailyTasks(accountId){
     var dbRef = useRef(null);
-    var _s = useState({ streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], resolvedFor:null });
+    var _s = useState({ streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], seenEchoes:[], resolvedFor:null });
     var state = _s[0], setState = _s[1];
     var loaded = !accountId || state.resolvedFor === accountId;
 
     useEffect(function(){
       if(!accountId){
-        setState(function(s){ return Object.assign({}, s, { streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], resolvedFor:null }); });
+        setState(function(s){ return Object.assign({}, s, { streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], seenEchoes:[], resolvedFor:null }); });
         return;
       }
       var cancelled = false;
@@ -938,6 +966,7 @@
             points: (found && found.points) || 0,
             lastCompletedDate: (found && found.lastCompletedDate) || null,
             unlockedVisions: (found && found.unlockedVisions) || [],
+            seenEchoes: (found && found.seenEchoes) || [],
             resolvedFor: accountId
           });
         }
@@ -964,9 +993,10 @@
         try{
           // A full set(), not update() — matches the existing shape of this
           // doc, so every field this doc holds has to be listed here or it
-          // gets dropped, unlockedVisions included.
+          // gets dropped, unlockedVisions and seenEchoes included.
           await ns.doc("dailytasks/" + accountId).set({
-            realm: realmKey, streak: nextStreak, points: nextPoints, lastCompletedDate: today, unlockedVisions: nextUnlocked
+            realm: realmKey, streak: nextStreak, points: nextPoints, lastCompletedDate: today,
+            unlockedVisions: nextUnlocked, seenEchoes: state.seenEchoes
           });
         }catch(e){
           return { ok:false };
@@ -991,7 +1021,55 @@
       return { ok:true };
     }
 
-    return { state: Object.assign({}, state, { loaded:loaded }), markDone: markDone, spend: spend };
+    // The realm's one-time "echo" reply to an approved piece of your lore —
+    // unlocked state lives on the submissions doc itself (status ===
+    // "approved"), this just remembers which realms' echoes you've already
+    // opened, so the nav dot doesn't relight something you've seen. A
+    // partial update() — safe to call without restating the rest of this
+    // doc's fields.
+    async function markEchoesSeen(realmKeys){
+      if(!accountId || !realmKeys || !realmKeys.length) return;
+      var nextSeen = state.seenEchoes.slice();
+      realmKeys.forEach(function(k){ if(nextSeen.indexOf(k) === -1) nextSeen.push(k); });
+      var ns = dbRef.current;
+      if(ns){
+        try{ await ns.doc("dailytasks/" + accountId).update({ seenEchoes: nextSeen }); }catch(e){ return; }
+      }
+      setState(function(s){ return Object.assign({}, s, { seenEchoes: nextSeen }); });
+    }
+
+    return { state: Object.assign({}, state, { loaded:loaded }), markDone: markDone, spend: spend, markEchoesSeen: markEchoesSeen };
+  }
+
+  // Live lookup of which realms have at least one of this account's lore
+  // submissions approved — the unlock condition for that realm's Echo.
+  // Reuses the same open "submissions" read rule the Lore screen already
+  // relies on (status == "approved" is public), just filtered to one
+  // author instead of one realm, so no new collection or rule is needed.
+  function useEchoUnlocks(authorName){
+    var _u = useState([]);
+    var unlocked = _u[0], setUnlocked = _u[1];
+    useEffect(function(){
+      if(!authorName){ setUnlocked([]); return; }
+      var cancelled = false;
+      var unsub = null;
+      (async function(){
+        var ns = await getDb();
+        if(!ns || cancelled) return;
+        try{
+          unsub = ns.collection("submissions")
+            .where("authorName", "==", authorName)
+            .where("status", "==", "approved")
+            .onSnapshot(function(snap){
+              var realms = {};
+              snap.docs.forEach(function(d){ var r = d.data().realm; if(r) realms[r] = true; });
+              if(!cancelled) setUnlocked(Object.keys(realms));
+            }, function(){});
+        }catch(e){}
+      })();
+      return function(){ cancelled = true; if(unsub) unsub(); };
+    }, [authorName]);
+    return unlocked;
   }
 
   // Door-opening sound, synthesized entirely with the Web Audio API — no
@@ -1900,6 +1978,9 @@
         h("button", { className:"q-btn ghost tiny bi", type:"button", onClick: props.onOpenVisions },
           h("span", { className:"btn-en" }, "Memories", props.hasNewVision ? h("span", { className:"vision-nav-dot" }) : null),
           h("span", { className:"btn-sub" }, "記憶 ・ 기억")),
+        h("button", { className:"q-btn ghost tiny bi", type:"button", onClick: props.onOpenEchoes },
+          h("span", { className:"btn-en" }, "Echoes", props.hasNewEcho ? h("span", { className:"vision-nav-dot" }) : null),
+          h("span", { className:"btn-sub" }, "残響 ・ 메아리")),
         h("button", { className:"q-btn ghost tiny bi", type:"button", onClick: props.onDonate },
           biLabel("Support — $3/mo", "サポート — 月3ドル", "후원 — 월 $3")),
         h("span", { className:"char-tip-label" }, "or tip:"),
@@ -2924,6 +3005,56 @@
     );
   }
 
+  // Echoes journal: one panel per realm, unlocked the first time one of
+  // your community-lore submissions for that realm is approved (see
+  // ECHOES / useEchoUnlocks). Reuses the same vision-* styling as
+  // Memories above — same shape of reveal, different thing that earns it.
+  function EchoesScreen(props){
+    return h("div", null,
+      h("div", { className:"q-eyebrow" }, "Echoes"),
+      h(Sub, { ja:"残響", ko:"메아리" }),
+      h("h2", { className:"q-heading" }, "The realm answers back."),
+      h(Sub, { ja:"世界が応える。", ko:"세계가 응답한다." }),
+      h("p", { className:"q-tagline" }, "Lore you give a realm, it keeps. Once one of yours is accepted, that realm answers — once, and only once."),
+      h(Sub, {
+        ja:"あなたが世界に差し出した伝承を、世界は保ち続ける。あなたのものが一つ受け入れられれば、その世界は応える——一度だけ。",
+        ko:"당신이 세계에 건넨 전승을, 세계는 간직한다. 당신의 것이 하나라도 받아들여지면, 그 세계는 응답한다 — 단 한 번뿐."
+      }),
+      h("div", { className:"vision-groups" },
+        DOORS.map(function(d){
+          var realm = REALMS[d.key];
+          var e = ECHOES[d.key];
+          var unlocked = props.unlockedEchoes.indexOf(d.key) !== -1;
+          return h("div", { key: d.key },
+            h("div", { className:"vision-group-title" },
+              h("span", { className:"dot", style:{ background:"var(--" + d.key + ")" } }),
+              realm.name + (d.key === props.doorKey ? " — your door" : ""),
+              " · ", realm.nameJa, " · ", realm.nameKo
+            ),
+            h("div", { className:"vision-list" },
+              h("div", { className:"vision-item" + (unlocked ? " unlocked" : " locked") },
+                unlocked
+                  ? [
+                      h("h3", { key:"t" }, e.title),
+                      h(Sub, { key:"ts", ja:e.titleJa, ko:e.titleKo }),
+                      h("p", { key:"b" }, e.en),
+                      h(Sub, { key:"bs", ja:e.ja, ko:e.ko })
+                    ]
+                  : [
+                      h("h3", { key:"t" }, "Nothing has answered yet"),
+                      h(Sub, { key:"ts", ja:"まだ何も応えていない", ko:"아직 아무것도 응답하지 않았다" })
+                    ]
+              )
+            )
+          );
+        })
+      ),
+      h("div", { className:"q-actions", style:{ marginTop:"24px" } },
+        h("button", { className:"q-btn ghost bi", type:"button", onClick: props.onBack }, biLabel("Back", "戻る", "뒤로"))
+      )
+    );
+  }
+
   function QuestionScreen(props){
     var realm = REALMS[props.doorKey] || REALMS.earth;
     var others = DOORS.filter(function(d){ return d.key !== props.doorKey; });
@@ -2967,6 +3098,8 @@
         onOpenExplore: props.onOpenExplore,
         onOpenVisions: props.onOpenVisions,
         hasNewVision: props.hasNewVision,
+        onOpenEchoes: props.onOpenEchoes,
+        hasNewEcho: props.hasNewEcho,
         onDonate: props.onDonate,
         onTip: props.onTip,
         onManageSubscription: props.onManageSubscription
@@ -2983,6 +3116,13 @@
         key: "visions-" + props.accountId,
         doorKey: key,
         unlockedVisions: props.unlockedVisions,
+        onBack: props.onBackToCharacter
+      });
+    }else if(props.gamePhase === "echoes"){
+      content = h(EchoesScreen, {
+        key: "echoes-" + props.accountId,
+        doorKey: key,
+        unlockedEchoes: props.unlockedEchoes,
         onBack: props.onBackToCharacter
       });
     }else if(props.gamePhase === "tasks"){
@@ -3059,6 +3199,9 @@
     var explore3dMarkerIdx = _e3d[0], setExplore3dMarkerIdx = _e3d[1];
     var doors = useDoorsDb(account ? account.id : null);
     var dailyTasks = useDailyTasks(account ? account.id : null);
+    var unlockedEchoes = useEchoUnlocks(account ? account.displayName : null);
+    var unseenEchoes = unlockedEchoes.filter(function(k){ return dailyTasks.state.seenEchoes.indexOf(k) === -1; });
+    var hasNewEcho = unseenEchoes.length > 0;
     var redirectTimer = useRef(null);
 
     useEffect(function(){
@@ -3224,6 +3367,10 @@
     }
     function handleBackToExplore(){ setGamePhase("explore"); }
     function handleOpenVisions(){ setHasNewVision(false); setGamePhase("visions"); }
+    function handleOpenEchoes(){
+      if(unseenEchoes.length) dailyTasks.markEchoesSeen(unseenEchoes);
+      setGamePhase("echoes");
+    }
     function handleBackToCharacter(){ setGamePhase("character"); }
     async function handleMarkDone(){
       var result = await dailyTasks.markDone(doors.state.myChoice, dateKey(0));
@@ -3349,6 +3496,8 @@
         dailyTasksState: dailyTasks.state,
         unlockedVisions: dailyTasks.state.unlockedVisions,
         hasNewVision: hasNewVision,
+        unlockedEchoes: unlockedEchoes,
+        hasNewEcho: hasNewEcho,
         onSatisfied: handleSatisfied,
         onEscape: handleEscape,
         onExit: handleExit,
@@ -3356,6 +3505,7 @@
         onOpenTasks: handleOpenTasks,
         onOpenExplore: handleOpenExplore,
         onOpenVisions: handleOpenVisions,
+        onOpenEchoes: handleOpenEchoes,
         onBackToCharacter: handleBackToCharacter,
         explore3dMarkerIdx: explore3dMarkerIdx,
         onEnterGame: handleEnterGame,
