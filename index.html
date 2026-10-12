@@ -872,6 +872,33 @@
     ]
   };
 
+  // Threshold whispers — a one-time-ever farewell shown the first time an
+  // account ever leaves a given realm for another door, whether by the
+  // free "escape" on the satisfied/escape question or a paid "move" from
+  // Tasks. Previously crossing out of a realm was pure mechanics (a button
+  // click, a point cost) with nothing said about it; this gives the realm
+  // itself one line on the way out, in its own voice, and only ever once
+  // per realm per account (see seenFarewells in useDailyTasks). Keyed by
+  // the realm being LEFT, not the destination — where you're headed
+  // doesn't change what the place behind you has to say.
+  var FAREWELLS = {
+    heaven: {
+      title: "The Light Lets You Go", titleJa: "光はあなたを引き止めない", titleKo: "빛은 당신을 붙잡지 않는다",
+      en: "The light doesn't dim as you turn to leave it, and it doesn't brighten to make you stay. It only keeps doing what it did before you arrived, and will keep doing after — the one thing heaven never asked of you was to need it.",
+      ja: "あなたが背を向けて去っても、光は弱まらない。留まらせようと強く輝くこともない。あなたが来る前からしていたことを、ただ続けるだけだ——去った後も同じように。天国があなたに求めなかった唯一のことは、天国を必要とすることだった。",
+      ko: "당신이 돌아서서 떠나도 빛은 어두워지지 않는다. 머물게 하려고 더 밝아지지도 않는다. 당신이 오기 전부터 하던 일을, 그저 계속할 뿐이다——떠난 뒤에도 마찬가지로. 천국이 당신에게 요구하지 않은 단 한 가지는, 천국을 필요로 하는 것이었다." },
+    earth: {
+      title: "The Shape You Leave Behind", titleJa: "後に残る形", titleKo: "뒤에 남는 모양",
+      en: "The ground doesn't notice right away that you've stopped digging in it — it keeps the shape of your hands a little longer than you'd expect, the way a mattress holds a sleeper's weight after they've risen. Somewhere behind you, that shape is still softening back to flat.",
+      ja: "あなたがもう土を掘らなくなったことに、地面はすぐには気づかない——マットレスが起き上がった後も眠っていた人の重みをしばらく保つように、思うより長くあなたの手の形を残している。あなたの後ろのどこかで、その形はまだゆっくりと平らに戻りつつある。",
+      ko: "당신이 더 이상 땅을 파지 않는다는 것을, 땅은 바로 알아차리지 못한다——매트리스가 일어난 사람의 무게를 한동안 간직하듯, 생각보다 오래 당신 손의 모양을 남겨둔다. 당신 뒤 어딘가에서, 그 모양은 아직 천천히 평평해지고 있다." },
+    hell: {
+      title: "The Fire Keeps the Receipt", titleJa: "火は借りを忘れない", titleKo: "불은 빚을 잊지 않는다",
+      en: "The fire doesn't put itself out before you go — it banks low instead, patient, the way a debt doesn't vanish just because you stopped visiting the collector. It told you once already: it remembers your name. Leaving doesn't un-ring that.",
+      ja: "あなたが去る前に、火は自ら消えたりしない——むしろ低く、静かに、辛抱強く燃え続ける。借金が、取立人を訪ねなくなったからといって消えるわけではないのと同じだ。火は一度あなたに告げた——あなたの名前を覚えている、と。去ることは、その言葉を取り消さない。",
+      ko: "당신이 떠나기 전에 불이 스스로 꺼지는 일은 없다——오히려 낮게, 조용히, 참을성 있게 타오른다. 채권자를 찾아가지 않는다고 빚이 사라지지 않는 것처럼. 불은 이미 한 번 당신에게 말했다——당신의 이름을 기억한다고. 떠난다고 그 말이 없어지지는 않는다." }
+  };
+
   function dateKey(offsetDays){
     var d = new Date();
     if(offsetDays) d.setDate(d.getDate() + offsetDays);
@@ -912,13 +939,13 @@
   // actually pay for moving to a different door.
   function useDailyTasks(accountId){
     var dbRef = useRef(null);
-    var _s = useState({ streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], resolvedFor:null });
+    var _s = useState({ streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], seenFarewells:[], resolvedFor:null });
     var state = _s[0], setState = _s[1];
     var loaded = !accountId || state.resolvedFor === accountId;
 
     useEffect(function(){
       if(!accountId){
-        setState(function(s){ return Object.assign({}, s, { streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], resolvedFor:null }); });
+        setState(function(s){ return Object.assign({}, s, { streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], seenFarewells:[], resolvedFor:null }); });
         return;
       }
       var cancelled = false;
@@ -938,6 +965,7 @@
             points: (found && found.points) || 0,
             lastCompletedDate: (found && found.lastCompletedDate) || null,
             unlockedVisions: (found && found.unlockedVisions) || [],
+            seenFarewells: (found && found.seenFarewells) || [],
             resolvedFor: accountId
           });
         }
@@ -964,9 +992,10 @@
         try{
           // A full set(), not update() — matches the existing shape of this
           // doc, so every field this doc holds has to be listed here or it
-          // gets dropped, unlockedVisions included.
+          // gets dropped, unlockedVisions and seenFarewells included.
           await ns.doc("dailytasks/" + accountId).set({
-            realm: realmKey, streak: nextStreak, points: nextPoints, lastCompletedDate: today, unlockedVisions: nextUnlocked
+            realm: realmKey, streak: nextStreak, points: nextPoints, lastCompletedDate: today,
+            unlockedVisions: nextUnlocked, seenFarewells: state.seenFarewells
           });
         }catch(e){
           return { ok:false };
@@ -991,7 +1020,26 @@
       return { ok:true };
     }
 
-    return { state: Object.assign({}, state, { loaded:loaded }), markDone: markDone, spend: spend };
+    // Records that this account has now heard the given realm's farewell
+    // (see FAREWELLS) so it never shows again. A set() with merge:true,
+    // not update() — unlike markDone/spend above, this can fire before the
+    // dailytasks doc exists at all (an account can leave a realm without
+    // ever having completed a task in it), and merge:true both creates it
+    // safely in that case and leaves every other field untouched.
+    async function markFarewellSeen(realmKey){
+      if(state.seenFarewells.indexOf(realmKey) !== -1) return;
+      var nextSeen = state.seenFarewells.concat([realmKey]);
+      var ns = dbRef.current || await getDb();
+      dbRef.current = ns;
+      if(ns && accountId){
+        try{
+          await ns.doc("dailytasks/" + accountId).set({ seenFarewells: nextSeen }, { merge:true });
+        }catch(e){}
+      }
+      setState(function(s){ return Object.assign({}, s, { seenFarewells:nextSeen }); });
+    }
+
+    return { state: Object.assign({}, state, { loaded:loaded }), markDone: markDone, spend: spend, markFarewellSeen: markFarewellSeen };
   }
 
   // Door-opening sound, synthesized entirely with the Web Audio API — no
@@ -2948,6 +2996,30 @@
     );
   }
 
+  // Shown once, the first time an account ever leaves a given realm for
+  // another — see FAREWELLS and markFarewellSeen. Rendered while the
+  // account's door is still the realm being LEFT (the actual doors.choose()
+  // of the destination is deferred until onContinue), so the panel's
+  // colors are still that realm's own right up until the visitor commits.
+  function FarewellScreen(props){
+    var fromKey = props.from;
+    var realm = REALMS[fromKey] || REALMS.earth;
+    var v = FAREWELLS[fromKey] || FAREWELLS.earth;
+    var destDoor = DOORS.filter(function(d){ return d.key === props.to; })[0] || { label: props.to, labelJa: props.to, labelKo: props.to };
+    return h("div", null,
+      h("div", { className:"q-eyebrow" }, "Leaving " + realm.name),
+      h(Sub, { ja: realm.nameJa + "を去る", ko: realm.nameKo + "을 떠나다" }),
+      h("h2", { className:"q-heading" }, v.title),
+      h(Sub, { ja: v.titleJa, ko: v.titleKo }),
+      h("p", { className:"q-tagline" }, v.en),
+      h(Sub, { ja: v.ja, ko: v.ko }),
+      h("div", { className:"q-actions", style:{ marginTop:"24px" } },
+        h("button", { className:"q-btn primary bi", type:"button", onClick: props.onContinue },
+          biLabel("Go to " + destDoor.label, destDoor.labelJa + "へ進む", destDoor.labelKo + "(으)로 나아가다"))
+      )
+    );
+  }
+
   function GameScreen(props){
     var key = props.doorKey || "earth";
     var styleVars = {
@@ -3010,6 +3082,13 @@
         markerIdx: props.explore3dMarkerIdx,
         onBack: props.onBackToExplore
       });
+    }else if(props.gamePhase === "farewell" && props.farewell){
+      content = h(FarewellScreen, {
+        key: "farewell-" + props.farewell.from + "-" + props.farewell.to,
+        from: props.farewell.from,
+        to: props.farewell.to,
+        onContinue: props.onFarewellContinue
+      });
     }else{
       content = h(QuestionScreen, {
         key: "q-" + key, doorKey: key,
@@ -3057,6 +3136,13 @@
     var hasNewVision = _nv[0], setHasNewVision = _nv[1];
     var _e3d = useState(-1);
     var explore3dMarkerIdx = _e3d[0], setExplore3dMarkerIdx = _e3d[1];
+    // Holds a pending realm-to-realm transition while its one-time-ever
+    // farewell (see FAREWELLS) is on screen — null the rest of the time.
+    // The transition itself (doors.choose, the cost on a paid move) only
+    // actually runs once the visitor clicks through, in
+    // handleFarewellContinue below.
+    var _fw = useState(null);
+    var farewell = _fw[0], setFarewell = _fw[1];
     var doors = useDoorsDb(account ? account.id : null);
     var dailyTasks = useDailyTasks(account ? account.id : null);
     var redirectTimer = useRef(null);
@@ -3208,10 +3294,19 @@
       doors.confirm();
       setGamePhase("character");
     }
-    function handleEscape(newKey){
-      trackEvent("escape_door", { from: doors.state.myChoice, to: newKey });
+    function completeEscape(fromKey, newKey){
+      trackEvent("escape_door", { from: fromKey, to: newKey });
       doors.choose(newKey);
       setGamePhase("question");
+    }
+    function handleEscape(newKey){
+      var fromKey = doors.state.myChoice;
+      if(dailyTasks.state.seenFarewells.indexOf(fromKey) === -1){
+        setFarewell({ from: fromKey, to: newKey, mode: "escape" });
+        setGamePhase("farewell");
+        return;
+      }
+      completeEscape(fromKey, newKey);
     }
     function handleExit(){ setPhase("threshold"); setGamePhase("question"); }
     function handleOpenLore(){ setGamePhase("lore"); }
@@ -3236,13 +3331,37 @@
       }
       return result;
     }
-    async function handleMoveDoor(newKey){
+    async function completeMoveDoor(newKey){
       var result = await dailyTasks.spend(MOVE_DOOR_COST);
       if(!result.ok) return result;
       trackEvent("move_door", { from: doors.state.myChoice, to: newKey });
       doors.choose(newKey);
       setGamePhase("character");
       return { ok:true };
+    }
+    // The points cost is only actually spent in completeMoveDoor, once the
+    // visitor has clicked through the farewell (handleFarewellContinue) —
+    // closing the tab on the farewell screen itself costs nothing and
+    // leaves the door unchanged, same as never having pressed "move" at all.
+    async function handleMoveDoor(newKey){
+      var fromKey = doors.state.myChoice;
+      if(dailyTasks.state.seenFarewells.indexOf(fromKey) === -1){
+        setFarewell({ from: fromKey, to: newKey, mode: "move" });
+        setGamePhase("farewell");
+        return { ok:true };
+      }
+      return await completeMoveDoor(newKey);
+    }
+    async function handleFarewellContinue(){
+      var pending = farewell;
+      if(!pending) return;
+      setFarewell(null);
+      await dailyTasks.markFarewellSeen(pending.from);
+      if(pending.mode === "escape"){
+        completeEscape(pending.from, pending.to);
+      }else{
+        await completeMoveDoor(pending.to);
+      }
     }
 
     async function handleDonate(){
@@ -3362,6 +3481,8 @@
         onBackToExplore: handleBackToExplore,
         onMarkDone: handleMarkDone,
         onMove: handleMoveDoor,
+        farewell: farewell,
+        onFarewellContinue: handleFarewellContinue,
         onDonate: handleDonate,
         onTip: handleTip,
         onManageSubscription: handleManageSubscription
