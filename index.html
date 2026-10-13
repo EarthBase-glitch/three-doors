@@ -816,7 +816,7 @@
   // your current door earns that realm's vision for that day, permanently
   // (see unlockedVisions in useDailyTasks) — the first threads of an
   // actual story for a game that's otherwise just daily-habit mechanics.
-  var VISION_MILESTONES = [3, 7, 30];
+  var VISION_MILESTONES = [3, 7, 14, 30];
 
   var VISIONS = {
     heaven: [
@@ -830,6 +830,11 @@
         en: "A week clean, and you notice the light isn't uniform — there's a seam where it thins, near the edge of everything, like a door someone forgot to finish building. Nobody else here seems to see it. You wonder if that means something, or if it means you're the only one still looking.",
         ja: "一週間が経ち、光が均一ではないことに気づく——すべての端近くに、誰かが作りかけて忘れた扉のように、光が薄くなる継ぎ目がある。ここでは誰もそれに気づいていないようだ。それが何かを意味するのか、それとも自分だけがまだ見ているという意味なのか、あなたには分からない。",
         ko: "일주일이 지나자, 빛이 균일하지 않다는 것을 알아챈다 — 모든 것의 가장자리 근처, 마치 누군가 짓다가 잊어버린 문처럼 빛이 얇아지는 이음매가 있다. 여기 다른 누구도 그것을 보지 못하는 것 같다. 그것이 무언가를 뜻하는지, 아니면 아직도 보고 있는 사람이 자신뿐이라는 뜻인지, 당신은 알 수 없다." },
+      { day: 14,
+        title: "The Gate Isn't For Looking", titleJa: "門は見るためのものではない", titleKo: "문은 보기 위한 것이 아니다",
+        en: "By the second week you've gone back to the seam often enough to notice its shape — not a flaw in the light, but a gate, half-built, standing open on nothing yet. You used to think it meant something up here was going wrong. Now you think it might be something going up, slowly, and that you are, in some way you can't prove, one of the reasons it hasn't stopped.",
+        ja: "二週目に入り、あなたはその継ぎ目に何度も戻り、ついにその形に気づく——光の欠陥ではなく、まだ何もない場所に開かれた、半分だけ建てられた門だということに。かつてはそれを、ここで何かがうまくいっていない証だと思っていた。今は、それがゆっくりと築かれている途中の何かであり、証明はできないけれど、それが止まらずに済んでいる理由の一つに、自分自身がいるのかもしれないと思っている。",
+        ko: "둘째 주에 들어서자, 당신은 그 이음매로 몇 번이나 돌아가 마침내 그 모양을 알아챈다 — 빛의 결함이 아니라, 아직 아무것도 없는 곳 위에 반쯤 지어진 채 열려 있는 문이라는 것을. 전에는 그것을 여기서 무언가 잘못되어 가고 있다는 증거라고 생각했다. 지금은, 그것이 천천히 지어지고 있는 중인 무언가이며, 증명할 수는 없지만, 그것이 멈추지 않은 이유 중 하나가 어쩌면 당신 자신일지도 모른다고 생각한다." },
       { day: 30,
         title: "What the Light Keeps", titleJa: "光が保つもの", titleKo: "빛이 간직하는 것",
         en: "Thirty days, and the light finally answers the question you stopped asking out loud: it isn't judging you, because it's already decided. What you did with these thirty days is filed somewhere you can't see, kept the way everything here is kept — gently, permanently, without comment.",
@@ -847,6 +852,11 @@
         en: "A week in, you catch yourself doing something small and unfamiliar — humming a tune, favoring a side when you sleep — and realize it isn't new. It's inherited, worn into the body by someone who lived here before you and left the habit behind like a key under a mat.",
         ja: "一週間が経ち、見慣れない小さな癖に気づく——鼻歌を歌う、寝るときに決まった側を向く。それは新しいものではない。以前ここに生きていた誰かが、マットの下の鍵のように残していった、受け継がれたものだ。",
         ko: "일주일이 지나, 낯설고 사소한 버릇 하나를 알아챈다 — 흥얼거리는 노래, 잘 때 기우는 쪽. 그것은 새로 생긴 것이 아니다. 이전에 이곳에 살았던 누군가가 문 앞 매트 밑 열쇠처럼 남겨두고 간, 물려받은 것이다." },
+      { day: 14,
+        title: "A Scar With No Story", titleJa: "説明のない傷跡", titleKo: "사연 없는 흉터",
+        en: "Two weeks in, you find a scar you don't remember earning — small, pale, exactly where an old injury would sit if you'd ever had one. The soil doesn't explain scars any more than it explains habits. It just leaves them where the body will find them, proof someone else's life left a mark before yours got the chance to.",
+        ja: "二週目、あなたは覚えのない傷跡を見つける——小さく、白っぽく、もし昔に怪我をしていたならちょうどそこにあるはずの場所に。土は癖を説明しないのと同じように、傷跡も説明してはくれない。ただ、いつか体がそれを見つける場所に残しておくだけだ——あなたの番が来る前に、誰か他の人生がそこに痕を残していたという証拠として。",
+        ko: "둘째 주, 당신은 기억에 없는 흉터를 발견한다 — 작고, 희미하며, 예전에 다쳤었다면 딱 그 자리에 있을 법한 곳에. 흙은 버릇을 설명해주지 않는 것처럼 흉터도 설명해주지 않는다. 그저 언젠가 몸이 그것을 발견할 자리에 남겨둘 뿐이다 — 당신의 차례가 오기 전에, 다른 누군가의 삶이 그곳에 흔적을 남겼었다는 증거로." },
       { day: 30,
         title: "The Soil Remembers Too", titleJa: "土もまた覚えている", titleKo: "흙도 기억한다",
         en: "Thirty days, and you finally understand what \"starting over\" actually meant: not a blank page, but a used one, scraped almost clean. The soil forgives slowly because it forgets slower still — and somewhere under everything you've built this month, the last life is still faintly readable, if you dig.",
@@ -864,6 +874,11 @@
         en: "On the seventh day something speaks from inside the burn, using a voice you recognize but can't place — not one of the damned, and not yours. It asks nothing. It just wants to be heard once, the way you never let it be heard when it mattered.",
         ja: "七日目、燃える中から声がする——聞き覚えはあるのに、誰のものか分からない。それは呪われた者の声でもなく、あなたの声でもない。何も求めていない。ただ一度、聞いてもらいたいだけだ——それが大切だった時、あなたが決して聞かなかったように。",
         ko: "일곱째 날, 불타는 안쪽에서 목소리가 들린다 — 낯익지만 누구의 것인지 알 수 없다. 저주받은 자의 목소리도, 당신의 목소리도 아니다. 아무것도 요구하지 않는다. 그저 한 번, 들어달라는 것뿐이다 — 그것이 중요했던 그 순간, 당신이 결코 들어주지 않았던 것처럼." },
+      { day: 14,
+        title: "It Asks For One Thing", titleJa: "声が求める、たった一つのこと", titleKo: "목소리가 요구하는 단 하나",
+        en: "By the second week the voice stops waiting to be heard and starts asking for something back — not forgiveness, not even your name. Just that the next time the fire finds the part of you that hurt someone, you don't flinch away from watching it burn. That's the debt. Watching is the only currency down here that's worth anything.",
+        ja: "二週目になると、その声はもう聞いてもらうのを待つのをやめ、何かを求め始める——許しでもなく、あなたの名前でもない。ただ、次に炎があなたの中の、誰かを傷つけた部分を見つけたとき、目をそらさずにそれが燃えるのを見ていてほしいということだけだ。それが借りだ。ここで価値を持つ通貨は、見届けることしかない。",
+        ko: "둘째 주가 되면 그 목소리는 더 이상 들리기를 기다리지 않고 무언가를 요구하기 시작한다 — 용서도 아니고, 당신의 이름도 아니다. 다만 다음에 불이 당신 안에서 누군가를 아프게 한 부분을 찾아낼 때, 눈을 돌리지 말고 그것이 타는 것을 지켜보라는 것뿐이다. 그것이 빚이다. 이 아래에서 가치 있는 화폐는 지켜보는 것, 그것뿐이다." },
       { day: 30,
         title: "What Burns Off Last", titleJa: "最後に燃え尽きるもの", titleKo: "마지막에 타 없어지는 것",
         en: "Thirty days in the fire, and most of what you carried in has burned away — the excuses first, then the reasons, then the story you told yourself about both. What's left, thirty days clean of all of it, turns out to be smaller than you feared and harder to look at than you expected.",
