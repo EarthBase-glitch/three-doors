@@ -872,6 +872,34 @@
     ]
   };
 
+  // Arrival — the very first thing a realm says to you, shown once right
+  // after you confirm a fresh door choice (satisfied, or having escaped to
+  // a new one) and before you ever reach the character screen. Earlier
+  // than the Memories ladder above (VISIONS) even starts, and written to
+  // quietly foreshadow it — the first hint of the same throughline, not a
+  // spoiler of it. Stored as arrivalsSeen on the existing votes/{accountId}
+  // doc, per realm, so it only ever plays once per account per door.
+  var ARRIVALS = {
+    heaven: {
+      title: "The First Light", titleJa: "最初の光", titleKo: "첫 번째 빛",
+      en: "You expected to be blinded. Instead the light settles around you like it's been waiting, patient and specific, already arranging itself into something that looks almost like a place you could call home. Nobody tells you the rules here. You get the feeling you're supposed to find them yourself, one still morning at a time.",
+      ja: "目が眩むと思っていた。ところが光は、まるで待っていたかのように、辛抱強く、何かを狙うようにあなたの周りに落ち着き、気づけばほとんど家と呼べるような何かを形作りはじめている。誰もここの規則を教えてはくれない。静かな朝を一つずつ重ねながら、自分でそれを見つけるべきだという感覚だけがある。",
+      ko: "눈이 부실 거라 생각했다. 그러나 빛은 마치 기다리고 있었던 것처럼, 참을성 있게, 무언가를 겨누듯 당신 주위에 자리를 잡고, 어느새 거의 집이라 부를 수 있을 듯한 무언가를 만들어가기 시작한다. 이곳의 규칙을 알려주는 이는 없다. 고요한 아침을 하나씩 쌓아가며, 스스로 그것을 찾아내야 한다는 느낌만이 있을 뿐이다."
+    },
+    earth: {
+      title: "The First Breath", titleJa: "最初の一息", titleKo: "첫 숨",
+      en: "The body isn't new, exactly — it's just quiet, the way a house is quiet before anyone unpacks. You take your first breath here and it already knows how, a little too well for someone who's supposedly never done this before. The soil doesn't explain. It just hands you the keys and waits to see what you do with a life that already has furniture in it.",
+      ja: "この体は厳密には新しくない——誰かが荷物を解く前の家のように、ただ静かなだけだ。ここで最初の一息を吸うと、それはすでにやり方を知っている。一度もやったことがないはずの者には、少し出来すぎている。土は説明をしない。ただ鍵を渡し、すでに家具の入った人生で、あなたが何をするかを見ている。",
+      ko: "이 몸은 정확히 말하면 새것이 아니다 — 누군가 짐을 풀기 전의 집처럼, 그저 조용할 뿐이다. 여기서 첫 숨을 들이마시면, 몸은 이미 그 방법을 알고 있다. 한 번도 해본 적 없을 사람치고는 조금 지나치게 잘 안다. 흙은 설명하지 않는다. 그저 열쇠를 건네고, 이미 가구가 들어차 있는 삶을 가지고 당신이 무엇을 할지 지켜볼 뿐이다."
+    },
+    hell: {
+      title: "The First Burn", titleJa: "最初の火傷", titleKo: "첫 번째 화상",
+      en: "The fire finds you immediately, and it's worse than you feared and somehow not as bad as you deserve — both at once, which is its own kind of cruelty. It doesn't introduce itself. It just starts, the way punishment always starts before you've finished understanding what you did. You get the sense it's taking notes.",
+      ja: "炎はすぐにあなたを見つける。恐れていたよりひどく、それでいて当然受けるべきほどではない——その両方が同時に、ある種の残酷さとして存在する。自己紹介などしない。ただ始まる、罰というものが常に、何をしたのか理解し終える前に始まるように。何かが記録を取っているような気がする。",
+      ko: "불꽃은 곧바로 당신을 찾아낸다. 두려워했던 것보다 심하고, 그러면서도 당신이 받아야 할 만큼은 아니다 — 그 둘이 동시에 존재한다는 것, 그것이 바로 이 잔혹함의 방식이다. 자기소개 같은 건 없다. 그저 시작된다, 벌이라는 것이 언제나 당신이 저지른 일을 다 이해하기도 전에 시작되는 것처럼. 무언가가 기록을 남기고 있는 듯한 느낌이 든다."
+    }
+  };
+
   function dateKey(offsetDays){
     var d = new Date();
     if(offsetDays) d.setDate(d.getDate() + offsetDays);
@@ -1151,7 +1179,7 @@
   function useDoorsDb(accountId){
     var dbRef = useRef(null);
     var unsubRef = useRef(null);
-    var _s = useState({ ready:false, offline:false, counts:{heaven:0, earth:0, hell:0}, myChoice:null, resolvedFor:null });
+    var _s = useState({ ready:false, offline:false, counts:{heaven:0, earth:0, hell:0}, myChoice:null, arrivalsSeen:{}, resolvedFor:null });
     var state = _s[0], setState = _s[1];
     // Derived fresh every render (not tracked as its own async-set flag) so
     // there's no one-render lag where a stale ready/myChoice from a
@@ -1208,9 +1236,11 @@
         }
         try{
           var mine = await ns.doc("votes/" + accountId).get();
-          var myChoice = (mine.exists && mine.data() && mine.data().door) ? mine.data().door : null;
+          var mineData = (mine.exists && mine.data()) || null;
+          var myChoice = (mineData && mineData.door) ? mineData.door : null;
+          var arrivalsSeen = (mineData && mineData.arrivalsSeen) || {};
           if(!cancelled){
-            setState(function(s){ return Object.assign({}, s, {myChoice: myChoice, resolvedFor: accountId}); });
+            setState(function(s){ return Object.assign({}, s, {myChoice: myChoice, arrivalsSeen: arrivalsSeen, resolvedFor: accountId}); });
           }
         }catch(e){
           if(!cancelled) setState(function(s){ return Object.assign({}, s, {resolvedFor: accountId}); });
@@ -1237,7 +1267,22 @@
       ns.doc("votes/" + accountId).set({ confirmed: true }, { merge: true }).catch(function(){});
     }
 
-    return { state: Object.assign({}, state, { myChoiceReady: myChoiceReady }), choose: choose, confirm: confirm };
+    // Marks a given realm's Arrival (see ARRIVALS) as seen, permanently,
+    // for this account — merged onto the same votes/{accountId} doc rather
+    // than a new collection, since Firestore's set+merge recursively merges
+    // nested map fields, so this never clobbers other realms' flags.
+    function markArrivalSeen(doorKey){
+      setState(function(s){
+        return Object.assign({}, s, { arrivalsSeen: Object.assign({}, s.arrivalsSeen, (function(){ var o={}; o[doorKey]=true; return o; })()) });
+      });
+      var ns = dbRef.current;
+      if(!ns || !accountId) return;
+      var patch = {};
+      patch[doorKey] = true;
+      ns.doc("votes/" + accountId).set({ arrivalsSeen: patch }, { merge: true }).catch(function(){});
+    }
+
+    return { state: Object.assign({}, state, { myChoiceReady: myChoiceReady }), choose: choose, confirm: confirm, markArrivalSeen: markArrivalSeen };
   }
 
   function Threshold(props){
@@ -2948,6 +2993,27 @@
     );
   }
 
+  // Shown once, right after a fresh door choice is confirmed (satisfied, or
+  // having just escaped to this door) — see ARRIVALS above. Gated by
+  // arrivalsSeen on useDoorsDb so a given account only ever sees a given
+  // realm's arrival the first time it lands there.
+  function ArrivalScreen(props){
+    var realm = REALMS[props.doorKey] || REALMS.earth;
+    var a = ARRIVALS[props.doorKey] || ARRIVALS.earth;
+    return h("div", null,
+      h("div", { className:"q-eyebrow" }, "You are in " + realm.name),
+      h(Sub, { ja: realm.nameJa, ko: realm.nameKo }),
+      h("h2", { className:"q-heading" }, a.title),
+      h(Sub, { ja: a.titleJa, ko: a.titleKo }),
+      h("p", { className:"q-tagline" }, a.en),
+      h(Sub, { ja: a.ja, ko: a.ko }),
+      h("div", { className:"q-actions" },
+        h("button", { className:"q-btn primary bi", onClick: props.onContinue },
+          biLabel("Continue", "続ける", "계속하다"))
+      )
+    );
+  }
+
   function GameScreen(props){
     var key = props.doorKey || "earth";
     var styleVars = {
@@ -3009,6 +3075,12 @@
         doorKey: key,
         markerIdx: props.explore3dMarkerIdx,
         onBack: props.onBackToExplore
+      });
+    }else if(props.gamePhase === "arrival"){
+      content = h(ArrivalScreen, {
+        key: "arrival-" + key,
+        doorKey: key,
+        onContinue: props.onArrivalContinue
       });
     }else{
       content = h(QuestionScreen, {
@@ -3206,6 +3278,18 @@
     function handleSatisfied(){
       trackEvent("satisfied_choice", { door: doors.state.myChoice });
       doors.confirm();
+      var key = doors.state.myChoice;
+      if(key && !doors.state.arrivalsSeen[key]){
+        setGamePhase("arrival");
+      }else{
+        setGamePhase("character");
+      }
+    }
+    function handleArrivalContinue(){
+      if(doors.state.myChoice){
+        trackEvent("view_arrival", { door: doors.state.myChoice });
+        doors.markArrivalSeen(doors.state.myChoice);
+      }
       setGamePhase("character");
     }
     function handleEscape(newKey){
@@ -3350,6 +3434,7 @@
         unlockedVisions: dailyTasks.state.unlockedVisions,
         hasNewVision: hasNewVision,
         onSatisfied: handleSatisfied,
+        onArrivalContinue: handleArrivalContinue,
         onEscape: handleEscape,
         onExit: handleExit,
         onOpenLore: handleOpenLore,
