@@ -872,6 +872,37 @@
     ]
   };
 
+  // One-time narrative unlocks that don't ride the streak counter at all —
+  // each tied instead to something realm-specific that already existed as
+  // pure mechanics (moving doors, accumulating points, exhausting the daily
+  // task pool) and had no story attached to it. Stored the same way as
+  // VISIONS (a key pushed into unlockedVisions on the dailytasks doc,
+  // "realmKey:key" instead of "realmKey:day"), just rendered as their own
+  // row in VisionsScreen instead of the day-ladder.
+  var VISION_EXTRAS = {
+    earth: [
+      { key: "arrival", badge: "on arrival",
+        title: "The Life Before This One", titleJa: "この生の前にあった生", titleKo: "이 삶 이전의 삶",
+        en: "You didn't arrive here empty-handed. Something about the door you walked through to get here is already folded into this new life, the way a scar outlives the cut. The soil doesn't ask where you've been. It only asks what you plan to grow now that you're back.",
+        ja: "あなたは手ぶらでここに来たのではない。ここへ来るために通り抜けた扉の何かは、傷痕が切り傷より長く残るように、すでにこの新しい生に織り込まれている。土はあなたがどこにいたかを尋ねない。ただ、戻ってきた今、何を育てるつもりかを尋ねるだけだ。",
+        ko: "당신은 빈손으로 이곳에 온 것이 아니다. 이곳에 오기 위해 지나온 문의 무언가는, 흉터가 상처보다 오래 남듯, 이미 이 새로운 삶 속에 접혀 들어가 있다. 흙은 당신이 어디에 있었는지 묻지 않는다. 다만 돌아온 지금, 무엇을 길러낼 것인지를 물을 뿐이다." }
+    ],
+    heaven: [
+      { key: "patience", badge: "100 pts",
+        title: "What Adds Up", titleJa: "積み重なるもの", titleKo: "쌓여가는 것",
+        en: "No one here is tallying the days you missed — only the days you showed up. A hundred small kindnesses, however scattered, weigh the same as a hundred done in a row. The light was never counting a streak. It was only ever counting you.",
+        ja: "ここでは誰も、あなたが欠けた日を数えてはいない——ただ、現れた日だけを数えている。どれほどまばらであっても、百の小さな親切は、連続して行われた百の親切と同じ重さを持つ。光が数えていたのは連続記録ではない。数えていたのはただ、あなただけだった。",
+        ko: "여기서는 누구도 당신이 빠진 날을 세지 않는다 — 오직 나타난 날만을 센다. 아무리 띄엄띄엄이어도, 백 번의 작은 친절은 연속으로 행해진 백 번과 같은 무게를 지닌다. 빛이 세고 있던 것은 연속 기록이 아니었다. 오직 당신만을 세고 있었을 뿐이다." }
+    ],
+    hell: [
+      { key: "emptied", badge: "all ten",
+        title: "Nothing Left in the Pool", titleJa: "もう残っていない", titleKo: "더 이상 남지 않은 것",
+        en: "You've confessed every shape of wrong the fire keeps on file — the small ones, the avoided ones, the ones you did the hard way just to prove you could. Tomorrow a task repeats, because they have to repeat, there are only ten. But the fire already knows this round is finished. What it does with you now isn't on the list.",
+        ja: "炎が記録しているあらゆる種類の過ちを、あなたはもう告白し終えた——小さなもの、避けてきたもの、できることを証明するためだけにあえて難しいやり方でやったもの。明日には課題が繰り返される、繰り返さざるを得ない、全部でたった十個しかないのだから。だが炎はもう、この一巡が終わったことを知っている。これから炎があなたにすることは、もうあのリストには載っていない。",
+        ko: "불꽃이 기록해 둔 모든 형태의 잘못을, 당신은 이미 다 고백했다 — 사소한 것들, 피해왔던 것들, 할 수 있음을 증명하려고 일부러 어려운 방식으로 해낸 것들. 내일은 또 다른 과제가 반복될 것이다, 반복될 수밖에 없다, 전부 열 개뿐이니까. 하지만 불꽃은 이미 이 한 바퀴가 끝났음을 안다. 이제부터 불꽃이 당신에게 할 일은, 더 이상 그 목록에 없다." }
+    ]
+  };
+
   function dateKey(offsetDays){
     var d = new Date();
     if(offsetDays) d.setDate(d.getDate() + offsetDays);
@@ -910,15 +941,17 @@
 
   // Shared with App (not just the Tasks screen) so points earned here can
   // actually pay for moving to a different door.
+  var HEAVEN_PATIENCE_POINTS = 100;
+
   function useDailyTasks(accountId){
     var dbRef = useRef(null);
-    var _s = useState({ streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], resolvedFor:null });
+    var _s = useState({ streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], hellTaskIndices:[], resolvedFor:null });
     var state = _s[0], setState = _s[1];
     var loaded = !accountId || state.resolvedFor === accountId;
 
     useEffect(function(){
       if(!accountId){
-        setState(function(s){ return Object.assign({}, s, { streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], resolvedFor:null }); });
+        setState(function(s){ return Object.assign({}, s, { streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], hellTaskIndices:[], resolvedFor:null }); });
         return;
       }
       var cancelled = false;
@@ -938,6 +971,7 @@
             points: (found && found.points) || 0,
             lastCompletedDate: (found && found.lastCompletedDate) || null,
             unlockedVisions: (found && found.unlockedVisions) || [],
+            hellTaskIndices: (found && found.hellTaskIndices) || [],
             resolvedFor: accountId
           });
         }
@@ -945,34 +979,66 @@
       return function(){ cancelled = true; };
     }, [accountId]);
 
+    // Shared by markDone/unlockVision — pushes a vision key in if it isn't
+    // already there, returning both the new array and whether it actually
+    // added anything (so callers know whether to flag it as freshly seen).
+    function addVision(list, key){
+      if(list.indexOf(key) !== -1) return { list: list, added:false };
+      var next = list.slice();
+      next.push(key);
+      return { list: next, added:true };
+    }
+
     async function markDone(realmKey, today){
       if(!accountId) return { ok:false };
       var wasYesterday = state.lastCompletedDate === dateKey(-1);
       var nextStreak = wasYesterday ? state.streak + 1 : 1;
       var nextPoints = state.points + POINTS_PER_TASK;
       var nextUnlocked = state.unlockedVisions.slice();
+      var nextHellIndices = state.hellTaskIndices.slice();
       var newVision = null;
+
       if(VISION_MILESTONES.indexOf(nextStreak) !== -1){
-        var visionKey = realmKey + ":" + nextStreak;
-        if(nextUnlocked.indexOf(visionKey) === -1){
-          nextUnlocked.push(visionKey);
-          newVision = visionKey;
+        var r1 = addVision(nextUnlocked, realmKey + ":" + nextStreak);
+        nextUnlocked = r1.list;
+        if(r1.added) newVision = realmKey + ":" + nextStreak;
+      }
+      // Heaven doesn't care whether the streak broke — it only ever counts
+      // the total, so this checks lifetime points instead of nextStreak.
+      if(realmKey === "heaven" && nextPoints >= HEAVEN_PATIENCE_POINTS){
+        var r2 = addVision(nextUnlocked, "heaven:patience");
+        nextUnlocked = r2.list;
+        if(r2.added && !newVision) newVision = "heaven:patience";
+      }
+      // Hell tracks which of the ten rotating tasks this account has ever
+      // confessed to (not just today's) — once every one of them has been
+      // marked done at least once, the pool is "emptied".
+      if(realmKey === "hell"){
+        var hellPoolSize = DAILY_TASKS.hell.length;
+        var todayIdx = dayOfYear(new Date()) % hellPoolSize;
+        if(nextHellIndices.indexOf(todayIdx) === -1) nextHellIndices.push(todayIdx);
+        if(nextHellIndices.length >= hellPoolSize){
+          var r3 = addVision(nextUnlocked, "hell:emptied");
+          nextUnlocked = r3.list;
+          if(r3.added && !newVision) newVision = "hell:emptied";
         }
       }
+
       var ns = dbRef.current;
       if(ns){
         try{
           // A full set(), not update() — matches the existing shape of this
           // doc, so every field this doc holds has to be listed here or it
-          // gets dropped, unlockedVisions included.
+          // gets dropped, unlockedVisions and hellTaskIndices included.
           await ns.doc("dailytasks/" + accountId).set({
-            realm: realmKey, streak: nextStreak, points: nextPoints, lastCompletedDate: today, unlockedVisions: nextUnlocked
+            realm: realmKey, streak: nextStreak, points: nextPoints, lastCompletedDate: today,
+            unlockedVisions: nextUnlocked, hellTaskIndices: nextHellIndices
           });
         }catch(e){
           return { ok:false };
         }
       }
-      setState(function(s){ return Object.assign({}, s, { streak:nextStreak, points:nextPoints, lastCompletedDate:today, unlockedVisions:nextUnlocked }); });
+      setState(function(s){ return Object.assign({}, s, { streak:nextStreak, points:nextPoints, lastCompletedDate:today, unlockedVisions:nextUnlocked, hellTaskIndices:nextHellIndices }); });
       return { ok:true, newVision: newVision };
     }
 
@@ -991,7 +1057,25 @@
       return { ok:true };
     }
 
-    return { state: Object.assign({}, state, { loaded:loaded }), markDone: markDone, spend: spend };
+    // Unlocks a vision that isn't tied to markDone at all — used for Earth's
+    // "arrival" vision, which fires from the move-door action instead.
+    async function unlockVision(key){
+      if(!accountId) return { ok:false };
+      var r = addVision(state.unlockedVisions, key);
+      if(!r.added) return { ok:true, newVision:null };
+      var ns = dbRef.current;
+      if(ns){
+        try{
+          await ns.doc("dailytasks/" + accountId).update({ unlockedVisions: r.list });
+        }catch(e){
+          return { ok:false };
+        }
+      }
+      setState(function(s){ return Object.assign({}, s, { unlockedVisions: r.list }); });
+      return { ok:true, newVision:key };
+    }
+
+    return { state: Object.assign({}, state, { loaded:loaded }), markDone: markDone, spend: spend, unlockVision: unlockVision };
   }
 
   // Door-opening sound, synthesized entirely with the Web Audio API — no
@@ -2913,6 +2997,24 @@
                         h(Sub, { key:"ts", ja:"まだ届いていない", ko:"아직 닿지 않았다" })
                       ]
                 );
+              }),
+              (VISION_EXTRAS[d.key] || []).map(function(v){
+                var key = d.key + ":" + v.key;
+                var unlocked = props.unlockedVisions.indexOf(key) !== -1;
+                return h("div", { key: key, className:"vision-item" + (unlocked ? " unlocked" : " locked") },
+                  h("span", { className:"vision-day" }, v.badge),
+                  unlocked
+                    ? [
+                        h("h3", { key:"t" }, v.title),
+                        h(Sub, { key:"ts", ja:v.titleJa, ko:v.titleKo }),
+                        h("p", { key:"b" }, v.en),
+                        h(Sub, { key:"bs", ja:v.ja, ko:v.ko })
+                      ]
+                    : [
+                        h("h3", { key:"t" }, "Not yet reached"),
+                        h(Sub, { key:"ts", ja:"まだ届いていない", ko:"아직 닿지 않았다" })
+                      ]
+                );
               })
             )
           );
@@ -3242,6 +3344,13 @@
       trackEvent("move_door", { from: doors.state.myChoice, to: newKey });
       doors.choose(newKey);
       setGamePhase("character");
+      if(newKey === "earth"){
+        var visionResult = await dailyTasks.unlockVision("earth:arrival");
+        if(visionResult && visionResult.newVision){
+          trackEvent("unlock_vision", { vision: visionResult.newVision });
+          setHasNewVision(true);
+        }
+      }
       return { ok:true };
     }
 
