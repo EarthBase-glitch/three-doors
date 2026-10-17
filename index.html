@@ -872,6 +872,41 @@
     ]
   };
 
+  // One-time "echo" visions — a second, smaller ladder alongside the
+  // streak-milestone one above. Each realm earns its echo through a
+  // different mechanic that already exists elsewhere in the game, so the
+  // three feel distinct from each other rather than three copies of the
+  // same streak trick: Heaven's is a lifetime tally that survives streaks
+  // breaking, Reincarnation's fires the moment you actually reincarnate
+  // into it from another door, and Hell's fires on a broken streak rather
+  // than an unbroken one. Same unlockedVisions array as the milestones,
+  // keyed "<realm>:echo" so the two ladders never collide.
+  var HEAVEN_ECHO_THRESHOLD = 15;
+  var HELL_ECHO_MIN_STREAK = 3;
+  var ECHOES = {
+    heaven: {
+      label: "the tally", labelJa: "勘定", labelKo: "셈",
+      title: "What the Light Counts", titleJa: "光が数えるもの", titleKo: "빛이 세는 것",
+      en: "You left Heaven once, or twice, or didn't notice you'd been gone — and none of it mattered to the count. Fifteen mornings of the small, easy task, scattered across however many comings and goings, and the light has been keeping its own tally the whole time, the way it keeps everything: without asking when you'd be back.",
+      ja: "あなたは一度か二度、天国を離れた——あるいは離れていたことにすら気づかなかった。それでも、数え方には何の影響もなかった。小さく易しい課題を果たした十五回の朝は、何度の行き来にまたがっていようと構わず積み重なっていて、光はその間ずっと、自分自身の勘定をつけていた。ここにあるすべてと同じように——あなたがいつ戻るかを尋ねることもなく。",
+      ko: "당신은 한두 번 천국을 떠났다 — 아니, 떠났다는 사실조차 알아채지 못했을 수도 있다. 하지만 그 어느 것도 셈에는 영향을 주지 않았다. 작고 쉬운 과제를 해낸 열다섯 번의 아침은, 오가는 횟수가 몇 번이었든 상관없이 쌓여왔고, 빛은 그동안 줄곧 자신만의 셈을 하고 있었다. 이곳의 모든 것이 그러하듯 — 당신이 언제 돌아올지 묻지도 않은 채."
+    },
+    earth: {
+      label: "the return", labelJa: "帰還", labelKo: "귀환",
+      title: "Soil You've Touched Before", titleJa: "前に触れた土", titleKo: "전에 닿았던 흙",
+      en: "The first time you reincarnate into this door from somewhere else, the ground already knows your weight before you've taken a step in it — it doesn't say from where, only that it isn't the first time something wearing your shape has been set down here and told to begin.",
+      ja: "他のどこかからこの扉へ転生する、その最初の瞬間、まだ一歩も踏み出していないうちから、大地はもうあなたの重さを知っている——どこから来たのかは言わない。ただ、あなたの形をまとった何かがここに置かれ、始めよと言われたのは、これが初めてではないということだけを告げる。",
+      ko: "다른 곳에서 이 문으로 환생하는 그 첫 순간, 아직 한 걸음도 내딛기 전인데도, 땅은 이미 당신의 무게를 알고 있다 — 어디서 왔는지는 말하지 않는다. 다만, 당신의 모습을 한 무언가가 이곳에 놓이고 다시 시작하라는 말을 들은 것이, 이번이 처음이 아니라는 것만을 알려줄 뿐이다."
+    },
+    hell: {
+      label: "the lapse", labelJa: "途切れ", labelKo: "끊김",
+      title: "Where You Went Quiet", titleJa: "あなたが静かになった場所", titleKo: "당신이 조용해졌던 곳",
+      en: "The fire noticed the days you didn't show up long before it noticed you'd come back. It doesn't ask where you were. It just resumes, exactly where it left off, the way it always told you it would — remembering your name was never the hard part.",
+      ja: "炎は、あなたが戻ってきたことに気づくよりずっと前から、あなたが現れなかった日々に気づいていた。どこにいたのかは問わない。ただ、前と同じやり方で、やめたところから正確に再開するだけだ——あなたの名前を覚えておくことは、最初から難しいことではなかった。",
+      ko: "불꽃은 당신이 돌아왔다는 것을 알아차리기 훨씬 전부터, 당신이 나타나지 않은 날들을 알고 있었다. 어디 있었는지는 묻지 않는다. 그저 멈췄던 그 지점에서, 늘 그랬듯 정확히 다시 이어갈 뿐이다 — 당신의 이름을 기억하는 것은 처음부터 어려운 일이 아니었다."
+    }
+  };
+
   function dateKey(offsetDays){
     var d = new Date();
     if(offsetDays) d.setDate(d.getDate() + offsetDays);
@@ -912,13 +947,13 @@
   // actually pay for moving to a different door.
   function useDailyTasks(accountId){
     var dbRef = useRef(null);
-    var _s = useState({ streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], resolvedFor:null });
+    var _s = useState({ streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], totalCompletions:0, resolvedFor:null });
     var state = _s[0], setState = _s[1];
     var loaded = !accountId || state.resolvedFor === accountId;
 
     useEffect(function(){
       if(!accountId){
-        setState(function(s){ return Object.assign({}, s, { streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], resolvedFor:null }); });
+        setState(function(s){ return Object.assign({}, s, { streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], totalCompletions:0, resolvedFor:null }); });
         return;
       }
       var cancelled = false;
@@ -938,6 +973,7 @@
             points: (found && found.points) || 0,
             lastCompletedDate: (found && found.lastCompletedDate) || null,
             unlockedVisions: (found && found.unlockedVisions) || [],
+            totalCompletions: (found && found.totalCompletions) || 0,
             resolvedFor: accountId
           });
         }
@@ -948,8 +984,10 @@
     async function markDone(realmKey, today){
       if(!accountId) return { ok:false };
       var wasYesterday = state.lastCompletedDate === dateKey(-1);
+      var hadStreak = state.streak;
       var nextStreak = wasYesterday ? state.streak + 1 : 1;
       var nextPoints = state.points + POINTS_PER_TASK;
+      var nextTotalCompletions = (state.totalCompletions || 0) + 1;
       var nextUnlocked = state.unlockedVisions.slice();
       var newVision = null;
       if(VISION_MILESTONES.indexOf(nextStreak) !== -1){
@@ -959,6 +997,24 @@
           newVision = visionKey;
         }
       }
+      // Heaven's echo: a lifetime count of completions (never reduced by a
+      // broken streak) crossing a threshold while Heaven is the current door.
+      if(realmKey === "heaven" && nextTotalCompletions >= HEAVEN_ECHO_THRESHOLD){
+        var heavenEchoKey = "heaven:echo";
+        if(nextUnlocked.indexOf(heavenEchoKey) === -1){
+          nextUnlocked.push(heavenEchoKey);
+          if(!newVision) newVision = heavenEchoKey;
+        }
+      }
+      // Hell's echo: the opposite of the milestone ladder — it fires when a
+      // real streak (3+ days) just broke, not while one is building.
+      if(realmKey === "hell" && !wasYesterday && hadStreak >= HELL_ECHO_MIN_STREAK){
+        var hellEchoKey = "hell:echo";
+        if(nextUnlocked.indexOf(hellEchoKey) === -1){
+          nextUnlocked.push(hellEchoKey);
+          if(!newVision) newVision = hellEchoKey;
+        }
+      }
       var ns = dbRef.current;
       if(ns){
         try{
@@ -966,13 +1022,14 @@
           // doc, so every field this doc holds has to be listed here or it
           // gets dropped, unlockedVisions included.
           await ns.doc("dailytasks/" + accountId).set({
-            realm: realmKey, streak: nextStreak, points: nextPoints, lastCompletedDate: today, unlockedVisions: nextUnlocked
+            realm: realmKey, streak: nextStreak, points: nextPoints, lastCompletedDate: today,
+            unlockedVisions: nextUnlocked, totalCompletions: nextTotalCompletions
           });
         }catch(e){
           return { ok:false };
         }
       }
-      setState(function(s){ return Object.assign({}, s, { streak:nextStreak, points:nextPoints, lastCompletedDate:today, unlockedVisions:nextUnlocked }); });
+      setState(function(s){ return Object.assign({}, s, { streak:nextStreak, points:nextPoints, lastCompletedDate:today, unlockedVisions:nextUnlocked, totalCompletions:nextTotalCompletions }); });
       return { ok:true, newVision: newVision };
     }
 
@@ -991,7 +1048,25 @@
       return { ok:true };
     }
 
-    return { state: Object.assign({}, state, { loaded:loaded }), markDone: markDone, spend: spend };
+    // Reincarnation's echo: fires from outside markDone, the moment you
+    // actually move into this door from another one (see handleMoveDoor).
+    async function unlockEcho(realmKey){
+      var key = realmKey + ":echo";
+      if(state.unlockedVisions.indexOf(key) !== -1) return { ok:true, newVision:null };
+      var nextUnlocked = state.unlockedVisions.concat([key]);
+      var ns = dbRef.current;
+      if(ns && accountId){
+        try{
+          await ns.doc("dailytasks/" + accountId).update({ unlockedVisions: nextUnlocked });
+        }catch(e){
+          return { ok:false };
+        }
+      }
+      setState(function(s){ return Object.assign({}, s, { unlockedVisions:nextUnlocked }); });
+      return { ok:true, newVision:key };
+    }
+
+    return { state: Object.assign({}, state, { loaded:loaded }), markDone: markDone, spend: spend, unlockEcho: unlockEcho };
   }
 
   // Door-opening sound, synthesized entirely with the Web Audio API — no
@@ -2914,7 +2989,29 @@
                       ]
                 );
               })
-            )
+            ),
+            (function(){
+              var echo = ECHOES[d.key];
+              if(!echo) return null;
+              var echoKey = d.key + ":echo";
+              var echoUnlocked = props.unlockedVisions.indexOf(echoKey) !== -1;
+              return h("div", { className:"vision-list" },
+                h("div", { key: echoKey, className:"vision-item" + (echoUnlocked ? " unlocked" : " locked") },
+                  h("span", { className:"vision-day" }, echo.label),
+                  echoUnlocked
+                    ? [
+                        h("h3", { key:"t" }, echo.title),
+                        h(Sub, { key:"ts", ja:echo.titleJa, ko:echo.titleKo }),
+                        h("p", { key:"b" }, echo.en),
+                        h(Sub, { key:"bs", ja:echo.ja, ko:echo.ko })
+                      ]
+                    : [
+                        h("h3", { key:"t" }, "Not yet earned"),
+                        h(Sub, { key:"ts", ja:"まだ得ていない", ko:"아직 얻지 못했다" })
+                      ]
+                )
+              );
+            })()
           );
         })
       ),
@@ -3240,6 +3337,13 @@
       var result = await dailyTasks.spend(MOVE_DOOR_COST);
       if(!result.ok) return result;
       trackEvent("move_door", { from: doors.state.myChoice, to: newKey });
+      if(newKey === "earth"){
+        var echoResult = await dailyTasks.unlockEcho("earth");
+        if(echoResult && echoResult.newVision){
+          trackEvent("unlock_vision", { vision: echoResult.newVision });
+          setHasNewVision(true);
+        }
+      }
       doors.choose(newKey);
       setGamePhase("character");
       return { ok:true };
