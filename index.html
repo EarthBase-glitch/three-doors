@@ -872,6 +872,73 @@
     ]
   };
 
+  // Echoes — a second narrative layer alongside the Memories/VISIONS above,
+  // tuned to feel the opposite of a programmed reward: Heaven and Hell let
+  // the visitor put something into the world (a name, a confession) and
+  // get a short, rotating reaction back; Reincarnation only ever reveals
+  // what's been building quietly underneath, at its own pace, regardless
+  // of streaks. All three are backed by one new echoes/{accountId}
+  // document (see useEchoes) kept separate from dailytasks/characters on
+  // purpose, so this never collides with either of those docs' own writes.
+  var MAX_ECHO_ENTRIES = 8;
+  var LEDGER_NAME_MAX = 60;
+  var CONFESSION_MAX = 300;
+
+  var LIGHT_RESPONSES = [
+    { en:"The light takes it without asking why.", ja:"光は理由を問わずそれを受け取る。", ko:"빛은 이유를 묻지 않고 그것을 받아들인다." },
+    { en:"Carried now. You don't get to see where.", ja:"今、携えられた。どこへかは見えない。", ko:"이제 간직되었다. 어디로 가는지는 보이지 않는다." },
+    { en:"Said once is enough, here.", ja:"ここでは、一度口にすれば十分だ。", ko:"여기서는, 한 번 말하면 충분하다." },
+    { en:"It joins the others. The light keeps good company.", ja:"それは他の名と並ぶ。光は良い仲間を保っている。", ko:"그것은 다른 이름들과 함께한다. 빛은 좋은 동행을 지킨다." }
+  ];
+  var LIGHT_RESPONSE_MILESTONE = {
+    count: 5,
+    en:"Five names now. Near the seam where the light thins, you'd swear something on the other side just answered.",
+    ja:"名前は五つになった。光が薄くなる継ぎ目の近くで、向こう側の何かが今、答えたような気がした。",
+    ko:"이름이 다섯이 되었다. 빛이 얇아지는 그 이음매 근처에서, 반대편의 무언가가 방금 대답한 것 같았다."
+  };
+
+  var EMBER_RESPONSES = [
+    { en:"Taken. It won't come back the way you said it.", ja:"受け取った。言った通りの形では戻らない。", ko:"받아들였다. 말한 그대로의 모습으로는 돌아오지 않는다." },
+    { en:"The fire doesn't flinch. It's heard worse.", ja:"炎はひるまない。もっと酷いことも聞いてきた。", ko:"불꽃은 움찔하지 않는다. 더 나쁜 것도 들어왔다." },
+    { en:"Burned off. Lighter now, whether you feel it yet or not.", ja:"燃え尽きた。まだそう感じなくても、今は軽くなっている。", ko:"다 타버렸다. 아직 느끼지 못해도, 지금은 더 가벼워졌다." },
+    { en:"Noted, in a place with no one to read it back to you.", ja:"記録された。誰もそれを読み返してくれない場所に。", ko:"기록되었다. 아무도 다시 읽어주지 않는 곳에." }
+  ];
+  var EMBER_RESPONSE_MILESTONE = {
+    count: 5,
+    en:"Five confessions in, and for a moment the burn goes quiet — like something that's been listening finally got what it was owed.",
+    ja:"五つ目の告白の後、一瞬だけ燃えるものが静かになる——聞き続けていた何かが、ようやく借りを返してもらったかのように。",
+    ko:"다섯 번째 고백 후, 한순간 타오르던 것이 조용해진다 — 계속 듣고 있던 무언가가 마침내 빚을 돌려받은 것처럼."
+  };
+
+  // Fragments of the last life — unlike VISIONS, not gated on a consecutive
+  // streak: this counts every day Reincarnation's task was ever completed,
+  // gaps and all, because the body doesn't forget just because you missed
+  // a day. Picks up the "if you dig" line from VISIONS.earth's day-30 entry.
+  var FRAGMENT_MILESTONES = [5, 20, 50];
+  var EARTH_FRAGMENTS = [
+    { completions: 5,
+      title:"A Trade in the Hands", titleJa:"手に残る仕事", titleKo:"손에 남은 직업",
+      en:"Five days in, and a motion keeps repeating in your hands when they're idle — a specific grip, a specific angle, too exact to be nothing. Whatever you did with your hands, last time, you did it for long enough that the body never unlearned it.",
+      ja:"五日目、手が暇なときに同じ動きを繰り返している——特定の握り方、特定の角度。無でないにはあまりに正確だ。前回、あなたが手で何をしていたにせよ、それは体が二度と忘れないほど長く続けたことだった。",
+      ko:"닷새째, 손이 한가할 때마다 같은 동작을 반복한다 — 특정한 쥐는 법, 특정한 각도. 아무것도 아니라고 하기엔 너무 정확하다. 지난번 당신이 손으로 무엇을 했든, 몸이 다시는 잊지 않을 만큼 오래 해온 일이었다." },
+    { completions: 20,
+      title:"A Fear With No Source", titleJa:"出どころのない恐れ", titleKo:"근원 없는 두려움",
+      en:"Twenty days, and you flinch at something ordinary — a height, a sound, a closing door — with a fear too large for anything that's actually happened to you here. The soil doesn't explain fears. It only keeps them, the way it keeps everything else you didn't ask it to.",
+      ja:"二十日目、あなたはごく普通のもの——高さ、音、閉まる扉——にひるむ。ここで実際に起きたことには見合わないほど大きな恐れだ。土は恐れについて説明しない。ただ、頼んでもいない他のすべてと同じように、それを保ち続けるだけだ。",
+      ko:"스무날째, 당신은 아주 평범한 것——높이, 소리, 닫히는 문——에 움츠린다. 이곳에서 실제로 일어난 일로는 설명되지 않을 만큼 큰 두려움이다. 흙은 두려움을 설명하지 않는다. 그저 당신이 부탁하지 않은 다른 모든 것들처럼, 그것을 간직할 뿐이다." },
+    { completions: 50,
+      title:"How It Ended", titleJa:"それがどう終わったか", titleKo:"그것이 어떻게 끝났는가",
+      en:"Fifty days, and the ground finally gives you the last piece, incomplete on purpose: not a name, not a date — just the feeling of something ending too soon, and unfinished. The soil forgives slowly because it's still waiting for you to finish it this time.",
+      ja:"五十日目、大地はついに最後の断片を——意図的に不完全な形で——与える。名前でもなく、日付でもなく、ただ何かが早すぎるときに、未完のまま終わった感覚だけ。土がゆっくり赦すのは、今度こそあなたがそれを終わらせるのを、まだ待っているからだ。",
+      ko:"쉰날째, 땅은 마침내 마지막 조각을 — 일부러 불완전한 채로 — 건넨다. 이름도, 날짜도 아닌, 그저 무언가가 너무 일찍, 끝나지 못한 채 끝나버린 느낌뿐이다. 흙이 천천히 용서하는 것은, 이번에는 당신이 그것을 끝마치기를 아직 기다리고 있기 때문이다." }
+  ];
+
+  var ECHO_NAV_LABEL = {
+    heaven: { en:"Ledger of Light →", ja:"光の台帳 →", ko:"빛의 명부 →" },
+    hell:   { en:"Confession Box →", ja:"告白の箱 →", ko:"고백의 함 →" },
+    earth:  { en:"Fragments →", ja:"断片 →", ko:"조각 →" }
+  };
+
   function dateKey(offsetDays){
     var d = new Date();
     if(offsetDays) d.setDate(d.getDate() + offsetDays);
@@ -992,6 +1059,118 @@
     }
 
     return { state: Object.assign({}, state, { loaded:loaded }), markDone: markDone, spend: spend };
+  }
+
+  // Echoes — see the content block above. One document per account,
+  // written only by this hook (never by useDailyTasks or CharacterCreator,
+  // both of which overwrite their own doc wholesale on save), always via
+  // set(..., {merge:true}) so a write here can never drop a field it
+  // doesn't know about.
+  function useEchoes(accountId){
+    var dbRef = useRef(null);
+    var _s = useState({ ledger:[], confessions:[], earthCompletions:0, unlockedFragments:[], resolvedFor:null });
+    var state = _s[0], setState = _s[1];
+    var loaded = !accountId || state.resolvedFor === accountId;
+
+    useEffect(function(){
+      if(!accountId){
+        setState(function(s){ return Object.assign({}, s, { ledger:[], confessions:[], earthCompletions:0, unlockedFragments:[], resolvedFor:null }); });
+        return;
+      }
+      var cancelled = false;
+      (async function(){
+        var ns = dbRef.current || await getDb();
+        dbRef.current = ns;
+        var found = null;
+        if(ns){
+          try{
+            var snap = await ns.doc("echoes/" + accountId).get();
+            if(snap.exists) found = snap.data();
+          }catch(e){}
+        }
+        if(!cancelled){
+          setState({
+            ledger: (found && found.ledger) || [],
+            confessions: (found && found.confessions) || [],
+            earthCompletions: (found && found.earthCompletions) || 0,
+            unlockedFragments: (found && found.unlockedFragments) || [],
+            resolvedFor: accountId
+          });
+        }
+      })();
+      return function(){ cancelled = true; };
+    }, [accountId]);
+
+    async function addLedgerEntry(text){
+      var trimmed = (text || "").trim().slice(0, LEDGER_NAME_MAX);
+      if(!trimmed || !accountId) return { ok:false };
+      var nextLedger = state.ledger.concat([{ text: trimmed, ts: Date.now() }]).slice(-MAX_ECHO_ENTRIES);
+      var ns = dbRef.current;
+      if(ns){
+        try{
+          await ns.doc("echoes/" + accountId).set({ ledger: nextLedger }, { merge:true });
+        }catch(e){
+          return { ok:false };
+        }
+      }
+      setState(function(s){ return Object.assign({}, s, { ledger: nextLedger }); });
+      var count = nextLedger.length;
+      var response = count === LIGHT_RESPONSE_MILESTONE.count
+        ? LIGHT_RESPONSE_MILESTONE
+        : LIGHT_RESPONSES[(count - 1) % LIGHT_RESPONSES.length];
+      return { ok:true, response: response };
+    }
+
+    async function addConfession(text){
+      var trimmed = (text || "").trim().slice(0, CONFESSION_MAX);
+      if(!trimmed || !accountId) return { ok:false };
+      var nextConfessions = state.confessions.concat([{ text: trimmed, ts: Date.now() }]).slice(-MAX_ECHO_ENTRIES);
+      var ns = dbRef.current;
+      if(ns){
+        try{
+          await ns.doc("echoes/" + accountId).set({ confessions: nextConfessions }, { merge:true });
+        }catch(e){
+          return { ok:false };
+        }
+      }
+      setState(function(s){ return Object.assign({}, s, { confessions: nextConfessions }); });
+      var count = nextConfessions.length;
+      var response = count === EMBER_RESPONSE_MILESTONE.count
+        ? EMBER_RESPONSE_MILESTONE
+        : EMBER_RESPONSES[(count - 1) % EMBER_RESPONSES.length];
+      return { ok:true, response: response };
+    }
+
+    async function recordEarthCompletion(){
+      if(!accountId) return { ok:false };
+      var nextCount = state.earthCompletions + 1;
+      var nextUnlocked = state.unlockedFragments.slice();
+      var newFragment = null;
+      if(FRAGMENT_MILESTONES.indexOf(nextCount) !== -1){
+        var fragKey = "earth:" + nextCount;
+        if(nextUnlocked.indexOf(fragKey) === -1){
+          nextUnlocked.push(fragKey);
+          newFragment = fragKey;
+        }
+      }
+      var ns = dbRef.current;
+      if(ns){
+        try{
+          await ns.doc("echoes/" + accountId).set({ earthCompletions: nextCount, unlockedFragments: nextUnlocked }, { merge:true });
+        }catch(e){
+          return { ok:false };
+        }
+      }
+      setState(function(s){ return Object.assign({}, s, { earthCompletions: nextCount, unlockedFragments: nextUnlocked }); });
+      return { ok:true, newFragment: newFragment };
+    }
+
+    return {
+      state: Object.assign({}, state, { loaded:loaded }),
+      addLedgerEntry: addLedgerEntry,
+      addConfession: addConfession,
+      recordEarthCompletion: recordEarthCompletion
+    };
   }
 
   // Door-opening sound, synthesized entirely with the Web Audio API — no
@@ -1900,6 +2079,12 @@
         h("button", { className:"q-btn ghost tiny bi", type:"button", onClick: props.onOpenVisions },
           h("span", { className:"btn-en" }, "Memories", props.hasNewVision ? h("span", { className:"vision-nav-dot" }) : null),
           h("span", { className:"btn-sub" }, "記憶 ・ 기억")),
+        h("button", { className:"q-btn ghost tiny bi", type:"button", onClick: props.onOpenEchoes },
+          h("span", { className:"btn-en" },
+            (ECHO_NAV_LABEL[props.doorKey] || ECHO_NAV_LABEL.earth).en,
+            props.hasNewFragment ? h("span", { className:"vision-nav-dot" }) : null),
+          h("span", { className:"btn-sub" },
+            (ECHO_NAV_LABEL[props.doorKey] || ECHO_NAV_LABEL.earth).ja + " ・ " + (ECHO_NAV_LABEL[props.doorKey] || ECHO_NAV_LABEL.earth).ko)),
         h("button", { className:"q-btn ghost tiny bi", type:"button", onClick: props.onDonate },
           biLabel("Support — $3/mo", "サポート — 月3ドル", "후원 — 월 $3")),
         h("span", { className:"char-tip-label" }, "or tip:"),
@@ -2924,6 +3109,140 @@
     );
   }
 
+  function EchoesScreen(props){
+    var key = props.doorKey || "earth";
+    var realm = REALMS[key] || REALMS.earth;
+    var _text = useState("");
+    var text = _text[0], setText = _text[1];
+    var _status = useState("idle");
+    var status = _status[0], setStatus = _status[1];
+    var _resp = useState(null);
+    var response = _resp[0], setResponse = _resp[1];
+
+    async function submit(e){
+      e.preventDefault();
+      var trimmed = text.trim();
+      if(!trimmed || status === "sending") return;
+      setStatus("sending");
+      var result = key === "hell"
+        ? await props.onAddConfession(trimmed)
+        : await props.onAddLedgerEntry(trimmed);
+      if(result && result.ok){
+        trackEvent(key === "hell" ? "add_confession" : "add_ledger_name", { door: key });
+        setText("");
+        setResponse(result.response);
+        setStatus("sent");
+      }else{
+        setStatus("error");
+      }
+    }
+
+    if(key === "earth"){
+      var completions = props.state.earthCompletions || 0;
+      return h("div", null,
+        h("div", { className:"q-eyebrow" }, realm.name + " · fragments of the last life"),
+        h(Sub, { ja: realm.nameJa + "・前世の断片", ko: realm.nameKo + " · 전생의 조각" }),
+        h("h2", { className:"q-heading" }, "What the ground gives back, piece by piece."),
+        h(Sub, { ja:"大地が少しずつ返すもの。", ko:"땅이 조금씩 돌려주는 것." }),
+        h("p", { className:"q-tagline" }, "This isn't tied to a streak — it only counts how many days you've actually shown up, gaps and all."),
+        h(Sub, {
+          ja:"これは連続記録とは関係ない——間に途切れがあっても、実際に現れた日数だけを数えている。",
+          ko:"이것은 연속 기록과는 무관하다 — 중간에 공백이 있어도, 실제로 나타난 날수만을 센다."
+        }),
+        h("div", { className:"vision-groups" },
+          h("div", null,
+            h("div", { className:"vision-group-title" },
+              h("span", { className:"dot", style:{ background:"var(--earth)" } }),
+              "completed days: " + completions
+            ),
+            h("div", { className:"vision-list" },
+              EARTH_FRAGMENTS.map(function(f){
+                var fkey = "earth:" + f.completions;
+                var unlocked = props.state.unlockedFragments.indexOf(fkey) !== -1;
+                return h("div", { key: fkey, className:"vision-item" + (unlocked ? " unlocked" : " locked") },
+                  h("span", { className:"vision-day" }, f.completions + " days"),
+                  unlocked
+                    ? [
+                        h("h3", { key:"t" }, f.title),
+                        h(Sub, { key:"ts", ja:f.titleJa, ko:f.titleKo }),
+                        h("p", { key:"b" }, f.en),
+                        h(Sub, { key:"bs", ja:f.ja, ko:f.ko })
+                      ]
+                    : [
+                        h("h3", { key:"t" }, "Still buried"),
+                        h(Sub, { key:"ts", ja:"まだ埋まっている", ko:"아직 묻혀 있다" })
+                      ]
+                );
+              })
+            )
+          )
+        ),
+        h("div", { className:"q-actions", style:{ marginTop:"24px" } },
+          h("button", { className:"q-btn ghost bi", type:"button", onClick: props.onBack }, biLabel("Back", "戻る", "뒤로"))
+        )
+      );
+    }
+
+    var isHell = key === "hell";
+    var entries = isHell ? props.state.confessions : props.state.ledger;
+
+    return h("div", null,
+      h("div", { className:"q-eyebrow" }, realm.name + " · " + (isHell ? "the confession box" : "the ledger of light")),
+      h(Sub, isHell
+        ? { ja: realm.nameJa + "・告白の箱", ko: realm.nameKo + " · 고백의 함" }
+        : { ja: realm.nameJa + "・光の台帳", ko: realm.nameKo + " · 빛의 명부" }),
+      h("h2", { className:"q-heading" }, isHell ? "Say the thing you haven't said." : "Who do you want the light to carry?"),
+      h(Sub, isHell
+        ? { ja:"まだ言えていないことを言おう。", ko:"아직 하지 못한 말을 하라." }
+        : { ja:"光に誰を託したい？", ko:"빛에게 누구를 맡기고 싶은가?" }),
+      h("p", { className:"q-tagline" }, isHell
+        ? "The fire doesn't forgive you for this. It just agrees to hold it so you don't have to, alone."
+        : "Write a name. The light doesn't explain what it does with it — only that it keeps it."),
+      h(Sub, isHell
+        ? { ja:"炎はこれについてあなたを赦さない。ただ、あなたが一人でそれを抱え込まなくて済むように、代わりに持つことに同意するだけだ。", ko:"불꽃은 이것에 대해 당신을 용서하지 않는다. 다만 당신이 혼자 그것을 짊어지지 않도록, 대신 짊어지는 데 동의할 뿐이다." }
+        : { ja:"名前を書こう。光がそれをどう扱うかは説明されない——ただ、保つということだけ。", ko:"이름을 적어보세요. 빛이 그것을 어떻게 다루는지는 설명되지 않는다 — 다만 간직한다는 것만." }),
+      h("form", { className:"lore-form", onSubmit: submit },
+        isHell
+          ? h("textarea", {
+              className:"lore-input", maxLength: CONFESSION_MAX, rows:3,
+              placeholder: "Confess something, even quietly… / 何かを、たとえ静かにでも告白しよう… / 무언가를, 조용히라도 고백해보세요…",
+              value: text, onChange: function(e){ setText(e.target.value); }
+            })
+          : h("input", {
+              className:"lore-input", type:"text", maxLength: LEDGER_NAME_MAX,
+              placeholder: "A name the light should carry… / 光が携えるべき名前… / 빛이 간직해야 할 이름…",
+              value: text, onChange: function(e){ setText(e.target.value); }
+            }),
+        h("div", { className:"lore-actions" },
+          h("button", { className:"q-btn primary bi", type:"submit", disabled: status === "sending" || !text.trim() },
+            status === "sending"
+              ? biLabel("Sending…", "送信中…", "전송 중…")
+              : biLabel(isHell ? "Confess" : "Add to the ledger", isHell ? "告白する" : "台帳に加える", isHell ? "고백하기" : "명부에 추가")),
+          h("button", { className:"q-btn ghost bi", type:"button", onClick: props.onBack }, biLabel("Back", "戻る", "뒤로"))
+        ),
+        status === "error" ? h("p", { className:"lore-note error" },
+          "Couldn't save that just now — try again.  ·  現在保存できませんでした——もう一度お試しください。  ·  지금은 저장할 수 없었습니다 — 다시 시도해 주세요."
+        ) : null,
+        response ? h("p", { className:"lore-note" },
+          response.en + "  ·  " + response.ja + "  ·  " + response.ko
+        ) : null
+      ),
+      h("div", { className:"lore-list" },
+        entries.length === 0 ? h("p", { className:"lore-empty" },
+          isHell
+            ? "Nothing confessed yet.  ·  まだ何も告白されていない。  ·  아직 고백된 것이 없습니다."
+            : "The ledger is empty.  ·  台帳はまだ空だ。  ·  명부는 아직 비어 있습니다."
+        ) : null,
+        entries.slice().reverse().map(function(item, i){
+          return h("div", { className:"lore-item", key: item.ts + "-" + i },
+            h("p", null, item.text),
+            h("span", { className:"lore-author" }, isHell ? "— burned" : "— carried")
+          );
+        })
+      )
+    );
+  }
+
   function QuestionScreen(props){
     var realm = REALMS[props.doorKey] || REALMS.earth;
     var others = DOORS.filter(function(d){ return d.key !== props.doorKey; });
@@ -2967,6 +3286,8 @@
         onOpenExplore: props.onOpenExplore,
         onOpenVisions: props.onOpenVisions,
         hasNewVision: props.hasNewVision,
+        onOpenEchoes: props.onOpenEchoes,
+        hasNewFragment: props.hasNewFragment,
         onDonate: props.onDonate,
         onTip: props.onTip,
         onManageSubscription: props.onManageSubscription
@@ -3009,6 +3330,15 @@
         doorKey: key,
         markerIdx: props.explore3dMarkerIdx,
         onBack: props.onBackToExplore
+      });
+    }else if(props.gamePhase === "echoes"){
+      content = h(EchoesScreen, {
+        key: "echoes-" + key + "-" + props.accountId,
+        doorKey: key,
+        state: props.echoesState,
+        onAddLedgerEntry: props.onAddLedgerEntry,
+        onAddConfession: props.onAddConfession,
+        onBack: props.onBackToCharacter
       });
     }else{
       content = h(QuestionScreen, {
@@ -3055,10 +3385,13 @@
     var soulStatsOpen = _ss[0], setSoulStatsOpen = _ss[1];
     var _nv = useState(false);
     var hasNewVision = _nv[0], setHasNewVision = _nv[1];
+    var _nf = useState(false);
+    var hasNewFragment = _nf[0], setHasNewFragment = _nf[1];
     var _e3d = useState(-1);
     var explore3dMarkerIdx = _e3d[0], setExplore3dMarkerIdx = _e3d[1];
     var doors = useDoorsDb(account ? account.id : null);
     var dailyTasks = useDailyTasks(account ? account.id : null);
+    var echoes = useEchoes(account ? account.id : null);
     var redirectTimer = useRef(null);
 
     useEffect(function(){
@@ -3224,6 +3557,7 @@
     }
     function handleBackToExplore(){ setGamePhase("explore"); }
     function handleOpenVisions(){ setHasNewVision(false); setGamePhase("visions"); }
+    function handleOpenEchoes(){ setHasNewFragment(false); setGamePhase("echoes"); }
     function handleBackToCharacter(){ setGamePhase("character"); }
     async function handleMarkDone(){
       var result = await dailyTasks.markDone(doors.state.myChoice, dateKey(0));
@@ -3232,6 +3566,13 @@
         if(result.newVision){
           trackEvent("unlock_vision", { vision: result.newVision });
           setHasNewVision(true);
+        }
+        if(doors.state.myChoice === "earth"){
+          var fragResult = await echoes.recordEarthCompletion();
+          if(fragResult && fragResult.newFragment){
+            trackEvent("unlock_fragment", { fragment: fragResult.newFragment });
+            setHasNewFragment(true);
+          }
         }
       }
       return result;
@@ -3349,6 +3690,10 @@
         dailyTasksState: dailyTasks.state,
         unlockedVisions: dailyTasks.state.unlockedVisions,
         hasNewVision: hasNewVision,
+        echoesState: echoes.state,
+        hasNewFragment: hasNewFragment,
+        onAddLedgerEntry: echoes.addLedgerEntry,
+        onAddConfession: echoes.addConfession,
         onSatisfied: handleSatisfied,
         onEscape: handleEscape,
         onExit: handleExit,
@@ -3356,6 +3701,7 @@
         onOpenTasks: handleOpenTasks,
         onOpenExplore: handleOpenExplore,
         onOpenVisions: handleOpenVisions,
+        onOpenEchoes: handleOpenEchoes,
         onBackToCharacter: handleBackToCharacter,
         explore3dMarkerIdx: explore3dMarkerIdx,
         onEnterGame: handleEnterGame,

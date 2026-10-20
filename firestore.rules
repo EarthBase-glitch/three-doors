@@ -27,6 +27,15 @@ service cloud.firestore {
       allow write: if true;
     }
 
+    // Echoes — Heaven's ledger of names, Hell's confessions, and Earth's
+    // lifetime completed-task count/unlocked fragments (see useEchoes in
+    // index.html). Same identity model as the collections above: no real
+    // per-account auth to gate on, so both directions stay open.
+    match /echoes/{id} {
+      allow read: if true;
+      allow write: if true;
+    }
+
     // Daily task checklists + streaks. Same identity model as the above —
     // not gated to "your own" account at the database level, since there's
     // no real per-account auth to check against.
