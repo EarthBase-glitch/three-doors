@@ -816,7 +816,7 @@
   // your current door earns that realm's vision for that day, permanently
   // (see unlockedVisions in useDailyTasks) — the first threads of an
   // actual story for a game that's otherwise just daily-habit mechanics.
-  var VISION_MILESTONES = [3, 7, 30];
+  var VISION_MILESTONES = [3, 7, 30, 60];
 
   var VISIONS = {
     heaven: [
@@ -834,7 +834,12 @@
         title: "What the Light Keeps", titleJa: "光が保つもの", titleKo: "빛이 간직하는 것",
         en: "Thirty days, and the light finally answers the question you stopped asking out loud: it isn't judging you, because it's already decided. What you did with these thirty days is filed somewhere you can't see, kept the way everything here is kept — gently, permanently, without comment.",
         ja: "三十日が経ち、光はついに、あなたがもう口に出すのをやめた問いに答える——裁いていないのは、すでに決めているからだ。この三十日間あなたが何をしたかは、見えない場所に記録されている。ここにあるすべてと同じように、静かに、永遠に、何も言わずに保たれている。",
-        ko: "서른 날이 지나고, 빛은 마침내 당신이 더 이상 소리 내어 묻지 않게 된 질문에 답한다 — 심판하지 않는 것은, 이미 결정했기 때문이다. 이 서른 날 동안 당신이 한 일은 보이지 않는 곳에 기록된다. 이곳의 모든 것이 그러하듯, 조용히, 영원히, 아무 말 없이 간직된 채로." }
+        ko: "서른 날이 지나고, 빛은 마침내 당신이 더 이상 소리 내어 묻지 않게 된 질문에 답한다 — 심판하지 않는 것은, 이미 결정했기 때문이다. 이 서른 날 동안 당신이 한 일은 보이지 않는 곳에 기록된다. 이곳의 모든 것이 그러하듯, 조용히, 영원히, 아무 말 없이 간직된 채로." },
+      { day: 60,
+        title: "What the Seam Lets Through", titleJa: "継ぎ目が通すもの", titleKo: "이음매가 흘려보내는 것",
+        en: "Two months, and you finally press your palm to the seam instead of only watching it. It doesn't open like a door — it exhales, once, warm and brief, carrying a name you haven't heard since before you had this one. The light still won't explain itself. It only let you get close enough to ask.",
+        ja: "二ヶ月が経ち、あなたはついに、見つめるだけだった継ぎ目に手のひらを押し当てる。それは扉のように開くのではなく——一度だけ、温かく短く息を吐き、今の名前を持つ前に聞いていた名前を運んでくる。光は依然として自分を説明しようとしない。ただ、尋ねられる近さまで、あなたを近づけただけだ。",
+        ko: "두 달이 지나고, 당신은 마침내 그저 바라만 보던 이음매에 손바닥을 가져다 댄다. 그것은 문처럼 열리지 않는다 — 단 한 번, 따뜻하고 짧게 숨을 내쉬며, 지금의 이름을 갖기 전에 들었던 이름을 실어 온다. 빛은 여전히 스스로를 설명하지 않는다. 다만 물을 수 있을 만큼 가까이 다가오게 해주었을 뿐이다." }
     ],
     earth: [
       { day: 3,
@@ -851,7 +856,12 @@
         title: "The Soil Remembers Too", titleJa: "土もまた覚えている", titleKo: "흙도 기억한다",
         en: "Thirty days, and you finally understand what \"starting over\" actually meant: not a blank page, but a used one, scraped almost clean. The soil forgives slowly because it forgets slower still — and somewhere under everything you've built this month, the last life is still faintly readable, if you dig.",
         ja: "三十日が経ち、あなたはようやく「やり直す」という言葉の本当の意味を理解する——白紙ではなく、ほとんどきれいに削られた、使用済みの紙なのだと。土がゆっくり赦すのは、それ以上にゆっくり忘れるからだ。そして今月あなたが築いたものの下には、掘れば読み取れるほど、前の生がまだかすかに残っている。",
-        ko: "서른 날이 지나고, 당신은 마침내 '다시 시작한다'는 말의 진짜 의미를 이해한다 — 백지가 아니라, 거의 깨끗하게 긁어낸, 이미 쓰였던 종이라는 것을. 흙이 천천히 용서하는 것은, 그보다 더 천천히 잊기 때문이다. 그리고 이번 달 당신이 쌓아온 모든 것 아래에는, 파보면 읽힐 만큼, 지난 삶이 아직 희미하게 남아 있다." }
+        ko: "서른 날이 지나고, 당신은 마침내 '다시 시작한다'는 말의 진짜 의미를 이해한다 — 백지가 아니라, 거의 깨끗하게 긁어낸, 이미 쓰였던 종이라는 것을. 흙이 천천히 용서하는 것은, 그보다 더 천천히 잊기 때문이다. 그리고 이번 달 당신이 쌓아온 모든 것 아래에는, 파보면 읽힐 만큼, 지난 삶이 아직 희미하게 남아 있다." },
+      { day: 60,
+        title: "The Name Under the Name", titleJa: "名前の下の名前", titleKo: "이름 아래의 이름",
+        en: "Two months down, and the digging finally turns something up: not a memory, but a name, scratched into whatever the soil keeps its records on, under the one you answer to now. You don't recognize it. Your hands do — they reach for it the way they reached for things on day three, before you knew why.",
+        ja: "二ヶ月が過ぎ、ついに掘り出したのは記憶ではなく、名前だった——土が記録を刻んでいる何かの上に、今あなたが答えている名前の下に刻まれている。あなたはそれを覚えていない。だがあなたの手は覚えている——三日目にまだ理由も分からず何かに手を伸ばしたときと同じように、その名前へ手を伸ばす。",
+        ko: "두 달이 지나, 마침내 파낸 것은 기억이 아니라 이름이었다 — 흙이 기록을 남기는 무언가 위에, 지금 당신이 대답하는 이름 아래에 새겨진 이름. 당신은 그것을 알아보지 못한다. 하지만 당신의 손은 알아본다 — 사흘째에 이유도 모른 채 무언가로 손을 뻗었던 것처럼, 그 이름을 향해 손을 뻗는다." }
     ],
     hell: [
       { day: 3,
@@ -868,7 +878,12 @@
         title: "What Burns Off Last", titleJa: "最後に燃え尽きるもの", titleKo: "마지막에 타 없어지는 것",
         en: "Thirty days in the fire, and most of what you carried in has burned away — the excuses first, then the reasons, then the story you told yourself about both. What's left, thirty days clean of all of it, turns out to be smaller than you feared and harder to look at than you expected.",
         ja: "炎の中で三十日、あなたが持ち込んだもののほとんどは燃え尽きた——まず言い訳が、次に理由が、そして両方について自分に語っていた物語が。すべてが燃え尽きた後、三十日分きれいになって残ったものは、恐れていたよりも小さく、予想していたよりも直視しにくいものだった。",
-        ko: "불 속에서 서른 날, 당신이 가지고 들어온 것 대부분이 타 없어졌다 — 먼저 변명이, 다음엔 이유가, 그리고 그 둘에 대해 스스로에게 들려주던 이야기가. 서른 날 만에 그 모든 것에서 벗어나 남은 것은, 두려워했던 것보다 작고, 예상했던 것보다 마주보기 어려운 것이었다." }
+        ko: "불 속에서 서른 날, 당신이 가지고 들어온 것 대부분이 타 없어졌다 — 먼저 변명이, 다음엔 이유가, 그리고 그 둘에 대해 스스로에게 들려주던 이야기가. 서른 날 만에 그 모든 것에서 벗어나 남은 것은, 두려워했던 것보다 작고, 예상했던 것보다 마주보기 어려운 것이었다." },
+      { day: 60,
+        title: "The Voice Keeps the Fire", titleJa: "声が炎を保っている", titleKo: "목소리가 불꽃을 지키다",
+        en: "Two months in the fire, and the voice you've been hearing since day seven finally says something you understand: it isn't a separate soul burning beside you. It's the part of you the fire burned off first, kept just outside the flame so you'd have something left to listen to. It's been you the whole time. It just took sixty days to recognize your own voice.",
+        ja: "炎の中で二ヶ月、七日目から聞こえていた声が、ついに理解できることを口にする——それはあなたの隣で燃えている別の魂ではない。炎が最初に焼き落としたあなた自身の一部であり、聞くべきものが残るようにと、炎のすぐ外に留め置かれていたのだ。それはずっとあなただった。自分の声だと気づくのに、六十日かかっただけだ。",
+        ko: "불 속에서 두 달, 일곱째 날부터 들려오던 목소리가 마침내 당신이 이해할 수 있는 말을 한다 — 그것은 당신 옆에서 타오르는 별개의 영혼이 아니다. 불이 가장 먼저 태워낸 당신의 한 부분이며, 들을 수 있는 무언가를 남겨두기 위해 불꽃 바로 바깥에 머물러 있었던 것이다. 그것은 처음부터 끝까지 당신이었다. 그저 자신의 목소리라는 것을 알아차리는 데 예순 날이 걸렸을 뿐이다." }
     ]
   };
 
