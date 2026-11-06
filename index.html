@@ -816,7 +816,7 @@
   // your current door earns that realm's vision for that day, permanently
   // (see unlockedVisions in useDailyTasks) — the first threads of an
   // actual story for a game that's otherwise just daily-habit mechanics.
-  var VISION_MILESTONES = [3, 7, 30];
+  var VISION_MILESTONES = [3, 7, 30, 100];
 
   var VISIONS = {
     heaven: [
@@ -834,7 +834,12 @@
         title: "What the Light Keeps", titleJa: "光が保つもの", titleKo: "빛이 간직하는 것",
         en: "Thirty days, and the light finally answers the question you stopped asking out loud: it isn't judging you, because it's already decided. What you did with these thirty days is filed somewhere you can't see, kept the way everything here is kept — gently, permanently, without comment.",
         ja: "三十日が経ち、光はついに、あなたがもう口に出すのをやめた問いに答える——裁いていないのは、すでに決めているからだ。この三十日間あなたが何をしたかは、見えない場所に記録されている。ここにあるすべてと同じように、静かに、永遠に、何も言わずに保たれている。",
-        ko: "서른 날이 지나고, 빛은 마침내 당신이 더 이상 소리 내어 묻지 않게 된 질문에 답한다 — 심판하지 않는 것은, 이미 결정했기 때문이다. 이 서른 날 동안 당신이 한 일은 보이지 않는 곳에 기록된다. 이곳의 모든 것이 그러하듯, 조용히, 영원히, 아무 말 없이 간직된 채로." }
+        ko: "서른 날이 지나고, 빛은 마침내 당신이 더 이상 소리 내어 묻지 않게 된 질문에 답한다 — 심판하지 않는 것은, 이미 결정했기 때문이다. 이 서른 날 동안 당신이 한 일은 보이지 않는 곳에 기록된다. 이곳의 모든 것이 그러하듯, 조용히, 영원히, 아무 말 없이 간직된 채로." },
+      { day: 100,
+        title: "The Masons You Never Saw", titleJa: "見たことのない石工たち", titleKo: "본 적 없는 석공들",
+        en: "A hundred days, and you finally walk close enough to the unfinished gate to see who's building it. It isn't anyone divine. It's every soul who ever stayed long enough to be trusted with a tool — and today, without being asked, the light hands one to you. The gate was never unfinished. It was waiting for more hands.",
+        ja: "百日が経ち、あなたはついに未完成の門に近づき、誰がそれを築いているのかを見る。神聖な存在など誰もいない。それは、道具を託されるほど長く留まった、すべての魂なのだ——そして今日、問われることもなく、光はあなたにも道具を手渡す。門は未完成だったわけではない。ただ、もっと多くの手を待っていただけだ。",
+        ko: "백 일이 지나고, 당신은 마침내 미완성의 문 가까이 다가가 누가 그것을 짓고 있는지 본다. 신성한 존재는 아무도 없다. 도구를 맡길 만큼 오래 머문 모든 영혼일 뿐이다 — 그리고 오늘, 묻지도 않고, 빛은 당신에게도 도구 하나를 건넨다. 문은 미완성이었던 적이 없다. 그저 더 많은 손을 기다리고 있었을 뿐이다." }
     ],
     earth: [
       { day: 3,
@@ -851,7 +856,12 @@
         title: "The Soil Remembers Too", titleJa: "土もまた覚えている", titleKo: "흙도 기억한다",
         en: "Thirty days, and you finally understand what \"starting over\" actually meant: not a blank page, but a used one, scraped almost clean. The soil forgives slowly because it forgets slower still — and somewhere under everything you've built this month, the last life is still faintly readable, if you dig.",
         ja: "三十日が経ち、あなたはようやく「やり直す」という言葉の本当の意味を理解する——白紙ではなく、ほとんどきれいに削られた、使用済みの紙なのだと。土がゆっくり赦すのは、それ以上にゆっくり忘れるからだ。そして今月あなたが築いたものの下には、掘れば読み取れるほど、前の生がまだかすかに残っている。",
-        ko: "서른 날이 지나고, 당신은 마침내 '다시 시작한다'는 말의 진짜 의미를 이해한다 — 백지가 아니라, 거의 깨끗하게 긁어낸, 이미 쓰였던 종이라는 것을. 흙이 천천히 용서하는 것은, 그보다 더 천천히 잊기 때문이다. 그리고 이번 달 당신이 쌓아온 모든 것 아래에는, 파보면 읽힐 만큼, 지난 삶이 아직 희미하게 남아 있다." }
+        ko: "서른 날이 지나고, 당신은 마침내 '다시 시작한다'는 말의 진짜 의미를 이해한다 — 백지가 아니라, 거의 깨끗하게 긁어낸, 이미 쓰였던 종이라는 것을. 흙이 천천히 용서하는 것은, 그보다 더 천천히 잊기 때문이다. 그리고 이번 달 당신이 쌓아온 모든 것 아래에는, 파보면 읽힐 만큼, 지난 삶이 아직 희미하게 남아 있다." },
+      { day: 100,
+        title: "The Row You Didn't Plant", titleJa: "あなたが植えなかった畝", titleKo: "당신이 심지 않은 이랑",
+        en: "A hundred days, and you finally recognize the mismatched row for what it is — not someone else's mistake, but someone else's life, grown in the one color the field couldn't talk them out of. You go looking for who planted it and find, instead, a row of your own color, already growing, that you don't remember starting.",
+        ja: "百日が経ち、あなたはついに、あの不揃いな畝の正体を知る——それは誰かの過ちではなく、畑が説得しきれなかった一つの色のまま育った、誰かの人生だったのだ。誰が植えたのかを探しに行くと、代わりに見つけるのは、あなたの色をした畝——いつ始めたか覚えてもいないのに、すでに育っている。",
+        ko: "백 일이 지나고, 당신은 마침내 그 어긋난 이랑의 정체를 알아챈다 — 그것은 누군가의 실수가 아니라, 밭이 끝내 말리지 못한 한 가지 색으로 자라난 누군가의 삶이었다. 누가 심었는지 찾아 나섰다가, 대신 발견하는 것은 당신의 색을 한 이랑 — 언제 시작했는지 기억도 없는데, 이미 자라나고 있다." }
     ],
     hell: [
       { day: 3,
@@ -868,7 +878,12 @@
         title: "What Burns Off Last", titleJa: "最後に燃え尽きるもの", titleKo: "마지막에 타 없어지는 것",
         en: "Thirty days in the fire, and most of what you carried in has burned away — the excuses first, then the reasons, then the story you told yourself about both. What's left, thirty days clean of all of it, turns out to be smaller than you feared and harder to look at than you expected.",
         ja: "炎の中で三十日、あなたが持ち込んだもののほとんどは燃え尽きた——まず言い訳が、次に理由が、そして両方について自分に語っていた物語が。すべてが燃え尽きた後、三十日分きれいになって残ったものは、恐れていたよりも小さく、予想していたよりも直視しにくいものだった。",
-        ko: "불 속에서 서른 날, 당신이 가지고 들어온 것 대부분이 타 없어졌다 — 먼저 변명이, 다음엔 이유가, 그리고 그 둘에 대해 스스로에게 들려주던 이야기가. 서른 날 만에 그 모든 것에서 벗어나 남은 것은, 두려워했던 것보다 작고, 예상했던 것보다 마주보기 어려운 것이었다." }
+        ko: "불 속에서 서른 날, 당신이 가지고 들어온 것 대부분이 타 없어졌다 — 먼저 변명이, 다음엔 이유가, 그리고 그 둘에 대해 스스로에게 들려주던 이야기가. 서른 날 만에 그 모든 것에서 벗어나 남은 것은, 두려워했던 것보다 작고, 예상했던 것보다 마주보기 어려운 것이었다." },
+      { day: 100,
+        title: "Its Name, Finally", titleJa: "ついに、その名を", titleKo: "마침내, 그 이름을",
+        en: "A hundred days clean, and the voice from the seventh day speaks again, clearer now that there's less fire between you. It doesn't ask to be forgiven — it asks to be called by name, out loud, by you, for maybe the first time since you were both alive. You do it. The fire, for one moment, goes completely quiet.",
+        ja: "百日が経ち、七日目に聞こえたあの声が再び話す——あなたとの間にある炎が少なくなった分、今はより鮮明に。それは赦しを求めているのではない。名前を呼んでほしいと、声に出して、あなたの口から——おそらく二人がまだ生きていた頃以来、初めて。あなたはそれを行う。その一瞬、炎は完全に静かになる。",
+        ko: "백 일을 깨끗이 지나고, 일곱째 날의 그 목소리가 다시 말을 건다 — 당신과 그 사이를 가로막던 불이 줄어든 만큼, 이제는 더 또렷하게. 그것은 용서를 구하지 않는다. 이름으로 불러달라고, 소리 내어, 당신의 입으로 — 둘 다 살아 있었던 그때 이후로 아마 처음으로. 당신은 그렇게 한다. 그 한순간, 불꽃은 완전히 조용해진다." }
     ]
   };
 
