@@ -872,6 +872,72 @@
     ]
   };
 
+  // The Ledger — a second, independent narrative ladder from Memories
+  // above. Memories rewards an unbroken streak; the Ledger instead counts
+  // every time you've stood behind a given door at all, including after
+  // leaving it (via the satisfied/escape question's "Escape to…" or via
+  // spending points to move — see MOVE_DOOR_COST), so the two mechanics
+  // that already let a visitor leave a realm (fleeing or paying to leave)
+  // finally have a narrative consequence instead of a silent reset. Stored
+  // as crossings/ledgerUnlocked on the existing votes/{accountId} doc —
+  // no new Firestore collection, and no firestore.rules change needed
+  // (that document was already fully open to read/write).
+  var LEDGER_MILESTONES = [2, 5, 10];
+
+  var LEDGER_ENTRIES = {
+    heaven: [
+      { count: 2,
+        title: "What the Light Keeps Counting", titleJa: "光が数え続けるもの", titleKo: "빛이 계속 세는 것",
+        en: "You've stood here before — the light recognizes the shape of you returning, though it never says so. There's no record of where you went in between, or why you came back, only that you did. The light keeps count of returns, not reasons.",
+        ja: "あなたは以前にもここに立ったことがある——光は、戻ってきたあなたの輪郭を覚えている。ただ、それを口にすることはない。あなたがどこへ行っていたのか、なぜ戻ってきたのか、その記録はない。ただ戻ってきたという事実だけがある。光が数えているのは理由ではなく、戻ってきた回数だ。",
+        ko: "당신은 전에도 여기 선 적이 있다 — 빛은 돌아온 당신의 형태를 알아보지만, 결코 그것을 입 밖에 내지 않는다. 그 사이 어디로 갔었는지, 왜 돌아왔는지에 대한 기록은 없다. 다만 돌아왔다는 사실만이 있을 뿐이다. 빛이 세고 있는 것은 이유가 아니라, 돌아온 횟수다." },
+      { count: 5,
+        title: "A Fixture, Not a Visitor", titleJa: "訪問者ではなく備品", titleKo: "방문자가 아닌 비품",
+        en: "Five times now the light has watched you arrive. It has stopped being surprised, if it ever was. Something about you has started to look less like a visitor and more like a fixture — the kind of thing a room gets used to, whether or not it was built to expect you.",
+        ja: "光があなたの到着を見るのは、これで五度目だ。驚くことは、もしかつてあったとしても、もうやめてしまった。あなたの何かが、訪問者というよりも、備品のように見え始めている——その部屋が、迎えるつもりで作られていたかどうかに関わらず、慣れてしまうたぐいのものに。",
+        ko: "빛이 당신의 도착을 지켜본 것이 이제 다섯 번째다. 놀라움은, 설령 있었다 해도, 이제는 멈췄다. 당신의 무언가가 방문자보다는 비품처럼 보이기 시작했다 — 그 방이 당신을 맞이하도록 지어졌는지와는 무관하게, 익숙해지고 마는 그런 존재로." },
+      { count: 10,
+        title: "The Same Door, Ten Times", titleJa: "同じ扉、十度", titleKo: "같은 문, 열 번",
+        en: "Ten arrivals, and you understand now that Heaven was never a single door — it was the same door, opened and closed on you ten different times, by ten different versions of whatever made you leave. The light has never once asked where you were going. It only ever asks, gently, if you're staying this time.",
+        ja: "十度目の到着で、ようやく分かる——天国は一つの扉だったことなど一度もない。それは同じ扉が、あなたを去らせた何かの十の異なるバージョンによって、十回開かれ、閉じられてきたのだ。光はこれまで一度も、あなたがどこへ向かうのか問うたことはない。ただ静かに、今度は留まるのか、とだけ尋ねる。",
+        ko: "열 번째 도착, 그리고 이제야 깨닫는다 — 천국은 단 하나의 문이었던 적이 없다. 그것은 당신을 떠나게 만든 무언가의 열 가지 다른 버전에 의해, 열 번 열리고 닫힌 같은 문이었다. 빛은 단 한 번도 당신이 어디로 가는지 묻지 않았다. 다만 조용히, 이번에는 머무를 것인지만 묻는다." }
+    ],
+    earth: [
+      { count: 2,
+        title: "The Shape of Leaving", titleJa: "離れる形", titleKo: "떠나는 모양",
+        en: "The second time you're handed this life, your hands already know the shape of leaving it — you taught them that, last time, without meaning to. The soil doesn't comment on visitors who come back. It just quietly makes room in the same row.",
+        ja: "この命を手渡されるのは二度目で、あなたの手はすでに、それを離れる形を知っている——前回、意図せずそう教えてしまったからだ。土は、戻ってくる者について何も言わない。ただ静かに、同じ畝に場所を空けるだけだ。",
+        ko: "이 삶을 건네받는 것은 두 번째이고, 당신의 손은 이미 그것을 떠나는 모양을 알고 있다 — 지난번, 의도치 않게 그렇게 가르쳤기 때문이다. 흙은 돌아오는 이에 대해 아무 말도 하지 않는다. 그저 조용히 같은 이랑에 자리를 내어줄 뿐이다." },
+      { count: 5,
+        title: "A Bruise Before the Injury", titleJa: "傷の前の痣", titleKo: "상처 전의 멍",
+        en: "Five returns, and the body you keep being given has started to carry something between the lives, not quite memory, more like a bruise that forms before the injury. The soil has begun to wonder, in whatever way soil wonders, whether you're circling something or just lost.",
+        ja: "五度の帰還を経て、あなたが与えられ続けるその体は、生と生の間に何かを運ぶようになった——記憶というよりは、傷を負う前にできる痣のようなものを。土は、土が疑うようなやり方で、あなたが何かの周りを巡っているのか、それともただ迷っているだけなのかを、疑い始めている。",
+        ko: "다섯 번의 귀환을 거치며, 당신에게 계속 주어지는 그 몸은 생과 생 사이에 무언가를 지니기 시작했다 — 기억이라기보다는, 상처가 생기기 전에 먼저 생기는 멍 같은 것을. 흙은, 흙이 의심하는 방식으로, 당신이 무언가를 돌고 있는 것인지 그저 길을 잃은 것인지 의심하기 시작했다." },
+      { count: 10,
+        title: "A Row the Soil Keeps Open", titleJa: "土が空けておく畝", titleKo: "흙이 비워두는 이랑",
+        en: "Ten times reborn into the same patch of earth, and you finally notice the pattern isn't random — you keep landing here, specifically, as if the soil itself has been quietly requesting you back. It has never explained why. It has only ever forgiven you for leaving, and started digging a new row before you've finished the last one.",
+        ja: "同じ土地に十度生まれ変わり、ようやくそれが偶然ではないと気づく——あなたは必ずここに、まさにここに降り立つ。まるで土自身が、静かにあなたを呼び戻しているかのように。理由が説明されたことは一度もない。ただ、去ったことをいつも赦し、前の畝を終える前から、新しい畝を掘り始めているだけだ。",
+        ko: "같은 땅에 열 번 다시 태어나고 나서야, 그것이 우연이 아님을 깨닫는다 — 당신은 늘 바로 이곳에, 정확히 이곳에 떨어진다. 마치 흙 자신이 조용히 당신을 다시 불러들이고 있는 것처럼. 이유를 설명받은 적은 한 번도 없다. 그저 떠난 것을 언제나 용서하고, 지난 이랑을 끝내기도 전에 새 이랑을 파기 시작할 뿐이다." }
+    ],
+    hell: [
+      { count: 2,
+        title: "A Conversation, Not Restarted", titleJa: "やり直されない会話", titleKo: "다시 시작되지 않는 대화",
+        en: "The fire remembers the first time, and when you come back it doesn't start over — it picks up exactly where it left off, like a conversation interrupted rather than ended. You think that should feel worse. It feels, instead, almost like being known.",
+        ja: "炎は最初の時を覚えている。あなたが戻ってきても、炎は最初からやり直したりしない——終わったのではなく中断された会話のように、まさに止めた場所から続けるのだ。それはもっと辛く感じるはずだと、あなたは思う。しかし実際には、それはほとんど、知られているという感覚に近い。",
+        ko: "불꽃은 처음을 기억한다. 당신이 돌아와도 불꽃은 처음부터 다시 시작하지 않는다 — 끝난 것이 아니라 중단된 대화처럼, 멈췄던 바로 그 자리에서 이어간다. 그것이 더 괴로워야 한다고 당신은 생각한다. 그러나 실제로는, 그것은 오히려 알려져 있다는 느낌에 가깝다." },
+      { count: 5,
+        title: "A Habit, Not a Return", titleJa: "帰還ではなく癖", titleKo: "귀환이 아닌 버릇",
+        en: "Five times you've walked back into the burn, and the fire has stopped treating it like a return. It treats it like a habit — the way it would a drink you keep going back for, or a name you keep saying out loud when no one's there. It isn't trying to stop you anymore.",
+        ja: "五度、あなたは自ら燃える中へ戻ってきた。炎はもう、それを帰還として扱わない。癖として扱っている——何度も手を伸ばす酒のように、誰もいない時にも口に出してしまう名前のように。もう、あなたを止めようとはしていない。",
+        ko: "다섯 번, 당신은 스스로 불길 속으로 돌아왔다. 불꽃은 이제 그것을 귀환으로 대하지 않는다. 버릇으로 대한다 — 자꾸 손이 가는 술처럼, 아무도 없을 때도 소리 내어 부르게 되는 이름처럼. 더는 당신을 막으려 하지 않는다." },
+      { count: 10,
+        title: "A Seat Being Saved", titleJa: "取っておかれる席", titleKo: "맡아두는 자리",
+        en: "Ten times down, and you've run out of ways to call it falling. The fire doesn't hold that against you — it never held anything against you that you didn't carry in yourself — but it has started leaving a particular corner a little cooler each time, as if it's saving you a seat.",
+        ja: "十度落ち、もう「堕落」と呼ぶ言葉も尽きてしまった。炎はそれをあなたの咎としない——もともと、あなたが自分で持ち込んだもの以外、何も咎めたことはなかった——しかし、来るたびにある特定の角を少しだけ冷たくしておくようになった。まるで、あなたのために席を取っておくかのように。",
+        ko: "열 번 떨어졌고, 더는 그것을 '추락'이라 부를 말도 남지 않았다. 불꽃은 그것을 당신의 탓으로 돌리지 않는다 — 원래부터 당신이 스스로 지니고 온 것 외에는 아무것도 탓한 적이 없었다 — 다만 올 때마다 특정한 한 구석을 조금씩 더 차갑게 남겨두기 시작했다. 마치 당신을 위해 자리를 맡아두는 것처럼." }
+    ]
+  };
+
   function dateKey(offsetDays){
     var d = new Date();
     if(offsetDays) d.setDate(d.getDate() + offsetDays);
@@ -1151,7 +1217,8 @@
   function useDoorsDb(accountId){
     var dbRef = useRef(null);
     var unsubRef = useRef(null);
-    var _s = useState({ ready:false, offline:false, counts:{heaven:0, earth:0, hell:0}, myChoice:null, resolvedFor:null });
+    var _s = useState({ ready:false, offline:false, counts:{heaven:0, earth:0, hell:0}, myChoice:null,
+      crossings:{heaven:0, earth:0, hell:0}, ledgerUnlocked:[], resolvedFor:null });
     var state = _s[0], setState = _s[1];
     // Derived fresh every render (not tracked as its own async-set flag) so
     // there's no one-render lag where a stale ready/myChoice from a
@@ -1195,7 +1262,7 @@
 
     useEffect(function(){
       if(!accountId){
-        setState(function(s){ return Object.assign({}, s, {myChoice:null, resolvedFor:null}); });
+        setState(function(s){ return Object.assign({}, s, {myChoice:null, crossings:{heaven:0, earth:0, hell:0}, ledgerUnlocked:[], resolvedFor:null}); });
         return;
       }
       var cancelled = false;
@@ -1208,9 +1275,12 @@
         }
         try{
           var mine = await ns.doc("votes/" + accountId).get();
-          var myChoice = (mine.exists && mine.data() && mine.data().door) ? mine.data().door : null;
+          var data = mine.exists ? mine.data() : null;
+          var myChoice = (data && data.door) ? data.door : null;
+          var crossings = Object.assign({heaven:0, earth:0, hell:0}, data && data.crossings);
+          var ledgerUnlocked = (data && data.ledgerUnlocked) || [];
           if(!cancelled){
-            setState(function(s){ return Object.assign({}, s, {myChoice: myChoice, resolvedFor: accountId}); });
+            setState(function(s){ return Object.assign({}, s, {myChoice: myChoice, crossings: crossings, ledgerUnlocked: ledgerUnlocked, resolvedFor: accountId}); });
           }
         }catch(e){
           if(!cancelled) setState(function(s){ return Object.assign({}, s, {resolvedFor: accountId}); });
@@ -1219,11 +1289,35 @@
       return function(){ cancelled = true; };
     }, [accountId, state.ready]);
 
+    // Every time a door is (re)chosen — first pick, "Escape to…", or a
+    // points-funded move — this bumps that realm's lifetime crossing count
+    // and, on a milestone count (LEDGER_MILESTONES), unlocks that realm's
+    // next Ledger entry. Returns the newly-unlocked "realm:count" key (or
+    // null) so callers can flag it the same way markDone flags a new
+    // vision. Writes crossings/ledgerUnlocked back onto this same
+    // non-merge set (see confirm() below for why this doc isn't merged on
+    // choose) so a fresh choice never silently drops them.
     function choose(doorKey){
-      setState(function(s){ return Object.assign({}, s, {myChoice: doorKey}); });
+      var newCrossings = Object.assign({heaven:0, earth:0, hell:0}, state.crossings);
+      newCrossings[doorKey] = (newCrossings[doorKey] || 0) + 1;
+      var newCount = newCrossings[doorKey];
+      var newLedgerUnlocked = state.ledgerUnlocked.slice();
+      var newLedgerEntry = null;
+      if(LEDGER_MILESTONES.indexOf(newCount) !== -1){
+        var ledgerKey = doorKey + ":" + newCount;
+        if(newLedgerUnlocked.indexOf(ledgerKey) === -1){
+          newLedgerUnlocked.push(ledgerKey);
+          newLedgerEntry = ledgerKey;
+        }
+      }
+      setState(function(s){ return Object.assign({}, s, {myChoice: doorKey, crossings: newCrossings, ledgerUnlocked: newLedgerUnlocked}); });
       var ns = dbRef.current;
-      if(!ns || !accountId) return;
-      ns.doc("votes/" + accountId).set({ door: doorKey, ts: Date.now() }).catch(function(){});
+      if(ns && accountId){
+        ns.doc("votes/" + accountId).set({
+          door: doorKey, ts: Date.now(), crossings: newCrossings, ledgerUnlocked: newLedgerUnlocked
+        }).catch(function(){});
+      }
+      return newLedgerEntry;
     }
 
     // Picking a door (choose, above) only records the door itself — the
@@ -1900,6 +1994,9 @@
         h("button", { className:"q-btn ghost tiny bi", type:"button", onClick: props.onOpenVisions },
           h("span", { className:"btn-en" }, "Memories", props.hasNewVision ? h("span", { className:"vision-nav-dot" }) : null),
           h("span", { className:"btn-sub" }, "記憶 ・ 기억")),
+        h("button", { className:"q-btn ghost tiny bi", type:"button", onClick: props.onOpenLedger },
+          h("span", { className:"btn-en" }, "The Ledger", props.hasNewLedgerEntry ? h("span", { className:"vision-nav-dot" }) : null),
+          h("span", { className:"btn-sub" }, "記録 ・ 기록")),
         h("button", { className:"q-btn ghost tiny bi", type:"button", onClick: props.onDonate },
           biLabel("Support — $3/mo", "サポート — 月3ドル", "후원 — 월 $3")),
         h("span", { className:"char-tip-label" }, "or tip:"),
@@ -2924,6 +3021,65 @@
     );
   }
 
+  // The Ledger — see LEDGER_ENTRIES/LEDGER_MILESTONES above. Same shell as
+  // VisionsScreen (every realm, locked/unlocked teasers, permanent once
+  // read) but a different axis entirely: this one counts lifetime
+  // *arrivals* at a door, including every return after fleeing or paying
+  // to leave, instead of an unbroken daily streak.
+  function LedgerScreen(props){
+    var crossings = props.crossings || { heaven:0, earth:0, hell:0 };
+    return h("div", null,
+      h("div", { className:"q-eyebrow" }, "The Ledger"),
+      h(Sub, { ja:"記録", ko:"기록" }),
+      h("h2", { className:"q-heading" }, "What crossing back and forth has cost you."),
+      h(Sub, { ja:"行き来することが、あなたに課してきた代償。", ko:"오가는 것이 당신에게 치르게 한 대가." }),
+      h("p", { className:"q-tagline" }, "Every door keeps a tally of how many times you've stood behind it — including every time you fled it, or paid your way back out. Once read, an entry is yours to keep."),
+      h(Sub, {
+        ja:"どの扉も、あなたがそこに立った回数を数えている——逃げ出した回数も、ポイントを払って出た回数も含めて。一度読んだ記録は、あなたのものとして残り続ける。",
+        ko:"어느 문이든, 당신이 그 앞에 섰던 횟수를 세고 있다 — 도망쳤던 횟수도, 포인트를 내고 빠져나왔던 횟수도 포함해서. 한 번 읽은 기록은 계속 당신의 것으로 남는다."
+      }),
+      h("div", { className:"vision-groups" },
+        DOORS.map(function(d){
+          var realm = REALMS[d.key];
+          var count = crossings[d.key] || 0;
+          return h("div", { key: d.key },
+            h("div", { className:"vision-group-title" },
+              h("span", { className:"dot", style:{ background:"var(--" + d.key + ")" } }),
+              realm.name + (d.key === props.doorKey ? " — your door" : ""),
+              " · ", realm.nameJa, " · ", realm.nameKo,
+              " · ", count, count === 1 ? " crossing" : " crossings"
+            ),
+            h("div", { className:"vision-list" },
+              LEDGER_MILESTONES.map(function(n){
+                var v = (LEDGER_ENTRIES[d.key] || []).filter(function(x){ return x.count === n; })[0];
+                if(!v) return null;
+                var key = d.key + ":" + n;
+                var unlocked = (props.ledgerUnlocked || []).indexOf(key) !== -1;
+                return h("div", { key: key, className:"vision-item" + (unlocked ? " unlocked" : " locked") },
+                  h("span", { className:"vision-day" }, n + " crossings"),
+                  unlocked
+                    ? [
+                        h("h3", { key:"t" }, v.title),
+                        h(Sub, { key:"ts", ja:v.titleJa, ko:v.titleKo }),
+                        h("p", { key:"b" }, v.en),
+                        h(Sub, { key:"bs", ja:v.ja, ko:v.ko })
+                      ]
+                    : [
+                        h("h3", { key:"t" }, "Not yet reached"),
+                        h(Sub, { key:"ts", ja:"まだ届いていない", ko:"아직 닿지 않았다" })
+                      ]
+                );
+              })
+            )
+          );
+        })
+      ),
+      h("div", { className:"q-actions", style:{ marginTop:"24px" } },
+        h("button", { className:"q-btn ghost bi", type:"button", onClick: props.onBack }, biLabel("Back", "戻る", "뒤로"))
+      )
+    );
+  }
+
   function QuestionScreen(props){
     var realm = REALMS[props.doorKey] || REALMS.earth;
     var others = DOORS.filter(function(d){ return d.key !== props.doorKey; });
@@ -2967,6 +3123,8 @@
         onOpenExplore: props.onOpenExplore,
         onOpenVisions: props.onOpenVisions,
         hasNewVision: props.hasNewVision,
+        onOpenLedger: props.onOpenLedger,
+        hasNewLedgerEntry: props.hasNewLedgerEntry,
         onDonate: props.onDonate,
         onTip: props.onTip,
         onManageSubscription: props.onManageSubscription
@@ -2983,6 +3141,14 @@
         key: "visions-" + props.accountId,
         doorKey: key,
         unlockedVisions: props.unlockedVisions,
+        onBack: props.onBackToCharacter
+      });
+    }else if(props.gamePhase === "ledger"){
+      content = h(LedgerScreen, {
+        key: "ledger-" + props.accountId,
+        doorKey: key,
+        crossings: props.crossings,
+        ledgerUnlocked: props.ledgerUnlocked,
         onBack: props.onBackToCharacter
       });
     }else if(props.gamePhase === "tasks"){
@@ -3055,6 +3221,8 @@
     var soulStatsOpen = _ss[0], setSoulStatsOpen = _ss[1];
     var _nv = useState(false);
     var hasNewVision = _nv[0], setHasNewVision = _nv[1];
+    var _nl = useState(false);
+    var hasNewLedgerEntry = _nl[0], setHasNewLedgerEntry = _nl[1];
     var _e3d = useState(-1);
     var explore3dMarkerIdx = _e3d[0], setExplore3dMarkerIdx = _e3d[1];
     var doors = useDoorsDb(account ? account.id : null);
@@ -3198,8 +3366,12 @@
     function handleChooseDoor(key){
       if(doors.state.myChoice && doors.state.myChoice !== key) return;
       if(!doors.state.myChoice){
-        doors.choose(key);
+        var newLedgerEntry = doors.choose(key);
         trackEvent("choose_door", { door: key });
+        if(newLedgerEntry){
+          trackEvent("unlock_ledger_entry", { entry: newLedgerEntry });
+          setHasNewLedgerEntry(true);
+        }
       }
     }
 
@@ -3210,7 +3382,11 @@
     }
     function handleEscape(newKey){
       trackEvent("escape_door", { from: doors.state.myChoice, to: newKey });
-      doors.choose(newKey);
+      var newLedgerEntry = doors.choose(newKey);
+      if(newLedgerEntry){
+        trackEvent("unlock_ledger_entry", { entry: newLedgerEntry });
+        setHasNewLedgerEntry(true);
+      }
       setGamePhase("question");
     }
     function handleExit(){ setPhase("threshold"); setGamePhase("question"); }
@@ -3224,6 +3400,7 @@
     }
     function handleBackToExplore(){ setGamePhase("explore"); }
     function handleOpenVisions(){ setHasNewVision(false); setGamePhase("visions"); }
+    function handleOpenLedger(){ setHasNewLedgerEntry(false); setGamePhase("ledger"); }
     function handleBackToCharacter(){ setGamePhase("character"); }
     async function handleMarkDone(){
       var result = await dailyTasks.markDone(doors.state.myChoice, dateKey(0));
@@ -3240,7 +3417,11 @@
       var result = await dailyTasks.spend(MOVE_DOOR_COST);
       if(!result.ok) return result;
       trackEvent("move_door", { from: doors.state.myChoice, to: newKey });
-      doors.choose(newKey);
+      var newLedgerEntry = doors.choose(newKey);
+      if(newLedgerEntry){
+        trackEvent("unlock_ledger_entry", { entry: newLedgerEntry });
+        setHasNewLedgerEntry(true);
+      }
       setGamePhase("character");
       return { ok:true };
     }
@@ -3349,6 +3530,9 @@
         dailyTasksState: dailyTasks.state,
         unlockedVisions: dailyTasks.state.unlockedVisions,
         hasNewVision: hasNewVision,
+        crossings: doors.state.crossings,
+        ledgerUnlocked: doors.state.ledgerUnlocked,
+        hasNewLedgerEntry: hasNewLedgerEntry,
         onSatisfied: handleSatisfied,
         onEscape: handleEscape,
         onExit: handleExit,
@@ -3356,6 +3540,7 @@
         onOpenTasks: handleOpenTasks,
         onOpenExplore: handleOpenExplore,
         onOpenVisions: handleOpenVisions,
+        onOpenLedger: handleOpenLedger,
         onBackToCharacter: handleBackToCharacter,
         explore3dMarkerIdx: explore3dMarkerIdx,
         onEnterGame: handleEnterGame,
