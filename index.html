@@ -389,6 +389,22 @@
   .vision-day{ font-family:'JetBrains Mono',ui-monospace,monospace; font-size:0.64rem; letter-spacing:0.1em; color:var(--ink-faint); text-transform:uppercase; }
   .vision-nav-dot{ display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--threshold-glow); margin-left:6px; box-shadow:0 0 8px var(--threshold-glow); vertical-align:middle; }
 
+  .relic-block{ margin-top:12px; padding-top:12px; border-top:1px solid var(--hairline); }
+  .relic-prompt{ margin:0; color:var(--ink-dim); font-size:0.85rem; font-style:italic; }
+  .relic-line{ margin:0; color:var(--ink); font-size:0.88rem; }
+  .relic-note{ margin:6px 0 0; color:var(--ink-faint); font-size:0.8rem; font-style:italic; }
+  .relic-row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:10px; }
+  .relic-input{
+    flex:1 1 180px; min-width:0; background:var(--void-3); border:1px solid var(--hairline); border-radius:10px;
+    padding:0.55em 0.8em; color:var(--ink); font-family:'Work Sans',sans-serif; font-size:0.86rem;
+  }
+  .relic-input:focus-visible{ outline:2px solid var(--ink); outline-offset:1px; }
+  .relic-textarea{
+    width:100%; margin-top:10px; resize:vertical; min-height:70px; background:var(--void-3); border:1px solid var(--hairline);
+    border-radius:12px; padding:0.7em 0.9em; color:var(--ink); font-family:'Work Sans',sans-serif; font-size:0.86rem; line-height:1.5;
+  }
+  .relic-textarea:focus-visible{ outline:2px solid var(--ink); outline-offset:1px; }
+
   .explore-stage{
     margin-top:20px; position:relative; width:100%; max-width:480px; border-radius:16px; overflow:hidden;
     border:1px solid var(--hairline); background:#000; aspect-ratio:20/14;
@@ -872,6 +888,28 @@
     ]
   };
 
+  // Realm-specific "relics" — a one-time, permanent response bound to a
+  // single existing vision, earned the same way the vision itself is
+  // (reach the milestone, then act once). Kept on the same dailytasks doc
+  // as streak/points/unlockedVisions — see heavenHeardName /
+  // earthInheritedHabit / hellVoiceAnswered in useDailyTasks below. Each
+  // one answers something that vision's own text raised, instead of just
+  // adding more text to read:
+  //  - Heaven's day-3 vision hears a name that isn't yours; write down
+  //    what you heard, once, and keep it.
+  //  - Reincarnation's day-7 vision notices an inherited habit; name
+  //    which one, once, and it's logged as yours.
+  //  - Hell's day-7 vision is a voice that just wants to be heard; say
+  //    what it's owed — the words themselves are never sent anywhere,
+  //    only the fact that it happened is kept.
+  var EARTH_HABITS = [
+    { id:"hum",    en:"A tune you hum without meaning to", ja:"知らぬ間に口ずさんでいる鼻歌", ko:"의식하지 못한 채 흥얼거리는 노래" },
+    { id:"left",   en:"Favoring your left hand, for no reason you can find", ja:"理由もわからず左手をよく使ってしまう", ko:"이유 없이 왼손을 더 쓰게 되는 것" },
+    { id:"door",   en:"Checking the door is locked, twice, every night", ja:"毎晩、ドアの鍵を二度確かめてしまう", ko:"매일 밤 문이 잠겼는지 두 번씩 확인하는 것" },
+    { id:"flinch", en:"Flinching at a sound that was never loud", ja:"大きくもない音に、思わず身をすくめてしまう", ko:"크지도 않은 소리에 흠칫 놀라는 것" },
+    { id:"stare",  en:"Staring at your own hands when you're nervous", ja:"緊張すると、自分の手をじっと見てしまう", ko:"긴장하면 자신의 손을 가만히 바라보게 되는 것" }
+  ];
+
   function dateKey(offsetDays){
     var d = new Date();
     if(offsetDays) d.setDate(d.getDate() + offsetDays);
@@ -912,13 +950,15 @@
   // actually pay for moving to a different door.
   function useDailyTasks(accountId){
     var dbRef = useRef(null);
-    var _s = useState({ streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], resolvedFor:null });
+    var _s = useState({ streak:0, points:0, lastCompletedDate:null, unlockedVisions:[],
+      heavenHeardName:null, earthInheritedHabit:null, hellVoiceAnswered:false, resolvedFor:null });
     var state = _s[0], setState = _s[1];
     var loaded = !accountId || state.resolvedFor === accountId;
 
     useEffect(function(){
       if(!accountId){
-        setState(function(s){ return Object.assign({}, s, { streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], resolvedFor:null }); });
+        setState(function(s){ return Object.assign({}, s, { streak:0, points:0, lastCompletedDate:null, unlockedVisions:[],
+          heavenHeardName:null, earthInheritedHabit:null, hellVoiceAnswered:false, resolvedFor:null }); });
         return;
       }
       var cancelled = false;
@@ -938,6 +978,9 @@
             points: (found && found.points) || 0,
             lastCompletedDate: (found && found.lastCompletedDate) || null,
             unlockedVisions: (found && found.unlockedVisions) || [],
+            heavenHeardName: (found && found.heavenHeardName) || null,
+            earthInheritedHabit: (found && found.earthInheritedHabit) || null,
+            hellVoiceAnswered: !!(found && found.hellVoiceAnswered),
             resolvedFor: accountId
           });
         }
@@ -964,9 +1007,14 @@
         try{
           // A full set(), not update() — matches the existing shape of this
           // doc, so every field this doc holds has to be listed here or it
-          // gets dropped, unlockedVisions included.
+          // gets dropped, unlockedVisions included (and now the relic
+          // fields below, carried through unchanged from current state so
+          // a later markDone() call can't silently erase them).
           await ns.doc("dailytasks/" + accountId).set({
-            realm: realmKey, streak: nextStreak, points: nextPoints, lastCompletedDate: today, unlockedVisions: nextUnlocked
+            realm: realmKey, streak: nextStreak, points: nextPoints, lastCompletedDate: today, unlockedVisions: nextUnlocked,
+            heavenHeardName: state.heavenHeardName || null,
+            earthInheritedHabit: state.earthInheritedHabit || null,
+            hellVoiceAnswered: !!state.hellVoiceAnswered
           });
         }catch(e){
           return { ok:false };
@@ -991,7 +1039,24 @@
       return { ok:true };
     }
 
-    return { state: Object.assign({}, state, { loaded:loaded }), markDone: markDone, spend: spend };
+    // Saves a realm relic (see EARTH_HABITS / VisionsScreen) — a small,
+    // one-time field on the same doc, written with update() so it merges
+    // in without touching streak/points/unlockedVisions.
+    async function saveRelic(fields){
+      if(!accountId) return { ok:false };
+      var ns = dbRef.current;
+      if(ns){
+        try{
+          await ns.doc("dailytasks/" + accountId).update(fields);
+        }catch(e){
+          return { ok:false };
+        }
+      }
+      setState(function(s){ return Object.assign({}, s, fields); });
+      return { ok:true };
+    }
+
+    return { state: Object.assign({}, state, { loaded:loaded }), markDone: markDone, spend: spend, saveRelic: saveRelic };
   }
 
   // Door-opening sound, synthesized entirely with the Web Audio API — no
@@ -2874,6 +2939,120 @@
   // not just the current one, so switching doors never orphans a vision
   // already earned there.
   function VisionsScreen(props){
+    var _hn = useState("");
+    var heavenDraft = _hn[0], setHeavenDraft = _hn[1];
+    var _hsv = useState(false);
+    var heavenSaving = _hsv[0], setHeavenSaving = _hsv[1];
+    var _esv = useState(null);
+    var earthSaving = _esv[0], setEarthSaving = _esv[1];
+    var _vd = useState("");
+    var hellDraft = _vd[0], setHellDraft = _vd[1];
+    var _vsv = useState(false);
+    var hellSaving = _vsv[0], setHellSaving = _vsv[1];
+
+    async function handleHeavenSave(){
+      var name = heavenDraft.trim().slice(0, 60);
+      if(!name || heavenSaving) return;
+      setHeavenSaving(true);
+      await props.onSaveRelic({ heavenHeardName: name });
+      setHeavenSaving(false);
+    }
+    async function handleEarthPick(habitId){
+      if(earthSaving) return;
+      setEarthSaving(habitId);
+      await props.onSaveRelic({ earthInheritedHabit: habitId });
+      setEarthSaving(null);
+    }
+    async function handleHellSave(){
+      if(!hellDraft.trim() || hellSaving) return;
+      setHellSaving(true);
+      await props.onSaveRelic({ hellVoiceAnswered: true });
+      setHellDraft("");
+      setHellSaving(false);
+    }
+
+    // A relic answers something its own vision's text raised — see the
+    // comment above EARTH_HABITS. Returns null for every (realm, day)
+    // pair that doesn't have one, so most vision items render unchanged.
+    function renderRelic(realmKey, day){
+      if(realmKey === "heaven" && day === 3){
+        if(props.heavenHeardName){
+          return h("div", { key:"relic", className:"relic-block" },
+            h("p", { className:"relic-line" }, "You wrote down: “" + props.heavenHeardName + "”"),
+            h("p", { className:"relic-note" }, "The light has never said whether it was right."),
+            h(Sub, { ja:"光はそれが正しいかどうか、一度も言わなかった。", ko:"빛은 그것이 맞는지 한 번도 말해주지 않았다." })
+          );
+        }
+        return h("div", { key:"relic", className:"relic-block" },
+          h("p", { className:"relic-prompt" }, "If you caught the name, write it down. Once."),
+          h(Sub, { ja:"名前を聞き取ったなら、書き留めよう。一度だけ。", ko:"그 이름을 들었다면, 적어두세요. 단 한 번만." }),
+          h("div", { className:"relic-row" },
+            h("input", {
+              className:"relic-input", type:"text", maxLength:60, value: heavenDraft,
+              placeholder:"the name you heard",
+              onChange: function(e){ setHeavenDraft(e.target.value); }
+            }),
+            h("button", {
+              className:"q-btn ghost tiny bi", type:"button",
+              disabled: !heavenDraft.trim() || heavenSaving,
+              onClick: handleHeavenSave
+            }, biLabel(heavenSaving ? "Keeping…" : "Keep it", "とどめる", "간직하기"))
+          )
+        );
+      }
+      if(realmKey === "earth" && day === 7){
+        if(props.earthInheritedHabit){
+          var habit = EARTH_HABITS.filter(function(x){ return x.id === props.earthInheritedHabit; })[0];
+          return h("div", { key:"relic", className:"relic-block" },
+            h("p", { className:"relic-line" }, "Inherited habit: " + (habit ? habit.en : "")),
+            habit ? h(Sub, { ja: habit.ja, ko: habit.ko }) : null,
+            h("p", { className:"relic-note" }, "It was already yours before you noticed."),
+            h(Sub, { ja:"気づく前から、それはもう自分のものだった。", ko:"알아차리기 전부터, 그것은 이미 당신의 것이었다." })
+          );
+        }
+        return h("div", { key:"relic", className:"relic-block" },
+          h("p", { className:"relic-prompt" }, "Name the habit — pick the one that's actually yours. Once."),
+          h(Sub, { ja:"その癖に名前を——本当に自分のものを選ぼう。一度だけ。", ko:"그 버릇에 이름을 붙이세요 — 정말 자신의 것을 골라보세요. 단 한 번만." }),
+          h("div", { className:"gender-row", style:{ marginTop:"10px" } },
+            EARTH_HABITS.map(function(opt){
+              return h("button", {
+                key: opt.id, type:"button", className:"gender-pill",
+                disabled: !!earthSaving,
+                onClick: function(){ handleEarthPick(opt.id); }
+              }, earthSaving === opt.id ? "…" : opt.en);
+            })
+          )
+        );
+      }
+      if(realmKey === "hell" && day === 7){
+        if(props.hellVoiceAnswered){
+          return h("div", { key:"relic", className:"relic-block" },
+            h("p", { className:"relic-line" }, "It was heard. That's all it wanted."),
+            h(Sub, { ja:"それは聞き届けられた。それだけが望みだった。", ko:"그것은 들렸다. 그것이 전부였다." })
+          );
+        }
+        return h("div", { key:"relic", className:"relic-block" },
+          h("p", { className:"relic-prompt" }, "Say what it's owed — out loud, or just to yourself. It's never shown to anyone, not even here."),
+          h(Sub, {
+            ja:"借りているものを言ってみよう——声に出しても、心の中だけでもいい。これは誰にも、ここでさえも表示されない。",
+            ko:"빚진 것을 말해보세요 — 소리 내어도, 마음속으로만이라도. 이것은 누구에게도, 여기서도 보여지지 않습니다."
+          }),
+          h("textarea", {
+            className:"relic-textarea", value: hellDraft, rows:3,
+            onChange: function(e){ setHellDraft(e.target.value); }
+          }),
+          h("div", { className:"relic-row" },
+            h("button", {
+              className:"q-btn ghost tiny bi", type:"button",
+              disabled: !hellDraft.trim() || hellSaving,
+              onClick: handleHellSave
+            }, biLabel(hellSaving ? "…" : "It's said", "言った", "말했다"))
+          )
+        );
+      }
+      return null;
+    }
+
     return h("div", null,
       h("div", { className:"q-eyebrow" }, "Memories"),
       h(Sub, { ja:"記憶", ko:"기억" }),
@@ -2906,7 +3085,8 @@
                         h("h3", { key:"t" }, v.title),
                         h(Sub, { key:"ts", ja:v.titleJa, ko:v.titleKo }),
                         h("p", { key:"b" }, v.en),
-                        h(Sub, { key:"bs", ja:v.ja, ko:v.ko })
+                        h(Sub, { key:"bs", ja:v.ja, ko:v.ko }),
+                        renderRelic(d.key, day)
                       ]
                     : [
                         h("h3", { key:"t" }, "Not yet reached"),
@@ -2983,6 +3163,10 @@
         key: "visions-" + props.accountId,
         doorKey: key,
         unlockedVisions: props.unlockedVisions,
+        heavenHeardName: props.dailyTasksState.heavenHeardName,
+        earthInheritedHabit: props.dailyTasksState.earthInheritedHabit,
+        hellVoiceAnswered: props.dailyTasksState.hellVoiceAnswered,
+        onSaveRelic: props.onSaveRelic,
         onBack: props.onBackToCharacter
       });
     }else if(props.gamePhase === "tasks"){
@@ -3362,6 +3546,7 @@
         onBackToExplore: handleBackToExplore,
         onMarkDone: handleMarkDone,
         onMove: handleMoveDoor,
+        onSaveRelic: dailyTasks.saveRelic,
         onDonate: handleDonate,
         onTip: handleTip,
         onManageSubscription: handleManageSubscription
