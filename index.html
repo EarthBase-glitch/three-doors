@@ -816,7 +816,10 @@
   // your current door earns that realm's vision for that day, permanently
   // (see unlockedVisions in useDailyTasks) — the first threads of an
   // actual story for a game that's otherwise just daily-habit mechanics.
-  var VISION_MILESTONES = [3, 7, 30];
+  // The ladder isn't capped at 30 — day 100 is the next rung, continuing
+  // each realm's arc rather than closing it, so a long-term returning
+  // visitor still has somewhere the story can go.
+  var VISION_MILESTONES = [3, 7, 30, 100];
 
   var VISIONS = {
     heaven: [
@@ -834,7 +837,12 @@
         title: "What the Light Keeps", titleJa: "光が保つもの", titleKo: "빛이 간직하는 것",
         en: "Thirty days, and the light finally answers the question you stopped asking out loud: it isn't judging you, because it's already decided. What you did with these thirty days is filed somewhere you can't see, kept the way everything here is kept — gently, permanently, without comment.",
         ja: "三十日が経ち、光はついに、あなたがもう口に出すのをやめた問いに答える——裁いていないのは、すでに決めているからだ。この三十日間あなたが何をしたかは、見えない場所に記録されている。ここにあるすべてと同じように、静かに、永遠に、何も言わずに保たれている。",
-        ko: "서른 날이 지나고, 빛은 마침내 당신이 더 이상 소리 내어 묻지 않게 된 질문에 답한다 — 심판하지 않는 것은, 이미 결정했기 때문이다. 이 서른 날 동안 당신이 한 일은 보이지 않는 곳에 기록된다. 이곳의 모든 것이 그러하듯, 조용히, 영원히, 아무 말 없이 간직된 채로." }
+        ko: "서른 날이 지나고, 빛은 마침내 당신이 더 이상 소리 내어 묻지 않게 된 질문에 답한다 — 심판하지 않는 것은, 이미 결정했기 때문이다. 이 서른 날 동안 당신이 한 일은 보이지 않는 곳에 기록된다. 이곳의 모든 것이 그러하듯, 조용히, 영원히, 아무 말 없이 간직된 채로." },
+      { day: 100,
+        title: "The Other Side of the Seam", titleJa: "継ぎ目の向こう側", titleKo: "이음매 너머",
+        en: "A hundred days, and the seam finally widens enough to look through. There's no finished heaven on the other side — only others who stayed long enough to see it, still building, hands full of light instead of tools. Nobody was handed paradise here. They're making it, the same patient way you're about to. The light was never keeping score. It was keeping room for one more pair of hands.",
+        ja: "百日が経ち、継ぎ目はついに、向こう側を覗けるほど広がる。その先に完成した天国はない——そこにいるのは、見えるまで十分長く留まった者たちだけで、彼らは今も、道具の代わりに光を手に満たして築き続けている。ここで楽園を与えられた者は誰もいない。皆、あなたがこれから始めるのと同じ、気の長いやり方でそれを作っている。光は点数をつけていたのではない。もう一組の手のための余地を、ただ空けていたのだ。",
+        ko: "백 일이 지나고, 이음매는 마침내 그 너머를 들여다볼 수 있을 만큼 벌어진다. 그 반대편에는 완성된 천국이 없다 — 그곳에서 보일 만큼 오래 머문 다른 이들만이, 도구 대신 빛으로 손을 채운 채 여전히 짓고 있을 뿐이다. 이곳에서 낙원을 그냥 받은 사람은 아무도 없다. 그들은 당신이 이제 막 시작하려는 것과 같은, 그 느긋한 방식으로 그것을 만들어가고 있다. 빛은 점수를 매기고 있던 것이 아니었다. 그저 손 하나를 더 들일 자리를 비워두고 있었을 뿐이다." }
     ],
     earth: [
       { day: 3,
@@ -851,7 +859,12 @@
         title: "The Soil Remembers Too", titleJa: "土もまた覚えている", titleKo: "흙도 기억한다",
         en: "Thirty days, and you finally understand what \"starting over\" actually meant: not a blank page, but a used one, scraped almost clean. The soil forgives slowly because it forgets slower still — and somewhere under everything you've built this month, the last life is still faintly readable, if you dig.",
         ja: "三十日が経ち、あなたはようやく「やり直す」という言葉の本当の意味を理解する——白紙ではなく、ほとんどきれいに削られた、使用済みの紙なのだと。土がゆっくり赦すのは、それ以上にゆっくり忘れるからだ。そして今月あなたが築いたものの下には、掘れば読み取れるほど、前の生がまだかすかに残っている。",
-        ko: "서른 날이 지나고, 당신은 마침내 '다시 시작한다'는 말의 진짜 의미를 이해한다 — 백지가 아니라, 거의 깨끗하게 긁어낸, 이미 쓰였던 종이라는 것을. 흙이 천천히 용서하는 것은, 그보다 더 천천히 잊기 때문이다. 그리고 이번 달 당신이 쌓아온 모든 것 아래에는, 파보면 읽힐 만큼, 지난 삶이 아직 희미하게 남아 있다." }
+        ko: "서른 날이 지나고, 당신은 마침내 '다시 시작한다'는 말의 진짜 의미를 이해한다 — 백지가 아니라, 거의 깨끗하게 긁어낸, 이미 쓰였던 종이라는 것을. 흙이 천천히 용서하는 것은, 그보다 더 천천히 잊기 때문이다. 그리고 이번 달 당신이 쌓아온 모든 것 아래에는, 파보면 읽힐 만큼, 지난 삶이 아직 희미하게 남아 있다." },
+      { day: 100,
+        title: "What You Dig Up", titleJa: "掘り出したもの", titleKo: "파낸 것",
+        en: "A hundred days, and you finally dig instead of just noticing the shape of what's buried. What comes up isn't a name or a face — it's a single motion, repeated across so many lives that it wore a groove straight through to you. The soil never asked you to become someone new. It only asked you to grow, eventually, out of everything already planted.",
+        ja: "百日が経ち、あなたはついに、埋まっているものの形に気づくだけでなく、実際に掘り始める。出てくるのは名前でも顔でもない——数え切れないほど多くの生の間で繰り返され、まっすぐあなたまで続く溝を刻んだ、たった一つの動作だ。土は一度も、新しい誰かになることを求めなかった。ただ、すでに植えられたすべてのものから、やがて育つことを求めていたのだ。",
+        ko: "백 일이 지나고, 당신은 묻힌 것의 모양을 알아채는 데서 멈추지 않고 마침내 땅을 판다. 올라오는 것은 이름도 얼굴도 아니다 — 셀 수 없이 많은 생애에 걸쳐 되풀이되며, 곧게 당신에게까지 이어지는 흠을 새긴, 단 하나의 동작일 뿐이다. 흙은 단 한 번도 당신에게 새로운 누군가가 되라고 요구하지 않았다. 그저 이미 심어진 모든 것으로부터, 언젠가 자라나기를 바랐을 뿐이다." }
     ],
     hell: [
       { day: 3,
@@ -868,7 +881,12 @@
         title: "What Burns Off Last", titleJa: "最後に燃え尽きるもの", titleKo: "마지막에 타 없어지는 것",
         en: "Thirty days in the fire, and most of what you carried in has burned away — the excuses first, then the reasons, then the story you told yourself about both. What's left, thirty days clean of all of it, turns out to be smaller than you feared and harder to look at than you expected.",
         ja: "炎の中で三十日、あなたが持ち込んだもののほとんどは燃え尽きた——まず言い訳が、次に理由が、そして両方について自分に語っていた物語が。すべてが燃え尽きた後、三十日分きれいになって残ったものは、恐れていたよりも小さく、予想していたよりも直視しにくいものだった。",
-        ko: "불 속에서 서른 날, 당신이 가지고 들어온 것 대부분이 타 없어졌다 — 먼저 변명이, 다음엔 이유가, 그리고 그 둘에 대해 스스로에게 들려주던 이야기가. 서른 날 만에 그 모든 것에서 벗어나 남은 것은, 두려워했던 것보다 작고, 예상했던 것보다 마주보기 어려운 것이었다." }
+        ko: "불 속에서 서른 날, 당신이 가지고 들어온 것 대부분이 타 없어졌다 — 먼저 변명이, 다음엔 이유가, 그리고 그 둘에 대해 스스로에게 들려주던 이야기가. 서른 날 만에 그 모든 것에서 벗어나 남은 것은, 두려워했던 것보다 작고, 예상했던 것보다 마주보기 어려운 것이었다." },
+      { day: 100,
+        title: "Paying What You Owed", titleJa: "借りを返す", titleKo: "빚을 갚다",
+        en: "A hundred days, and there's nothing left to perform or hide behind — the excuses gone, the reasons gone, the story gone. What's left is quiet enough to finally hear the voice from the seventh day all the way through, and it isn't accusing you. It never wanted punishment. It only wanted a witness, which you are now — a hundred days too late, and somehow still on time. The fire doesn't forgive you for this. It just, for the first time, has nothing left to burn.",
+        ja: "百日が経ち、もう演じるものも隠れる場所もない——言い訳は消え、理由は消え、物語も消えた。残ったものは、七日目に聞こえたあの声を、ついに最後まで聞き取れるほど静かだ。それはあなたを責めているのではない。罰を求めたことなど一度もなかった。ただ証人を求めていただけで、あなたは今、百日遅れで、それでもどこか間に合っている証人になる。炎はこれを赦してくれるわけではない。ただ、初めて、燃やすべきものが何も残っていないだけだ。",
+        ko: "백 일이 지나고, 더는 연기할 것도 숨을 곳도 없다 — 변명은 사라지고, 이유도 사라지고, 이야기도 사라졌다. 남은 것은 일곱째 날 들려온 그 목소리를 마침내 끝까지 들을 수 있을 만큼 고요하다. 그것은 당신을 탓하는 것이 아니다. 벌을 바란 적은 한 번도 없었다. 그저 증인을 원했을 뿐이고, 당신은 지금 백 일이 늦었지만 어쩐지 여전히 제때 도착한 증인이 된다. 불꽃은 이것으로 당신을 용서하지 않는다. 다만 처음으로, 태울 것이 더는 남지 않았을 뿐이다." }
     ]
   };
 
