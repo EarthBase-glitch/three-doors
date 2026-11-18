@@ -872,6 +872,38 @@
     ]
   };
 
+  // "Threshold" visions — a second, parallel set of one-time narrative
+  // unlocks, stored in the same `unlockedVisions` array as the streak
+  // milestones above (keys like "heaven:departure" alongside "heaven:3",
+  // so no new Firestore field is needed for the unlock flags themselves).
+  // Unlike VISIONS, each of these is tied to a distinct kind of event
+  // instead of a streak length — leaving Heaven, breaking a streak in
+  // Hell, or a lifetime task count in Reincarnation that keeps counting
+  // through streak breaks on purpose (see earthTasksCompleted below).
+  var THRESHOLD_VISIONS = {
+    heaven: {
+      key: "heaven:departure",
+      title: "Departure", titleJa: "出立", titleKo: "떠남",
+      en: "You asked to leave, and nothing stopped you. No voice above says not yet, no door locks from the inside. Already the light is turning away — not in anger. In practice. It never needed you to stay. That was never the test.",
+      ja: "あなたは去りたいと告げ、何もそれを止めなかった。まだだめだと言う声も上にはなく、内側から閉まる扉もない。すでに光はよそを向きつつある——怒ってではない。ただ実務的に。光はあなたが留まることを必要としていなかった。それは最初から試験ではなかった。",
+      ko: "당신은 떠나겠다고 했고, 아무것도 막지 않았다. 아직 안 된다고 말하는 목소리도 위에는 없고, 안에서 걸리는 문도 없다. 빛은 이미 등을 돌리고 있다 — 화가 나서가 아니다. 그저 실무적으로. 빛은 당신이 머물러야 할 필요가 없었다. 그것은 처음부터 시험이 아니었다."
+    },
+    earth: {
+      key: "earth:keeps-growing",
+      title: "What Keeps Growing", titleJa: "育ち続けるもの", titleKo: "계속 자라는 것",
+      en: "Five times now you have shown up and started again, in no particular order, with no unbroken thread between them. The soil doesn't keep score the way the fire does, or the light. It just keeps growing whatever you plant, streak or no streak — that was the forgiveness part, the part that was easy to miss. This is the part that was hard: you kept planting.",
+      ja: "五度、あなたは現れ、また始めた。順序もなく、途切れぬ糸もなく。土は、炎や光のように点数をつけない。連続していようがいまいが、植えたものを育て続けるだけだ——それが赦しの部分だった、見落としやすい部分。こちらは難しい部分だった。あなたは、それでも植え続けた。",
+      ko: "다섯 번, 당신은 나타나 다시 시작했다. 특별한 순서도 없이, 끊어지지 않은 실도 없이. 흙은 불이나 빛처럼 점수를 매기지 않는다. 연속이든 아니든, 심은 것을 그저 계속 키울 뿐이다 — 그것이 용서의 부분이었다, 놓치기 쉬운 부분. 이쪽은 어려운 부분이었다: 당신은 그래도 계속 심었다."
+    },
+    hell: {
+      key: "hell:fire-keeps",
+      title: "What the Fire Keeps", titleJa: "炎が守るもの", titleKo: "불꽃이 지키는 것",
+      en: "The count went back to zero. You expected punishment. Instead: the fire holds the shape of the day you missed, the way ash holds the shape of what burned. It does not forgive. It also does not forget to still be waiting. Come back whenever. It isn't going anywhere, and neither, it turns out, are you.",
+      ja: "数字がゼロに戻った。罰を予期していた。だが実際には——炎は、あなたが逃した日の形を保っている。灰が、燃えたものの形を保つように。それは赦さない。だが、まだ待っていることを忘れもしない。いつでも戻ってくればいい。炎はどこにも行かない。そして、結局あなたも、どこにも行かないらしい。",
+      ko: "숫자가 다시 0으로 돌아갔다. 벌을 예상했다. 하지만 실제로는 — 불꽃은 당신이 놓친 그 날의 모양을 간직하고 있다, 재가 타버린 것의 모양을 간직하듯이. 그것은 용서하지 않는다. 그러면서도 여전히 기다리고 있다는 것을 잊지 않는다. 언제든 돌아와도 좋다. 불꽃은 어디로도 가지 않는다. 그리고, 결국, 당신도 그런 모양이다."
+    }
+  };
+
   function dateKey(offsetDays){
     var d = new Date();
     if(offsetDays) d.setDate(d.getDate() + offsetDays);
@@ -912,13 +944,13 @@
   // actually pay for moving to a different door.
   function useDailyTasks(accountId){
     var dbRef = useRef(null);
-    var _s = useState({ streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], resolvedFor:null });
+    var _s = useState({ streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], earthTasksCompleted:0, resolvedFor:null });
     var state = _s[0], setState = _s[1];
     var loaded = !accountId || state.resolvedFor === accountId;
 
     useEffect(function(){
       if(!accountId){
-        setState(function(s){ return Object.assign({}, s, { streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], resolvedFor:null }); });
+        setState(function(s){ return Object.assign({}, s, { streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], earthTasksCompleted:0, resolvedFor:null }); });
         return;
       }
       var cancelled = false;
@@ -938,6 +970,7 @@
             points: (found && found.points) || 0,
             lastCompletedDate: (found && found.lastCompletedDate) || null,
             unlockedVisions: (found && found.unlockedVisions) || [],
+            earthTasksCompleted: (found && found.earthTasksCompleted) || 0,
             resolvedFor: accountId
           });
         }
@@ -948,15 +981,42 @@
     async function markDone(realmKey, today){
       if(!accountId) return { ok:false };
       var wasYesterday = state.lastCompletedDate === dateKey(-1);
+      // A streak "break" — had a positive streak, missed at least one day,
+      // and is restarting at 1 now. This is the Hell threshold-vision
+      // trigger (see THRESHOLD_VISIONS.hell) — never fires for an account
+      // whose streak was already 0, i.e. one that never had a streak yet.
+      var streakBroke = !wasYesterday && state.streak > 0;
       var nextStreak = wasYesterday ? state.streak + 1 : 1;
       var nextPoints = state.points + POINTS_PER_TASK;
       var nextUnlocked = state.unlockedVisions.slice();
-      var newVision = null;
+      var nextEarthTasks = state.earthTasksCompleted;
+      var newVisions = [];
       if(VISION_MILESTONES.indexOf(nextStreak) !== -1){
         var visionKey = realmKey + ":" + nextStreak;
         if(nextUnlocked.indexOf(visionKey) === -1){
           nextUnlocked.push(visionKey);
-          newVision = visionKey;
+          newVisions.push(visionKey);
+        }
+      }
+      // Threshold visions tied to this same completion (see THRESHOLD_VISIONS
+      // above) — mechanically distinct from the streak-milestone ladder:
+      // Hell's fires on a streak break, Reincarnation's on a lifetime task
+      // count that keeps climbing through streak breaks on purpose.
+      if(streakBroke && realmKey === "hell"){
+        var hellKey = THRESHOLD_VISIONS.hell.key;
+        if(nextUnlocked.indexOf(hellKey) === -1){
+          nextUnlocked.push(hellKey);
+          newVisions.push(hellKey);
+        }
+      }
+      if(realmKey === "earth"){
+        nextEarthTasks = nextEarthTasks + 1;
+        if(nextEarthTasks === 5){
+          var earthKey = THRESHOLD_VISIONS.earth.key;
+          if(nextUnlocked.indexOf(earthKey) === -1){
+            nextUnlocked.push(earthKey);
+            newVisions.push(earthKey);
+          }
         }
       }
       var ns = dbRef.current;
@@ -964,16 +1024,17 @@
         try{
           // A full set(), not update() — matches the existing shape of this
           // doc, so every field this doc holds has to be listed here or it
-          // gets dropped, unlockedVisions included.
+          // gets dropped, unlockedVisions and earthTasksCompleted included.
           await ns.doc("dailytasks/" + accountId).set({
-            realm: realmKey, streak: nextStreak, points: nextPoints, lastCompletedDate: today, unlockedVisions: nextUnlocked
+            realm: realmKey, streak: nextStreak, points: nextPoints, lastCompletedDate: today,
+            unlockedVisions: nextUnlocked, earthTasksCompleted: nextEarthTasks
           });
         }catch(e){
           return { ok:false };
         }
       }
-      setState(function(s){ return Object.assign({}, s, { streak:nextStreak, points:nextPoints, lastCompletedDate:today, unlockedVisions:nextUnlocked }); });
-      return { ok:true, newVision: newVision };
+      setState(function(s){ return Object.assign({}, s, { streak:nextStreak, points:nextPoints, lastCompletedDate:today, unlockedVisions:nextUnlocked, earthTasksCompleted:nextEarthTasks }); });
+      return { ok:true, newVision: newVisions[0] || null, newVisions: newVisions };
     }
 
     async function spend(amount){
@@ -991,7 +1052,26 @@
       return { ok:true };
     }
 
-    return { state: Object.assign({}, state, { loaded:loaded }), markDone: markDone, spend: spend };
+    // Unlocks a one-time vision outside the markDone flow — used by the
+    // Heaven "Departure" threshold vision, which fires on a door move
+    // rather than a task completion. Idempotent: a vision already in
+    // unlockedVisions is left alone and reported as `already`.
+    async function unlockVision(visionKey){
+      if(state.unlockedVisions.indexOf(visionKey) !== -1) return { ok:true, already:true };
+      var nextUnlocked = state.unlockedVisions.concat([visionKey]);
+      var ns = dbRef.current;
+      if(ns && accountId){
+        try{
+          await ns.doc("dailytasks/" + accountId).update({ unlockedVisions: nextUnlocked });
+        }catch(e){
+          return { ok:false };
+        }
+      }
+      setState(function(s){ return Object.assign({}, s, { unlockedVisions:nextUnlocked }); });
+      return { ok:true, already:false };
+    }
+
+    return { state: Object.assign({}, state, { loaded:loaded }), markDone: markDone, spend: spend, unlockVision: unlockVision };
   }
 
   // Door-opening sound, synthesized entirely with the Web Audio API — no
@@ -2918,6 +2998,44 @@
           );
         })
       ),
+      h("h2", { className:"q-heading", style:{ marginTop:"34px" } }, "What crossing a threshold has shown you."),
+      h(Sub, { ja:"境を越えたことが、あなたに見せたもの。", ko:"경계를 넘은 것이 당신에게 보여준 것." }),
+      h("p", { className:"q-tagline" }, "Not every door opens on a streak. Some open when you leave, when you break, when you simply keep going."),
+      h(Sub, {
+        ja:"すべての扉が連続記録の上で開くわけではない。扉は、あなたが去るとき、記録が途切れるとき、ただ続けるときにも開く。",
+        ko:"모든 문이 연속 기록 위에서 열리는 것은 아니다. 문은 당신이 떠날 때, 기록이 끊어질 때, 그냥 계속할 때도 열린다."
+      }),
+      h("div", { className:"vision-groups" },
+        DOORS.map(function(d){
+          var realm = REALMS[d.key];
+          var v = THRESHOLD_VISIONS[d.key];
+          if(!v) return null;
+          var unlocked = props.unlockedVisions.indexOf(v.key) !== -1;
+          return h("div", { key: "threshold-" + d.key },
+            h("div", { className:"vision-group-title" },
+              h("span", { className:"dot", style:{ background:"var(--" + d.key + ")" } }),
+              realm.name + (d.key === props.doorKey ? " — your door" : ""),
+              " · ", realm.nameJa, " · ", realm.nameKo
+            ),
+            h("div", { className:"vision-list" },
+              h("div", { className:"vision-item" + (unlocked ? " unlocked" : " locked") },
+                h("span", { className:"vision-day" }, "threshold"),
+                unlocked
+                  ? [
+                      h("h3", { key:"t" }, v.title),
+                      h(Sub, { key:"ts", ja:v.titleJa, ko:v.titleKo }),
+                      h("p", { key:"b" }, v.en),
+                      h(Sub, { key:"bs", ja:v.ja, ko:v.ko })
+                    ]
+                  : [
+                      h("h3", { key:"t" }, "Not yet reached"),
+                      h(Sub, { key:"ts", ja:"まだ届いていない", ko:"아직 닿지 않았다" })
+                    ]
+              )
+            )
+          );
+        })
+      ),
       h("div", { className:"q-actions", style:{ marginTop:"24px" } },
         h("button", { className:"q-btn ghost bi", type:"button", onClick: props.onBack }, biLabel("Back", "戻る", "뒤로"))
       )
@@ -3229,17 +3347,27 @@
       var result = await dailyTasks.markDone(doors.state.myChoice, dateKey(0));
       if(result && result.ok){
         trackEvent("complete_daily_task", { door: doors.state.myChoice });
-        if(result.newVision){
-          trackEvent("unlock_vision", { vision: result.newVision });
-          setHasNewVision(true);
-        }
+        (result.newVisions || []).forEach(function(v){
+          trackEvent("unlock_vision", { vision: v });
+        });
+        if(result.newVisions && result.newVisions.length) setHasNewVision(true);
       }
       return result;
     }
     async function handleMoveDoor(newKey){
+      var prevDoor = doors.state.myChoice;
       var result = await dailyTasks.spend(MOVE_DOOR_COST);
       if(!result.ok) return result;
-      trackEvent("move_door", { from: doors.state.myChoice, to: newKey });
+      trackEvent("move_door", { from: prevDoor, to: newKey });
+      // Heaven's "Departure" threshold vision (see THRESHOLD_VISIONS.heaven)
+      // — the first time this account ever leaves Heaven for another door.
+      if(prevDoor === "heaven" && newKey !== "heaven"){
+        var visionResult = await dailyTasks.unlockVision(THRESHOLD_VISIONS.heaven.key);
+        if(visionResult && visionResult.ok && !visionResult.already){
+          trackEvent("unlock_vision", { vision: THRESHOLD_VISIONS.heaven.key });
+          setHasNewVision(true);
+        }
+      }
       doors.choose(newKey);
       setGamePhase("character");
       return { ok:true };
