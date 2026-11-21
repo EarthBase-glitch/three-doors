@@ -389,6 +389,12 @@
   .vision-day{ font-family:'JetBrains Mono',ui-monospace,monospace; font-size:0.64rem; letter-spacing:0.1em; color:var(--ink-faint); text-transform:uppercase; }
   .vision-nav-dot{ display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--threshold-glow); margin-left:6px; box-shadow:0 0 8px var(--threshold-glow); vertical-align:middle; }
 
+  .ledger-names{ margin-top:18px; display:flex; flex-direction:column; gap:0; max-height:46vh; overflow-y:auto; border-top:1px solid var(--hairline); }
+  .ledger-name{ display:flex; align-items:baseline; gap:12px; padding:8px 2px; border-bottom:1px solid var(--hairline); }
+  .ledger-name .no{ font-family:'JetBrains Mono',ui-monospace,monospace; font-size:0.64rem; color:var(--ink-faint); min-width:2.6em; }
+  .ledger-name .nm{ color:var(--ink); font-size:0.9rem; }
+  .ledger-footnote{ margin-top:16px; color:var(--ink-faint); font-size:0.8rem; font-style:italic; line-height:1.5; }
+
   .explore-stage{
     margin-top:20px; position:relative; width:100%; max-width:480px; border-radius:16px; overflow:hidden;
     border:1px solid var(--hairline); background:#000; aspect-ratio:20/14;
@@ -872,6 +878,56 @@
     ]
   };
 
+  // Reincarnation's own milestone track — separate from the daily streak
+  // above. It counts paid door-changes for the lifetime of the account
+  // (see rebirth() in useDailyTasks, called from handleMoveDoor), not
+  // days in a row, because the thing Reincarnation's arc is actually
+  // about is how many times you've started over, not how long you sat
+  // still. Reached while one of these is your door.
+  var REBIRTH_MILESTONES = [1, 3, 7];
+
+  var PAST_LIVES = [
+    { count: 1,
+      title: "The First Forgetting", titleJa: "最初の忘却", titleKo: "첫 번째 망각",
+      en: "The first time you paid your way out of a door, some part of you expected to remember everything on the other side. You don't. Not because anything was taken from you — that's just what a door between lives is for.",
+      ja: "初めて代償を払って扉を抜け出たとき、あなたのどこかは、その向こうでも全てを覚えていると思っていた。だが覚えていない。何かを奪われたからではない——命と命の間にある扉とは、そもそもそういうものなのだ。",
+      ko: "처음으로 대가를 치르고 문을 빠져나왔을 때, 당신의 어딘가는 그 너머에서도 모든 것을 기억하리라 생각했다. 하지만 기억하지 못한다. 무언가를 빼앗겨서가 아니다 — 삶과 삶 사이의 문이란, 원래 그런 것일 뿐이다." },
+    { count: 3,
+      title: "A Pattern in the Scars", titleJa: "傷跡に見える型", titleKo: "흉터 속의 무늬",
+      en: "Three lives in, and you start noticing the same small scar turning up on a different body each time — never in the same place, but always the same kind of place. The soil says that's not a wound. That's a signature.",
+      ja: "三つの生を経て、同じ小さな傷跡が、違う体の上に何度も現れることに気づく——同じ場所ではないが、いつも同じ種類の場所だ。土はそれを傷ではないと言う。それは署名なのだと。",
+      ko: "세 번의 삶을 지나며, 매번 다른 몸 위에 같은 작은 흉터가 나타난다는 것을 알아챈다 — 같은 자리는 아니지만, 늘 같은 종류의 자리다. 흙은 그것이 상처가 아니라고 말한다. 그것은 서명이라고." },
+    { count: 7,
+      title: "What Doesn't Reset", titleJa: "リセットされないもの", titleKo: "초기화되지 않는 것",
+      en: "Seven doors, seven fresh starts, and one thing has followed you through every single one without asking permission: the part of you that keeps choosing to leave. The soil has a name for that part. It isn't giving it to you yet.",
+      ja: "七つの扉、七つの新しい始まり。それでも、許しを求めることなく、そのすべてについてきたものが一つある——去ることを選び続けるあなたの一部だ。土はその部分に名前をつけている。だが、まだあなたには教えてくれない。",
+      ko: "일곱 개의 문, 일곱 번의 새로운 시작. 그래도 허락을 구하지 않고 그 모든 것을 따라온 것이 하나 있다 — 떠나기를 계속 선택하는 당신의 일부다. 흙은 그 부분에 이름을 붙여두었다. 다만 아직 당신에게는 알려주지 않는다." }
+  ];
+
+  // Hell's own milestone track — the inverse of a streak milestone. It
+  // counts how many times the streak has actually broken after building
+  // up to something (see the `fell` check in markDone below), because
+  // "the fire remembers your name" was never about what you kept up.
+  var FALL_MILESTONES = [1, 3, 7];
+
+  var CONFESSIONS = [
+    { count: 1,
+      title: "The First Thing It Noticed", titleJa: "最初に気づかれたこと", titleKo: "처음 눈치챈 것",
+      en: "You broke the streak, and the fire didn't punish you the way you expected. It just noted it. It was never interested in the days you kept — only the one you let slip.",
+      ja: "連続記録が途切れても、炎は予想していたようにあなたを罰しなかった。ただ記録しただけだ。炎が興味を持っていたのは、あなたが続けた日々ではない——手放してしまった、その一日だけだ。",
+      ko: "연속 기록이 끊겼지만, 불꽃은 예상과 달리 당신을 벌하지 않았다. 그저 적어두었을 뿐이다. 불꽃이 관심을 가진 것은 당신이 지켜낸 날들이 아니다 — 놓쳐버린 그 하루뿐이다." },
+    { count: 3,
+      title: "A Shape Made of Gaps", titleJa: "途切れでできた形", titleKo: "틈으로 이루어진 모양",
+      en: "Three breaks now, and the fire has started describing you by the gaps instead of the days — which one you skipped, not which you kept. It says that tells it more about you than any streak could.",
+      ja: "途切れが三度目になり、炎はあなたを「続けた日」ではなく「途切れた日」で語るようになった——どの日を守ったかではなく、どの日を見捨てたか。それが連続記録よりも多くを語ると炎は言う。",
+      ko: "끊어짐이 세 번째가 되자, 불꽃은 당신을 '지킨 날'이 아니라 '놓친 날'로 설명하기 시작했다 — 어떤 날을 지켰는지가 아니라, 어떤 날을 버렸는지로. 그것이 어떤 연속 기록보다 당신에 대해 더 많이 말해준다고 한다." },
+    { count: 7,
+      title: "The Name It Actually Remembers", titleJa: "本当に覚えていた名前", titleKo: "실제로 기억하고 있던 이름",
+      en: "Seven breaks in, and you finally understand the thing you were told on the way in. It was never the name you chose that the fire kept. It's the name for the part of you that gives up — and by now, it knows that one better than you do.",
+      ja: "七度目の途切れを経て、入り口で告げられたことの意味をようやく理解する。炎が覚えていたのは、あなたが選んだ名前ではなかった。それは——あきらめてしまうあなたの一部に与えられた名前だ。そして今では、炎の方があなたよりもその名前をよく知っている。",
+      ko: "일곱 번째 끊어짐을 지나, 들어올 때 들었던 그 말의 의미를 마침내 이해한다. 불꽃이 기억하고 있던 것은 당신이 선택한 이름이 아니었다. 그것은 — 포기해버리는 당신의 일부에게 붙여진 이름이다. 그리고 지금은, 그 이름을 당신보다 불꽃이 더 잘 알고 있다." }
+  ];
+
   function dateKey(offsetDays){
     var d = new Date();
     if(offsetDays) d.setDate(d.getDate() + offsetDays);
@@ -912,13 +968,13 @@
   // actually pay for moving to a different door.
   function useDailyTasks(accountId){
     var dbRef = useRef(null);
-    var _s = useState({ streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], resolvedFor:null });
+    var _s = useState({ streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], rebirths:0, unlockedRebirthVisions:[], fallCount:0, unlockedFallVisions:[], resolvedFor:null });
     var state = _s[0], setState = _s[1];
     var loaded = !accountId || state.resolvedFor === accountId;
 
     useEffect(function(){
       if(!accountId){
-        setState(function(s){ return Object.assign({}, s, { streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], resolvedFor:null }); });
+        setState(function(s){ return Object.assign({}, s, { streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], rebirths:0, unlockedRebirthVisions:[], fallCount:0, unlockedFallVisions:[], resolvedFor:null }); });
         return;
       }
       var cancelled = false;
@@ -938,6 +994,10 @@
             points: (found && found.points) || 0,
             lastCompletedDate: (found && found.lastCompletedDate) || null,
             unlockedVisions: (found && found.unlockedVisions) || [],
+            rebirths: (found && found.rebirths) || 0,
+            unlockedRebirthVisions: (found && found.unlockedRebirthVisions) || [],
+            fallCount: (found && found.fallCount) || 0,
+            unlockedFallVisions: (found && found.unlockedFallVisions) || [],
             resolvedFor: accountId
           });
         }
@@ -948,6 +1008,10 @@
     async function markDone(realmKey, today){
       if(!accountId) return { ok:false };
       var wasYesterday = state.lastCompletedDate === dateKey(-1);
+      // Hell's own milestone — the streak broke (today doesn't continue
+      // it) after it had actually built up to something, not just a
+      // first-ever miss with nothing behind it yet.
+      var fell = !wasYesterday && state.streak >= 2;
       var nextStreak = wasYesterday ? state.streak + 1 : 1;
       var nextPoints = state.points + POINTS_PER_TASK;
       var nextUnlocked = state.unlockedVisions.slice();
@@ -959,21 +1023,31 @@
           newVision = visionKey;
         }
       }
+      var nextFallCount = state.fallCount + (fell ? 1 : 0);
+      var nextFallUnlocked = state.unlockedFallVisions.slice();
+      var newFallVision = null;
+      if(fell && FALL_MILESTONES.indexOf(nextFallCount) !== -1 && nextFallUnlocked.indexOf(String(nextFallCount)) === -1){
+        nextFallUnlocked.push(String(nextFallCount));
+        newFallVision = String(nextFallCount);
+      }
       var ns = dbRef.current;
       if(ns){
         try{
           // A full set(), not update() — matches the existing shape of this
           // doc, so every field this doc holds has to be listed here or it
-          // gets dropped, unlockedVisions included.
+          // gets dropped, unlockedVisions (and the fall/rebirth fields
+          // alongside it) included.
           await ns.doc("dailytasks/" + accountId).set({
-            realm: realmKey, streak: nextStreak, points: nextPoints, lastCompletedDate: today, unlockedVisions: nextUnlocked
+            realm: realmKey, streak: nextStreak, points: nextPoints, lastCompletedDate: today, unlockedVisions: nextUnlocked,
+            rebirths: state.rebirths, unlockedRebirthVisions: state.unlockedRebirthVisions,
+            fallCount: nextFallCount, unlockedFallVisions: nextFallUnlocked
           });
         }catch(e){
           return { ok:false };
         }
       }
-      setState(function(s){ return Object.assign({}, s, { streak:nextStreak, points:nextPoints, lastCompletedDate:today, unlockedVisions:nextUnlocked }); });
-      return { ok:true, newVision: newVision };
+      setState(function(s){ return Object.assign({}, s, { streak:nextStreak, points:nextPoints, lastCompletedDate:today, unlockedVisions:nextUnlocked, fallCount:nextFallCount, unlockedFallVisions:nextFallUnlocked }); });
+      return { ok:true, newVision: newVision, newFallVision: newFallVision };
     }
 
     async function spend(amount){
@@ -991,7 +1065,32 @@
       return { ok:true };
     }
 
-    return { state: Object.assign({}, state, { loaded:loaded }), markDone: markDone, spend: spend };
+    // Reincarnation's own milestone — each paid door-change, for the
+    // lifetime of the account, regardless of which door it lands on.
+    // update() is safe here the same way it is in spend(): this is only
+    // ever reached after a successful spend(), by which point the doc
+    // already exists.
+    async function rebirth(){
+      var nextRebirths = state.rebirths + 1;
+      var nextUnlocked = state.unlockedRebirthVisions.slice();
+      var newRebirthVision = null;
+      if(REBIRTH_MILESTONES.indexOf(nextRebirths) !== -1 && nextUnlocked.indexOf(String(nextRebirths)) === -1){
+        nextUnlocked.push(String(nextRebirths));
+        newRebirthVision = String(nextRebirths);
+      }
+      var ns = dbRef.current;
+      if(ns && accountId){
+        try{
+          await ns.doc("dailytasks/" + accountId).update({ rebirths: nextRebirths, unlockedRebirthVisions: nextUnlocked });
+        }catch(e){
+          return { ok:false };
+        }
+      }
+      setState(function(s){ return Object.assign({}, s, { rebirths:nextRebirths, unlockedRebirthVisions:nextUnlocked }); });
+      return { ok:true, newRebirthVision: newRebirthVision };
+    }
+
+    return { state: Object.assign({}, state, { loaded:loaded }), markDone: markDone, spend: spend, rebirth: rebirth };
   }
 
   // Door-opening sound, synthesized entirely with the Web Audio API — no
@@ -1900,6 +1999,15 @@
         h("button", { className:"q-btn ghost tiny bi", type:"button", onClick: props.onOpenVisions },
           h("span", { className:"btn-en" }, "Memories", props.hasNewVision ? h("span", { className:"vision-nav-dot" }) : null),
           h("span", { className:"btn-sub" }, "記憶 ・ 기억")),
+        props.doorKey === "heaven" ? h("button", { className:"q-btn ghost tiny bi", type:"button", onClick: props.onOpenLedger },
+          h("span", { className:"btn-en" }, "The Ledger"),
+          h("span", { className:"btn-sub" }, "名の記録 ・ 이름의 기록")) : null,
+        props.doorKey === "earth" ? h("button", { className:"q-btn ghost tiny bi", type:"button", onClick: props.onOpenPastLives },
+          h("span", { className:"btn-en" }, "Past Lives", props.hasNewRebirthVision ? h("span", { className:"vision-nav-dot" }) : null),
+          h("span", { className:"btn-sub" }, "前世 ・ 전생")) : null,
+        props.doorKey === "hell" ? h("button", { className:"q-btn ghost tiny bi", type:"button", onClick: props.onOpenConfessions },
+          h("span", { className:"btn-en" }, "What the Fire Remembers", props.hasNewFallVision ? h("span", { className:"vision-nav-dot" }) : null),
+          h("span", { className:"btn-sub" }, "炎が覚えていること ・ 불꽃이 기억하는 것")) : null,
         h("button", { className:"q-btn ghost tiny bi", type:"button", onClick: props.onDonate },
           biLabel("Support — $3/mo", "サポート — 月3ドル", "후원 — 월 $3")),
         h("span", { className:"char-tip-label" }, "or tip:"),
@@ -2924,6 +3032,185 @@
     );
   }
 
+  // Heaven's own addition — a live, shared record rather than a private
+  // one-time unlock like the Memories above. It reads straight off the
+  // existing `submissions` collection (already publicly readable once
+  // approved — no new collection, no rules change) and turns approved
+  // lore authors' names into a growing, visible artifact of the "seam in
+  // the light" the Memories vision track already hints at.
+  function LedgerScreen(props){
+    var realm = REALMS.heaven;
+    var _items = useState([]);
+    var items = _items[0], setItems = _items[1];
+    var unsubRef = useRef(null);
+
+    useEffect(function(){
+      var cancelled = false;
+      (async function(){
+        var ns = await getDb();
+        if(!ns || cancelled) return;
+        try{
+          var unsub = ns.collection("submissions")
+            .where("realm", "==", "heaven")
+            .where("status", "==", "approved")
+            .onSnapshot(function(snap){
+              var docs = snap.docs.map(function(d){ return Object.assign({ id:d.id }, d.data()); });
+              docs.sort(function(a,b){ return (a.createdAt||0) - (b.createdAt||0); });
+              if(!cancelled) setItems(docs);
+            }, function(){});
+          unsubRef.current = unsub;
+        }catch(e){}
+      })();
+      return function(){ cancelled = true; if(unsubRef.current) unsubRef.current(); };
+    }, []);
+
+    // Dedupe by name, in the order the light first took each one — a
+    // name earns one line here no matter how many scenes that visitor
+    // has since had approved.
+    var seen = {};
+    var names = [];
+    var anonCount = 0;
+    items.forEach(function(item){
+      var n = (item.authorName || "").trim();
+      if(!n || n.toLowerCase() === "anonymous"){ anonCount += 1; return; }
+      if(seen[n]) return;
+      seen[n] = true;
+      names.push(n);
+    });
+
+    return h("div", null,
+      h("div", { className:"q-eyebrow" }, realm.name + " · the ledger"),
+      h(Sub, { ja:"天国・名の記録", ko:"천국 · 이름의 기록" }),
+      h("h2", { className:"q-heading" }, "Something here is keeping names."),
+      h(Sub, { ja:"ここで何かが、名前を書き留めている。", ko:"이곳의 무언가가 이름을 적어두고 있다." }),
+      h("p", { className:"q-tagline" }, "Every accepted scene writes a name into something that doesn't forget this time."),
+      h(Sub, {
+        ja:"承認された情景はひとつひとつ、今度は忘れない何かに名前を刻んでいく。",
+        ko:"승인된 장면 하나하나가, 이번엔 잊지 않는 무언가에 이름을 새긴다."
+      }),
+      h("p", { className:"q-tagline", style:{ marginTop:"0.6em" } },
+        names.length === 0
+          ? "No names yet. Be the first the light remembers."
+          : (names.length + (names.length === 1 ? " name kept, so far." : " names kept, so far."))
+      ),
+      h(Sub, names.length === 0
+        ? { ja:"まだ名前はない。光に初めて記憶される者になろう。", ko:"아직 이름이 없다. 빛이 처음으로 기억할 사람이 되어보라." }
+        : { ja: names.length + "の名前が、今のところ刻まれている。", ko: names.length + "개의 이름이 지금까지 새겨졌다." }),
+      names.length === 0 ? null : h("div", { className:"ledger-names" },
+        names.map(function(n, i){
+          return h("div", { className:"ledger-name", key:n + "-" + i },
+            h("span", { className:"no" }, "#" + (i + 1)),
+            h("span", { className:"nm" }, n)
+          );
+        })
+      ),
+      anonCount > 0 ? h("p", { className:"ledger-footnote" },
+        anonCount + " more passed through without saying who they were. The light kept them anyway — just not where you can read it."
+      ) : null,
+      anonCount > 0 ? h(Sub, {
+        ja: anonCount + "人が、名を名乗らずに通り過ぎた。それでも光は彼らを留めている——ただ、あなたが読める場所にではない。",
+        ko: anonCount + "명이 이름을 밝히지 않고 지나갔다. 그래도 빛은 그들을 붙잡아 두었다 — 다만 당신이 읽을 수 있는 곳은 아니다."
+      }) : null,
+      h("div", { className:"q-actions", style:{ marginTop:"24px" } },
+        h("button", { className:"q-btn ghost bi", type:"button", onClick: props.onBack }, biLabel("Back", "戻る", "뒤로"))
+      )
+    );
+  }
+
+  // Reincarnation's own addition — a milestone ladder keyed to lifetime
+  // paid door-changes (see rebirth() in useDailyTasks) instead of the
+  // daily streak the shared Memories screen already tracks.
+  function PastLivesScreen(props){
+    var realm = REALMS.earth;
+    var rebirths = props.rebirths || 0;
+    return h("div", null,
+      h("div", { className:"q-eyebrow" }, realm.name + " · past lives"),
+      h(Sub, { ja:"転生・前世", ko:"환생 · 전생" }),
+      h("h2", { className:"q-heading" }, "What a body forgets when it changes doors."),
+      h(Sub, { ja:"扉を変えるとき、体が忘れるもの。", ko:"문을 바꿀 때, 몸이 잊는 것." }),
+      h("p", { className:"q-tagline" }, "Every door you pay your way out of is a small death. Reach enough of them and the soil tells you what it noticed."),
+      h(Sub, {
+        ja:"代償を払って抜け出た扉のひとつひとつが、小さな死だ。十分な数に達すれば、土はそれが気づいたことを教えてくれる。",
+        ko:"대가를 치르고 빠져나간 문 하나하나가 작은 죽음이다. 충분한 수에 이르면, 흙은 자신이 알아챈 것을 알려준다."
+      }),
+      h("div", { className:"streak-row" },
+        h("span", { className:"streak-chip" }, rebirths + (rebirths === 1 ? " door changed" : " doors changed"))
+      ),
+      h(Sub, { ja: rebirths + "回、扉を変えた。", ko: rebirths + "번 문을 바꾸었다." }),
+      h("div", { className:"vision-list", style:{ marginTop:"20px" } },
+        REBIRTH_MILESTONES.map(function(n){
+          var v = PAST_LIVES.filter(function(x){ return x.count === n; })[0];
+          if(!v) return null;
+          var unlocked = (props.unlockedRebirthVisions || []).indexOf(String(n)) !== -1;
+          return h("div", { key:n, className:"vision-item" + (unlocked ? " unlocked" : " locked") },
+            h("span", { className:"vision-day" }, n === 1 ? "1st door change" : n + " door changes"),
+            unlocked
+              ? [
+                  h("h3", { key:"t" }, v.title),
+                  h(Sub, { key:"ts", ja:v.titleJa, ko:v.titleKo }),
+                  h("p", { key:"b" }, v.en),
+                  h(Sub, { key:"bs", ja:v.ja, ko:v.ko })
+                ]
+              : [
+                  h("h3", { key:"t" }, "Not yet reached"),
+                  h(Sub, { key:"ts", ja:"まだ届いていない", ko:"아직 닿지 않았다" })
+                ]
+          );
+        })
+      ),
+      h("div", { className:"q-actions", style:{ marginTop:"24px" } },
+        h("button", { className:"q-btn ghost bi", type:"button", onClick: props.onBack }, biLabel("Back", "戻る", "뒤로"))
+      )
+    );
+  }
+
+  // Hell's own addition — the inverse of a Memories milestone: a ladder
+  // keyed to how many times the streak has actually broken (see the
+  // `fell` check in markDone) rather than how long it's been kept.
+  function ConfessionsScreen(props){
+    var realm = REALMS.hell;
+    var fallCount = props.fallCount || 0;
+    return h("div", null,
+      h("div", { className:"q-eyebrow" }, realm.name + " · what the fire remembers"),
+      h(Sub, { ja:"地獄・炎が覚えていること", ko:"지옥 · 불꽃이 기억하는 것" }),
+      h("h2", { className:"q-heading" }, "It was never your name it wanted."),
+      h(Sub, { ja:"炎が欲しかったのは、あなたの名前ではなかった。", ko:"불꽃이 원했던 것은, 당신의 이름이 아니었다." }),
+      h("p", { className:"q-tagline" }, "Every time the streak breaks, the fire takes notes. Enough breaks, and it tells you what it's actually been writing down."),
+      h(Sub, {
+        ja:"連続記録が途切れるたび、炎は記録を取っている。十分な回数が重なれば、実際に何を書き留めてきたのかを教えてくれる。",
+        ko:"연속 기록이 끊길 때마다, 불꽃은 기록을 남긴다. 충분히 쌓이면, 실제로 무엇을 적어왔는지 알려준다."
+      }),
+      h("div", { className:"streak-row" },
+        h("span", { className:"streak-chip" }, fallCount + (fallCount === 1 ? " streak broken" : " streaks broken"))
+      ),
+      h(Sub, { ja: fallCount + "回、連続記録が途切れた。", ko: fallCount + "번 연속 기록이 끊겼다." }),
+      h("div", { className:"vision-list", style:{ marginTop:"20px" } },
+        FALL_MILESTONES.map(function(n){
+          var v = CONFESSIONS.filter(function(x){ return x.count === n; })[0];
+          if(!v) return null;
+          var unlocked = (props.unlockedFallVisions || []).indexOf(String(n)) !== -1;
+          return h("div", { key:n, className:"vision-item" + (unlocked ? " unlocked" : " locked") },
+            h("span", { className:"vision-day" }, n === 1 ? "1st break" : n + " breaks"),
+            unlocked
+              ? [
+                  h("h3", { key:"t" }, v.title),
+                  h(Sub, { key:"ts", ja:v.titleJa, ko:v.titleKo }),
+                  h("p", { key:"b" }, v.en),
+                  h(Sub, { key:"bs", ja:v.ja, ko:v.ko })
+                ]
+              : [
+                  h("h3", { key:"t" }, "Not yet reached"),
+                  h(Sub, { key:"ts", ja:"まだ届いていない", ko:"아직 닿지 않았다" })
+                ]
+          );
+        })
+      ),
+      h("div", { className:"q-actions", style:{ marginTop:"24px" } },
+        h("button", { className:"q-btn ghost bi", type:"button", onClick: props.onBack }, biLabel("Back", "戻る", "뒤로"))
+      )
+    );
+  }
+
   function QuestionScreen(props){
     var realm = REALMS[props.doorKey] || REALMS.earth;
     var others = DOORS.filter(function(d){ return d.key !== props.doorKey; });
@@ -2967,6 +3254,11 @@
         onOpenExplore: props.onOpenExplore,
         onOpenVisions: props.onOpenVisions,
         hasNewVision: props.hasNewVision,
+        onOpenLedger: props.onOpenLedger,
+        onOpenPastLives: props.onOpenPastLives,
+        hasNewRebirthVision: props.hasNewRebirthVision,
+        onOpenConfessions: props.onOpenConfessions,
+        hasNewFallVision: props.hasNewFallVision,
         onDonate: props.onDonate,
         onTip: props.onTip,
         onManageSubscription: props.onManageSubscription
@@ -2983,6 +3275,25 @@
         key: "visions-" + props.accountId,
         doorKey: key,
         unlockedVisions: props.unlockedVisions,
+        onBack: props.onBackToCharacter
+      });
+    }else if(props.gamePhase === "ledger"){
+      content = h(LedgerScreen, {
+        key: "ledger",
+        onBack: props.onBackToCharacter
+      });
+    }else if(props.gamePhase === "pastlives"){
+      content = h(PastLivesScreen, {
+        key: "pastlives-" + props.accountId,
+        rebirths: props.rebirths,
+        unlockedRebirthVisions: props.unlockedRebirthVisions,
+        onBack: props.onBackToCharacter
+      });
+    }else if(props.gamePhase === "confessions"){
+      content = h(ConfessionsScreen, {
+        key: "confessions-" + props.accountId,
+        fallCount: props.fallCount,
+        unlockedFallVisions: props.unlockedFallVisions,
         onBack: props.onBackToCharacter
       });
     }else if(props.gamePhase === "tasks"){
@@ -3055,6 +3366,10 @@
     var soulStatsOpen = _ss[0], setSoulStatsOpen = _ss[1];
     var _nv = useState(false);
     var hasNewVision = _nv[0], setHasNewVision = _nv[1];
+    var _nrv = useState(false);
+    var hasNewRebirthVision = _nrv[0], setHasNewRebirthVision = _nrv[1];
+    var _nfv = useState(false);
+    var hasNewFallVision = _nfv[0], setHasNewFallVision = _nfv[1];
     var _e3d = useState(-1);
     var explore3dMarkerIdx = _e3d[0], setExplore3dMarkerIdx = _e3d[1];
     var doors = useDoorsDb(account ? account.id : null);
@@ -3224,6 +3539,9 @@
     }
     function handleBackToExplore(){ setGamePhase("explore"); }
     function handleOpenVisions(){ setHasNewVision(false); setGamePhase("visions"); }
+    function handleOpenLedger(){ setGamePhase("ledger"); }
+    function handleOpenPastLives(){ setHasNewRebirthVision(false); setGamePhase("pastlives"); }
+    function handleOpenConfessions(){ setHasNewFallVision(false); setGamePhase("confessions"); }
     function handleBackToCharacter(){ setGamePhase("character"); }
     async function handleMarkDone(){
       var result = await dailyTasks.markDone(doors.state.myChoice, dateKey(0));
@@ -3233,6 +3551,10 @@
           trackEvent("unlock_vision", { vision: result.newVision });
           setHasNewVision(true);
         }
+        if(result.newFallVision){
+          trackEvent("unlock_confession", { fall: result.newFallVision });
+          setHasNewFallVision(true);
+        }
       }
       return result;
     }
@@ -3240,6 +3562,11 @@
       var result = await dailyTasks.spend(MOVE_DOOR_COST);
       if(!result.ok) return result;
       trackEvent("move_door", { from: doors.state.myChoice, to: newKey });
+      var rebirthResult = await dailyTasks.rebirth();
+      if(rebirthResult && rebirthResult.newRebirthVision){
+        trackEvent("unlock_past_life", { rebirth: rebirthResult.newRebirthVision });
+        setHasNewRebirthVision(true);
+      }
       doors.choose(newKey);
       setGamePhase("character");
       return { ok:true };
@@ -3349,6 +3676,12 @@
         dailyTasksState: dailyTasks.state,
         unlockedVisions: dailyTasks.state.unlockedVisions,
         hasNewVision: hasNewVision,
+        rebirths: dailyTasks.state.rebirths,
+        unlockedRebirthVisions: dailyTasks.state.unlockedRebirthVisions,
+        hasNewRebirthVision: hasNewRebirthVision,
+        fallCount: dailyTasks.state.fallCount,
+        unlockedFallVisions: dailyTasks.state.unlockedFallVisions,
+        hasNewFallVision: hasNewFallVision,
         onSatisfied: handleSatisfied,
         onEscape: handleEscape,
         onExit: handleExit,
@@ -3356,6 +3689,9 @@
         onOpenTasks: handleOpenTasks,
         onOpenExplore: handleOpenExplore,
         onOpenVisions: handleOpenVisions,
+        onOpenLedger: handleOpenLedger,
+        onOpenPastLives: handleOpenPastLives,
+        onOpenConfessions: handleOpenConfessions,
         onBackToCharacter: handleBackToCharacter,
         explore3dMarkerIdx: explore3dMarkerIdx,
         onEnterGame: handleEnterGame,
