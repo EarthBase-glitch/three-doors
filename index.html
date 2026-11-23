@@ -872,6 +872,102 @@
     ]
   };
 
+  // The Ledger (Hell only) — a second narrative track alongside Memories,
+  // deliberately on a different axis: Memories rewards an unbroken streak
+  // in a realm; the Ledger rewards a lifetime total of completed daily
+  // tasks (lifetimeTasksDone on the dailytasks doc), which never resets
+  // when a streak breaks. Thematically: the fire doesn't care about a
+  // calendar, only about how many times you actually showed up. Milestone
+  // numbers are deliberately different from VISION_MILESTONES so the two
+  // systems never collide on the same count.
+  var LEDGER_MILESTONES = [5, 15, 40];
+
+  var LEDGER = [
+    { count: 5,
+      title: "A Mark, Not Yet a Pattern", titleJa: "まだ習慣ではない、ひとつの印", titleKo: "아직 패턴은 아닌, 하나의 표식",
+      en: "Five times now you've come back to do the small, ugly work instead of looking away. The fire doesn't grade you on your best day — it's counting this: how many times you returned after a bad one.",
+      ja: "目を逸らす代わりに、小さく醜い仕事をしに戻ってきたのはこれで五度目だ。炎はあなたの最良の日で採点しない——数えているのはこれだ。悪い日の後に、何度戻ってきたか。",
+      ko: "외면하는 대신 작고 추한 일을 하러 돌아온 것이 이제 다섯 번째다. 불꽃은 당신의 최고의 날로 점수를 매기지 않는다 — 세는 것은 이것이다. 나쁜 날 이후에 몇 번 돌아왔는가." },
+    { count: 15,
+      title: "The Fire Stops Flinching First", titleJa: "炎が先にひるむのをやめた", titleKo: "불꽃이 먼저 움츠리기를 멈추다",
+      en: "Fifteen. The fire used to burn first and ask questions later. Now it waits, because it's learned you'll show up and do the accounting yourself. That isn't mercy. It's just less work for both of you.",
+      ja: "十五。炎はかつて、問う前にまず焼いていた。今は待っている——あなたが自分で現れ、自分で勘定をつけることを学んだからだ。それは慈悲ではない。ただ、お互いにとって手間が減っただけだ。",
+      ko: "열다섯. 불꽃은 예전에 묻기 전에 먼저 태웠다. 이제는 기다린다 — 당신이 스스로 나타나 스스로 셈을 치를 것임을 배웠기 때문이다. 그것은 자비가 아니다. 그저 서로에게 수고가 덜어졌을 뿐이다." },
+    { count: 40,
+      title: "A Debt That Isn't Growing", titleJa: "増えない借り", titleKo: "불어나지 않는 빚",
+      en: "Forty, missed days and all, and the number at the bottom of this isn't bigger than when you started. It was never compounding. It was only ever exactly what you did, counted plainly — which turns out to be the first fair thing this place has ever done to you.",
+      ja: "休んだ日も含めて四十。その下に残る数字は、始めたときより大きくはなっていない。それは最初から複利ではなかった。ただ、あなたがしたことだけが、ありのままに数えられていた——それが、この場所があなたにしてくれた、初めて公平なことだったと分かる。",
+      ko: "쉬었던 날들까지 포함해 마흔. 그 아래 남은 숫자는 시작했을 때보다 커지지 않았다. 그것은 처음부터 복리가 아니었다. 그저 당신이 한 일만이, 있는 그대로 세어졌을 뿐이다 — 그것이 이곳이 당신에게 해준 첫 공정한 일이었음을 알게 된다." }
+  ];
+
+  // The Light Asks (Heaven only) — a one-time branching question, answered
+  // once and kept forever (characters/{accountId}.heavenAnswer). Unlike
+  // Memories (automatic, streak-gated) or the Ledger (automatic, count-
+  // gated), this one is player-chosen: the narrative payoff depends on
+  // what the visitor actually picks, not on how long they've stayed.
+  var HEAVEN_QUESTION = {
+    choices: [
+      { id:"regret", en:"I regret something I never said.", ja:"言えなかったことを後悔している。", ko:"말하지 못한 것을 후회하고 있다." },
+      { id:"noregret", en:"I don't think I regret anything.", ja:"何も後悔していないと思う。", ko:"아무것도 후회하지 않는다고 생각한다." },
+      { id:"unsure", en:"I haven't decided yet.", ja:"まだ決めていない。", ko:"아직 결정하지 못했다." }
+    ],
+    responses: {
+      regret: {
+        en: "The light already knew — it always does — and it isn't holding the unsaid thing against you. It only wanted you to be the one who said it out loud, even just to a room made of light, even just this once.",
+        ja: "光はすでに知っていた——いつもそうだ——そして言わなかったことをあなたに対して咎めてはいない。ただ、たとえ光だけでできた部屋に向かってでも、たとえこの一度きりでも、あなた自身の口でそれを言ってほしかっただけだ。",
+        ko: "빛은 이미 알고 있었다 — 언제나 그렇듯이 — 그리고 말하지 않은 것을 당신에게 불리하게 쓰지 않는다. 다만 빛으로만 이루어진 방을 향해서라도, 단 한 번뿐이라도, 당신 스스로 그것을 소리 내어 말하기를 바랐을 뿐이다."
+      },
+      noregret: {
+        en: "Good, the light says, and means it — though it also knows you might be wrong about that, not lying, just not finished looking yet. It isn't in a hurry to correct you either way.",
+        ja: "それでいい、と光は言う。本気でそう言っている。だが同時に、あなたがそれについて間違っているかもしれないことも知っている——嘘をついているのではなく、ただまだ見終えていないだけだ。どちらにせよ、光はあなたを急いで正そうとはしない。",
+        ko: "좋다, 고 빛은 말한다. 진심으로 하는 말이다. 하지만 동시에 당신이 그 점에서 틀렸을 수도 있음을 알고 있다 — 거짓말이 아니라, 그저 아직 다 들여다보지 않았을 뿐이라는 것을. 어느 쪽이든 빛은 당신을 서둘러 바로잡으려 하지 않는다."
+      },
+      unsure: {
+        en: "That's an answer too, the light says — most things here arrive unsure and stay that way longer than anyone admits. It isn't waiting for certainty from you. It was only ever waiting for you to look.",
+        ja: "それも一つの答えだ、と光は言う——ここに来るもののほとんどは確信のないまま辿り着き、誰もが認めるよりずっと長くその状態でいる。光はあなたに確信を求めてはいない。ただ、あなたが目を向けることだけを待っていた。",
+        ko: "그것도 하나의 답이다, 고 빛은 말한다 — 이곳에 오는 것들 대부분은 확신 없이 도착해, 누구도 인정하는 것보다 훨씬 오래 그 상태로 머문다. 빛은 당신에게 확신을 요구하지 않는다. 그저 당신이 바라보기를 기다렸을 뿐이다."
+      }
+    }
+  };
+
+  // Past Life (Reincarnation only) — a one-time random, permanent draw
+  // (characters/{accountId}.pastLife), triggered manually by the visitor
+  // rather than unlocked by any counter. Extends the body-remembers-things
+  // thread already present in Reincarnation's Memories entries into one
+  // concrete, personal, permanent fact about who this body was before.
+  var PAST_LIVES = [
+    { id:"bell", en:"In your last life you were a bell-ringer in a town too small to need one. You rang it anyway, every morning, for forty years, because stopping felt like admitting the town had already ended.",
+      ja:"前世のあなたは、鐘など必要としないほど小さな町の鐘突きだった。それでも四十年間、毎朝鐘を鳴らし続けた。やめることは、町がもう終わったと認めることのように感じられたからだ。",
+      ko:"전생의 당신은 종이 필요 없을 만큼 작은 마을의 종지기였다. 그래도 사십 년 동안 매일 아침 종을 울렸다. 멈추는 것은 마을이 이미 끝났음을 인정하는 것처럼 느껴졌기 때문이다." },
+    { id:"nets", en:"In your last life you mended fishing nets for a husband who died at sea before you finished the last one. You finished it anyway. Nobody ever used it.",
+      ja:"前世のあなたは、最後の網を仕上げる前に海で亡くなった夫のために、漁網を繕っていた。それでもあなたはそれを仕上げた。誰もそれを使うことはなかった。",
+      ko:"전생의 당신은 마지막 그물을 다 고치기도 전에 바다에서 죽은 남편을 위해 어망을 깁고 있었다. 그래도 당신은 그것을 끝까지 마쳤다. 아무도 그것을 쓰지 않았다." },
+    { id:"baker", en:"In your last life you were the second-best baker in a village with only two. You never once tried to be first.",
+      ja:"前世のあなたは、パン屋が二軒しかない村で二番目に上手いパン屋だった。一度も一番になろうとはしなかった。",
+      ko:"전생의 당신은 빵집이 단 두 곳뿐인 마을에서 두 번째로 잘하는 제빵사였다. 단 한 번도 첫 번째가 되려 하지 않았다." },
+    { id:"language", en:"In your last life you taught a language to children whose parents forbade it at home, and never told either side about the other.",
+      ja:"前世のあなたは、親が家で禁じていた言葉を子供たちに教えていた。そしてどちらの側にも、もう一方のことを一度も話さなかった。",
+      ko:"전생의 당신은 부모가 집에서 금지한 언어를 아이들에게 가르쳤고, 양쪽 모두에게 서로에 대해 한 번도 말하지 않았다." },
+    { id:"garden", en:"In your last life you kept a garden no one else was allowed to walk through, and let it go to seed the year you finally let someone in.",
+      ja:"前世のあなたは、誰にも足を踏み入れさせない庭を守っていた。そして、ついに誰かを招き入れたその年、その庭を種のまま荒れるに任せた。",
+      ko:"전생의 당신은 아무도 걸어 들어오지 못하게 한 정원을 지켰다. 그리고 마침내 누군가를 들인 그해, 그 정원이 씨앗째 버려지도록 내버려 두었다." },
+    { id:"soldier", en:"In your last life you were a soldier who never fired a shot that hit anyone, and spent the rest of that life unsure whether to be grateful or ashamed of that.",
+      ja:"前世のあなたは、誰にも命中させたことのない兵士だった。そして残りの生涯を、それを感謝すべきか恥じるべきか分からないまま過ごした。",
+      ko:"전생의 당신은 단 한 발도 누군가를 맞춘 적 없는 군인이었다. 그리고 남은 생애 내내, 그것을 감사해야 할지 부끄러워해야 할지 알지 못한 채 살았다." },
+    { id:"letters", en:"In your last life you carried letters between two people who were never allowed to meet, for eleven years, and read none of them.",
+      ja:"前世のあなたは、決して会うことを許されなかった二人の間で、十一年間手紙を運び続けた。その一通も読まなかった。",
+      ko:"전생의 당신은 결코 만나는 것이 허락되지 않은 두 사람 사이에서, 십일 년 동안 편지를 날랐다. 단 한 통도 읽지 않았다." },
+    { id:"river", en:"In your last life you were the last person in your family who remembered the old name of the river, and you never wrote it down.",
+      ja:"前世のあなたは、家族の中でその川の古い名前を覚えていた最後の一人だった。そしてそれを一度も書き残さなかった。",
+      ko:"전생의 당신은 가족 중 그 강의 옛 이름을 기억하는 마지막 사람이었다. 그리고 그것을 단 한 번도 적어두지 않았다." },
+    { id:"child", en:"In your last life you raised a child that wasn't yours by blood and never once corrected anyone who assumed it was.",
+      ja:"前世のあなたは、血のつながらない子供を育てた。そしてその子が実の子だと思い込む人を、一度も訂正しなかった。",
+      ko:"전생의 당신은 피가 섞이지 않은 아이를 길렀다. 그리고 그 아이가 친자식이라 여기는 사람을 단 한 번도 바로잡지 않았다." },
+    { id:"dark", en:"In your last life you were afraid of the dark until the night you weren't, and never figured out what changed.",
+      ja:"前世のあなたは暗闇を恐れていたが、ある夜を境にそうではなくなった。何が変わったのか、ついに分からないままだった。",
+      ko:"전생의 당신은 어둠을 두려워했지만, 어느 밤을 기점으로 더는 그렇지 않았다. 무엇이 바뀌었는지는 끝내 알지 못했다." }
+  ];
+
   function dateKey(offsetDays){
     var d = new Date();
     if(offsetDays) d.setDate(d.getDate() + offsetDays);
@@ -912,13 +1008,13 @@
   // actually pay for moving to a different door.
   function useDailyTasks(accountId){
     var dbRef = useRef(null);
-    var _s = useState({ streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], resolvedFor:null });
+    var _s = useState({ streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], lifetimeTasksDone:0, unlockedLedger:[], resolvedFor:null });
     var state = _s[0], setState = _s[1];
     var loaded = !accountId || state.resolvedFor === accountId;
 
     useEffect(function(){
       if(!accountId){
-        setState(function(s){ return Object.assign({}, s, { streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], resolvedFor:null }); });
+        setState(function(s){ return Object.assign({}, s, { streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], lifetimeTasksDone:0, unlockedLedger:[], resolvedFor:null }); });
         return;
       }
       var cancelled = false;
@@ -938,6 +1034,8 @@
             points: (found && found.points) || 0,
             lastCompletedDate: (found && found.lastCompletedDate) || null,
             unlockedVisions: (found && found.unlockedVisions) || [],
+            lifetimeTasksDone: (found && found.lifetimeTasksDone) || 0,
+            unlockedLedger: (found && found.unlockedLedger) || [],
             resolvedFor: accountId
           });
         }
@@ -950,6 +1048,7 @@
       var wasYesterday = state.lastCompletedDate === dateKey(-1);
       var nextStreak = wasYesterday ? state.streak + 1 : 1;
       var nextPoints = state.points + POINTS_PER_TASK;
+      var nextLifetime = (state.lifetimeTasksDone || 0) + 1;
       var nextUnlocked = state.unlockedVisions.slice();
       var newVision = null;
       if(VISION_MILESTONES.indexOf(nextStreak) !== -1){
@@ -959,21 +1058,35 @@
           newVision = visionKey;
         }
       }
+      // The Ledger (Hell only — see LEDGER_MILESTONES above): a lifetime
+      // total, so it only ever grows, unlike the streak that feeds visions.
+      var nextUnlockedLedger = (state.unlockedLedger || []).slice();
+      var newLedger = null;
+      if(realmKey === "hell" && LEDGER_MILESTONES.indexOf(nextLifetime) !== -1){
+        if(nextUnlockedLedger.indexOf(nextLifetime) === -1){
+          nextUnlockedLedger.push(nextLifetime);
+          newLedger = nextLifetime;
+        }
+      }
       var ns = dbRef.current;
       if(ns){
         try{
           // A full set(), not update() — matches the existing shape of this
           // doc, so every field this doc holds has to be listed here or it
-          // gets dropped, unlockedVisions included.
+          // gets dropped, unlockedVisions/unlockedLedger included.
           await ns.doc("dailytasks/" + accountId).set({
-            realm: realmKey, streak: nextStreak, points: nextPoints, lastCompletedDate: today, unlockedVisions: nextUnlocked
+            realm: realmKey, streak: nextStreak, points: nextPoints, lastCompletedDate: today,
+            unlockedVisions: nextUnlocked, lifetimeTasksDone: nextLifetime, unlockedLedger: nextUnlockedLedger
           });
         }catch(e){
           return { ok:false };
         }
       }
-      setState(function(s){ return Object.assign({}, s, { streak:nextStreak, points:nextPoints, lastCompletedDate:today, unlockedVisions:nextUnlocked }); });
-      return { ok:true, newVision: newVision };
+      setState(function(s){ return Object.assign({}, s, {
+        streak:nextStreak, points:nextPoints, lastCompletedDate:today,
+        unlockedVisions:nextUnlocked, lifetimeTasksDone:nextLifetime, unlockedLedger:nextUnlockedLedger
+      }); });
+      return { ok:true, newVision: newVision, newLedger: newLedger };
     }
 
     async function spend(amount){
@@ -1791,7 +1904,12 @@
       if(skipNextSave.current){ skipNextSave.current = false; return; }
       try{ localStorage.setItem("doors_character_" + accountId, JSON.stringify(character)); }catch(e){}
       var ns = dbRef.current;
-      if(ns && accountId){ ns.doc("characters/" + accountId).set(character).catch(function(){}); }
+      // merge:true (not a bare set()) — this doc can also carry heavenAnswer
+      // / pastLife, written independently by HeavenQuestionScreen /
+      // PastLifeScreen, and a plain set() here would silently wipe
+      // whichever of those this account doesn't have, every time the
+      // avatar is edited.
+      if(ns && accountId){ ns.doc("characters/" + accountId).set(character, { merge:true }).catch(function(){}); }
       setToast(true);
       if(toastTimer.current) clearTimeout(toastTimer.current);
       toastTimer.current = setTimeout(function(){ setToast(false); }, 1400);
@@ -1900,6 +2018,13 @@
         h("button", { className:"q-btn ghost tiny bi", type:"button", onClick: props.onOpenVisions },
           h("span", { className:"btn-en" }, "Memories", props.hasNewVision ? h("span", { className:"vision-nav-dot" }) : null),
           h("span", { className:"btn-sub" }, "記憶 ・ 기억")),
+        props.doorKey === "heaven" ? h("button", { className:"q-btn ghost tiny bi", type:"button", onClick: props.onOpenHeavenQuestion },
+          biLabel("The Light Asks", "光が問う", "빛이 묻다")) : null,
+        props.doorKey === "earth" ? h("button", { className:"q-btn ghost tiny bi", type:"button", onClick: props.onOpenPastLife },
+          biLabel("Past Life", "前世", "전생")) : null,
+        props.doorKey === "hell" ? h("button", { className:"q-btn ghost tiny bi", type:"button", onClick: props.onOpenLedger },
+          h("span", { className:"btn-en" }, "The Ledger", props.hasNewLedger ? h("span", { className:"vision-nav-dot" }) : null),
+          h("span", { className:"btn-sub" }, "台帳 ・ 장부")) : null,
         h("button", { className:"q-btn ghost tiny bi", type:"button", onClick: props.onDonate },
           biLabel("Support — $3/mo", "サポート — 月3ドル", "후원 — 월 $3")),
         h("span", { className:"char-tip-label" }, "or tip:"),
@@ -2924,6 +3049,210 @@
     );
   }
 
+  // Hell's second narrative track (see LEDGER_MILESTONES/LEDGER above) —
+  // same list/locked-item visuals as VisionsScreen (reusing .vision-list /
+  // .vision-item), but keyed on a lifetime completion count instead of a
+  // streak, and scoped to Hell only.
+  function LedgerScreen(props){
+    var unlockedLedger = props.unlockedLedger || [];
+    return h("div", null,
+      h("div", { className:"q-eyebrow" }, "Hell · the ledger"),
+      h(Sub, { ja:"地獄・台帳", ko:"지옥 · 장부" }),
+      h("h2", { className:"q-heading" }, "It counts, not the calendar."),
+      h(Sub, { ja:"数えているのは暦ではない。", ko:"헤아리는 것은 달력이 아니다." }),
+      h("p", { className:"q-tagline" },
+        "The fire keeps a ledger of how many times you came back — not how many days in a row. Miss ten, then come back, and the number is still exactly where you left it."
+      ),
+      h(Sub, {
+        ja:"炎が記録しているのは、あなたが何度戻ってきたかという台帳であり、連続した日数ではない。十日休んでから戻ってきても、その数字はあなたが去ったときのままそこにある。",
+        ko:"불꽃이 기록하는 것은 당신이 몇 번 돌아왔는가 하는 장부이지, 며칠을 연속했는가가 아니다. 열흘을 쉬고 돌아와도, 그 숫자는 당신이 떠났던 그 자리에 그대로 있다."
+      }),
+      h("div", { className:"vision-list", style:{ marginTop:"24px" } },
+        LEDGER_MILESTONES.map(function(count){
+          var entry = LEDGER.filter(function(x){ return x.count === count; })[0];
+          if(!entry) return null;
+          var unlocked = unlockedLedger.indexOf(count) !== -1;
+          return h("div", { key: count, className:"vision-item" + (unlocked ? " unlocked" : " locked") },
+            h("span", { className:"vision-day" }, count + "x"),
+            unlocked
+              ? [
+                  h("h3", { key:"t" }, entry.title),
+                  h(Sub, { key:"ts", ja:entry.titleJa, ko:entry.titleKo }),
+                  h("p", { key:"b" }, entry.en),
+                  h(Sub, { key:"bs", ja:entry.ja, ko:entry.ko })
+                ]
+              : [
+                  h("h3", { key:"t" }, "Not yet reached"),
+                  h(Sub, { key:"ts", ja:"まだ届いていない", ko:"아직 닿지 않았다" })
+                ]
+          );
+        })
+      ),
+      h("div", { className:"q-actions", style:{ marginTop:"24px" } },
+        h("button", { className:"q-btn ghost bi", type:"button", onClick: props.onBack }, biLabel("Back", "戻る", "뒤로"))
+      )
+    );
+  }
+
+  // Heaven's one-time branching question (see HEAVEN_QUESTION above).
+  // Self-contained: loads/saves characters/{accountId}.heavenAnswer
+  // directly, independent of CharacterCreator's own avatar state.
+  function HeavenQuestionScreen(props){
+    var accountId = props.accountId;
+    var dbRef = useRef(null);
+    var _a = useState(null);
+    var answer = _a[0], setAnswer = _a[1];
+    var _loading = useState(true);
+    var loading = _loading[0], setLoading = _loading[1];
+
+    useEffect(function(){
+      var cancelled = false;
+      (async function(){
+        var ns = await getDb();
+        dbRef.current = ns;
+        var found = null;
+        if(ns && accountId){
+          try{
+            var snap = await ns.doc("characters/" + accountId).get();
+            if(snap.exists){
+              var data = snap.data();
+              if(data && data.heavenAnswer) found = data.heavenAnswer;
+            }
+          }catch(e){}
+        }
+        if(!cancelled){ setAnswer(found); setLoading(false); }
+      })();
+      return function(){ cancelled = true; };
+    }, [accountId]);
+
+    async function choose(id){
+      if(answer) return;
+      var record = { choice: id, answeredAt: Date.now() };
+      setAnswer(record);
+      var ns = dbRef.current;
+      if(ns && accountId){
+        try{ await ns.doc("characters/" + accountId).set({ heavenAnswer: record }, { merge:true }); }catch(e){}
+      }
+      trackEvent("heaven_question_answered", { choice: id });
+    }
+
+    var chosen = answer ? HEAVEN_QUESTION.choices.filter(function(c){ return c.id === answer.choice; })[0] : null;
+    var response = answer ? HEAVEN_QUESTION.responses[answer.choice] : null;
+
+    return h("div", null,
+      h("div", { className:"q-eyebrow" }, "Heaven · the light asks"),
+      h(Sub, { ja:"天国・光が問う", ko:"천국 · 빛이 묻다" }),
+      loading ? h("h2", { className:"q-heading" }, "…") : (!answer
+        ? [
+            h("h2", { key:"h", className:"q-heading" }, "Before you settle, it wants to know one thing it already knows the answer to."),
+            h(Sub, { key:"hs", ja:"あなたが落ち着く前に、光はすでに答えを知っている一つのことを尋ねたがっている。", ko:"당신이 자리 잡기 전에, 빛은 이미 답을 알고 있는 한 가지를 묻고 싶어한다." }),
+            h("p", { key:"tag", className:"q-tagline" }, "Not a test. The light doesn't grade this. It only wants to have asked."),
+            h(Sub, { key:"tags", ja:"試験ではない。光はこれを採点しない。ただ、尋ねたという事実だけを望んでいる。", ko:"시험이 아니다. 빛은 이것을 채점하지 않는다. 그저 물었다는 사실만을 원할 뿐이다." }),
+            h("div", { key:"choices", className:"q-actions", style:{ marginTop:"26px" } },
+              HEAVEN_QUESTION.choices.map(function(c){
+                return h("button", {
+                  key: c.id, type:"button", className:"q-btn ghost bi",
+                  onClick: function(){ choose(c.id); }
+                }, biLabel(c.en, c.ja, c.ko));
+              })
+            )
+          ]
+        : [
+            h("h2", { key:"h", className:"q-heading" }, "What you told the light."),
+            h(Sub, { key:"hs", ja:"あなたが光に伝えたこと。", ko:"당신이 빛에게 말한 것." }),
+            h("div", { key:"item", className:"lore-item", style:{ marginTop:"18px" } },
+              h("p", null, chosen ? chosen.en : ""),
+              h(Sub, { ja: chosen ? chosen.ja : "", ko: chosen ? chosen.ko : "" })
+            ),
+            h("div", { key:"resp", className:"lore-item", style:{ marginTop:"14px" } },
+              h("p", null, response ? response.en : ""),
+              h(Sub, { ja: response ? response.ja : "", ko: response ? response.ko : "" })
+            )
+          ]
+      ),
+      h("div", { className:"q-actions", style:{ marginTop:"24px" } },
+        h("button", { className:"q-btn ghost bi", type:"button", onClick: props.onBack }, biLabel("Back", "戻る", "뒤로"))
+      )
+    );
+  }
+
+  // Reincarnation's one-time random draw (see PAST_LIVES above).
+  // Self-contained: loads/saves characters/{accountId}.pastLife directly,
+  // independent of CharacterCreator's own avatar state.
+  function PastLifeScreen(props){
+    var accountId = props.accountId;
+    var dbRef = useRef(null);
+    var _f = useState(undefined);
+    var fragment = _f[0], setFragment = _f[1];
+    var _drawing = useState(false);
+    var drawing = _drawing[0], setDrawing = _drawing[1];
+
+    useEffect(function(){
+      var cancelled = false;
+      (async function(){
+        var ns = await getDb();
+        dbRef.current = ns;
+        var found = null;
+        if(ns && accountId){
+          try{
+            var snap = await ns.doc("characters/" + accountId).get();
+            if(snap.exists){
+              var data = snap.data();
+              if(data && data.pastLife && data.pastLife.id){
+                found = PAST_LIVES.filter(function(p){ return p.id === data.pastLife.id; })[0] || null;
+              }
+            }
+          }catch(e){}
+        }
+        if(!cancelled) setFragment(found);
+      })();
+      return function(){ cancelled = true; };
+    }, [accountId]);
+
+    async function dig(){
+      if(fragment || drawing) return;
+      setDrawing(true);
+      var pick = PAST_LIVES[Math.floor(Math.random() * PAST_LIVES.length)];
+      var ns = dbRef.current;
+      if(ns && accountId){
+        try{ await ns.doc("characters/" + accountId).set({ pastLife: { id: pick.id, drawnAt: Date.now() } }, { merge:true }); }catch(e){}
+      }
+      trackEvent("past_life_drawn", { fragment: pick.id });
+      setFragment(pick);
+      setDrawing(false);
+    }
+
+    return h("div", null,
+      h("div", { className:"q-eyebrow" }, "Reincarnation · past life"),
+      h(Sub, { ja:"転生・前世", ko:"환생 · 전생" }),
+      fragment === undefined ? h("h2", { className:"q-heading" }, "…") : (!fragment
+        ? [
+            h("h2", { key:"h", className:"q-heading" }, "Something is buried here, if you want it."),
+            h(Sub, { key:"hs", ja:"望むなら、ここに何かが埋まっている。", ko:"원한다면, 이곳에 무언가가 묻혀 있다." }),
+            h("p", { key:"tag", className:"q-tagline" }, "Dig once. Whatever comes up is yours to keep — the soil doesn't give refunds."),
+            h(Sub, { key:"tags", ja:"一度だけ掘れる。出てきたものは、そのままあなたのものになる——土は返金しない。", ko:"한 번만 팔 수 있다. 나온 것은 그대로 당신의 것이 된다 — 흙은 환불해주지 않는다." }),
+            h("div", { key:"act", className:"q-actions", style:{ marginTop:"24px" } },
+              h("button", { className:"q-btn primary bi", type:"button", disabled: drawing, onClick: dig },
+                drawing ? biLabel("Digging…", "掘っている…", "파는 중…") : biLabel("Dig →", "掘る →", "파다 →"))
+            )
+          ]
+        : [
+            h("h2", { key:"h", className:"q-heading" }, "What the soil gave up."),
+            h(Sub, { key:"hs", ja:"土が明け渡したもの。", ko:"흙이 내어준 것." }),
+            h("div", { key:"item", className:"lore-item", style:{ marginTop:"18px" } },
+              h("p", null, fragment.en),
+              h(Sub, { ja: fragment.ja, ko: fragment.ko })
+            ),
+            h("p", { key:"closer", className:"q-tagline", style:{ marginTop:"14px" } }, "The soil doesn't tell you why it kept this one. Only that it did."),
+            h(Sub, { key:"closers", ja:"土はなぜこれを残しておいたのか教えてくれない。ただ、そうしたという事実だけだ。", ko:"흙은 왜 이것을 남겨두었는지 말해주지 않는다. 다만 그렇게 했다는 사실만을." })
+          ]
+      ),
+      h("div", { className:"q-actions", style:{ marginTop:"24px" } },
+        h("button", { className:"q-btn ghost bi", type:"button", onClick: props.onBack }, biLabel("Back", "戻る", "뒤로"))
+      )
+    );
+  }
+
   function QuestionScreen(props){
     var realm = REALMS[props.doorKey] || REALMS.earth;
     var others = DOORS.filter(function(d){ return d.key !== props.doorKey; });
@@ -2967,6 +3296,10 @@
         onOpenExplore: props.onOpenExplore,
         onOpenVisions: props.onOpenVisions,
         hasNewVision: props.hasNewVision,
+        onOpenHeavenQuestion: props.onOpenHeavenQuestion,
+        onOpenPastLife: props.onOpenPastLife,
+        onOpenLedger: props.onOpenLedger,
+        hasNewLedger: props.hasNewLedger,
         onDonate: props.onDonate,
         onTip: props.onTip,
         onManageSubscription: props.onManageSubscription
@@ -2983,6 +3316,24 @@
         key: "visions-" + props.accountId,
         doorKey: key,
         unlockedVisions: props.unlockedVisions,
+        onBack: props.onBackToCharacter
+      });
+    }else if(props.gamePhase === "heavenq"){
+      content = h(HeavenQuestionScreen, {
+        key: "heavenq-" + props.accountId,
+        accountId: props.accountId,
+        onBack: props.onBackToCharacter
+      });
+    }else if(props.gamePhase === "pastlife"){
+      content = h(PastLifeScreen, {
+        key: "pastlife-" + props.accountId,
+        accountId: props.accountId,
+        onBack: props.onBackToCharacter
+      });
+    }else if(props.gamePhase === "ledger"){
+      content = h(LedgerScreen, {
+        key: "ledger-" + props.accountId,
+        unlockedLedger: props.unlockedLedger,
         onBack: props.onBackToCharacter
       });
     }else if(props.gamePhase === "tasks"){
@@ -3055,6 +3406,8 @@
     var soulStatsOpen = _ss[0], setSoulStatsOpen = _ss[1];
     var _nv = useState(false);
     var hasNewVision = _nv[0], setHasNewVision = _nv[1];
+    var _nl = useState(false);
+    var hasNewLedger = _nl[0], setHasNewLedger = _nl[1];
     var _e3d = useState(-1);
     var explore3dMarkerIdx = _e3d[0], setExplore3dMarkerIdx = _e3d[1];
     var doors = useDoorsDb(account ? account.id : null);
@@ -3224,6 +3577,9 @@
     }
     function handleBackToExplore(){ setGamePhase("explore"); }
     function handleOpenVisions(){ setHasNewVision(false); setGamePhase("visions"); }
+    function handleOpenHeavenQuestion(){ setGamePhase("heavenq"); }
+    function handleOpenPastLife(){ setGamePhase("pastlife"); }
+    function handleOpenLedger(){ setHasNewLedger(false); setGamePhase("ledger"); }
     function handleBackToCharacter(){ setGamePhase("character"); }
     async function handleMarkDone(){
       var result = await dailyTasks.markDone(doors.state.myChoice, dateKey(0));
@@ -3232,6 +3588,10 @@
         if(result.newVision){
           trackEvent("unlock_vision", { vision: result.newVision });
           setHasNewVision(true);
+        }
+        if(result.newLedger){
+          trackEvent("unlock_ledger", { milestone: result.newLedger });
+          setHasNewLedger(true);
         }
       }
       return result;
@@ -3349,6 +3709,8 @@
         dailyTasksState: dailyTasks.state,
         unlockedVisions: dailyTasks.state.unlockedVisions,
         hasNewVision: hasNewVision,
+        unlockedLedger: dailyTasks.state.unlockedLedger,
+        hasNewLedger: hasNewLedger,
         onSatisfied: handleSatisfied,
         onEscape: handleEscape,
         onExit: handleExit,
@@ -3356,6 +3718,9 @@
         onOpenTasks: handleOpenTasks,
         onOpenExplore: handleOpenExplore,
         onOpenVisions: handleOpenVisions,
+        onOpenHeavenQuestion: handleOpenHeavenQuestion,
+        onOpenPastLife: handleOpenPastLife,
+        onOpenLedger: handleOpenLedger,
         onBackToCharacter: handleBackToCharacter,
         explore3dMarkerIdx: explore3dMarkerIdx,
         onEnterGame: handleEnterGame,
