@@ -816,7 +816,7 @@
   // your current door earns that realm's vision for that day, permanently
   // (see unlockedVisions in useDailyTasks) — the first threads of an
   // actual story for a game that's otherwise just daily-habit mechanics.
-  var VISION_MILESTONES = [3, 7, 30];
+  var VISION_MILESTONES = [3, 7, 30, 60];
 
   var VISIONS = {
     heaven: [
@@ -834,7 +834,12 @@
         title: "What the Light Keeps", titleJa: "光が保つもの", titleKo: "빛이 간직하는 것",
         en: "Thirty days, and the light finally answers the question you stopped asking out loud: it isn't judging you, because it's already decided. What you did with these thirty days is filed somewhere you can't see, kept the way everything here is kept — gently, permanently, without comment.",
         ja: "三十日が経ち、光はついに、あなたがもう口に出すのをやめた問いに答える——裁いていないのは、すでに決めているからだ。この三十日間あなたが何をしたかは、見えない場所に記録されている。ここにあるすべてと同じように、静かに、永遠に、何も言わずに保たれている。",
-        ko: "서른 날이 지나고, 빛은 마침내 당신이 더 이상 소리 내어 묻지 않게 된 질문에 답한다 — 심판하지 않는 것은, 이미 결정했기 때문이다. 이 서른 날 동안 당신이 한 일은 보이지 않는 곳에 기록된다. 이곳의 모든 것이 그러하듯, 조용히, 영원히, 아무 말 없이 간직된 채로." }
+        ko: "서른 날이 지나고, 빛은 마침내 당신이 더 이상 소리 내어 묻지 않게 된 질문에 답한다 — 심판하지 않는 것은, 이미 결정했기 때문이다. 이 서른 날 동안 당신이 한 일은 보이지 않는 곳에 기록된다. 이곳의 모든 것이 그러하듯, 조용히, 영원히, 아무 말 없이 간직된 채로." },
+      { day: 60,
+        title: "What the Seam Was For", titleJa: "継ぎ目の理由", titleKo: "이음매가 있었던 이유",
+        en: "Sixty days, and the seam you found on the seventh finally gives a little — not a door swinging open, but enough of a gap to see what's piled behind it: every name anyone here used to answer to, kept in no particular order, none of them erased. The light isn't hiding them. It's just waiting until you're ready to stop checking for yours.",
+        ja: "六十日が経ち、七日目に見つけた継ぎ目がついに少しだけ緩む——扉が開くわけではないが、その奥に積まれているものが見えるほどの隙間ができる。ここで誰かが名乗っていたすべての名前が、順序もなく、消されることもなく、そこに積まれている。光はそれらを隠しているわけではない。ただ、あなたが自分の名前を探すのをやめる準備ができるまで、待っているだけだ。",
+        ko: "예순 날이 지나고, 일곱째 날에 발견한 이음매가 마침내 조금 벌어진다 — 문이 활짝 열리는 것은 아니지만, 그 뒤에 쌓인 것이 보일 만큼의 틈이다. 이곳에서 누군가 대답했던 모든 이름이, 순서 없이, 지워지지 않은 채 그곳에 쌓여 있다. 빛은 그것들을 숨기고 있는 게 아니다. 그저 당신이 자신의 이름을 찾는 일을 그만둘 준비가 될 때까지 기다리고 있을 뿐이다." }
     ],
     earth: [
       { day: 3,
@@ -851,7 +856,12 @@
         title: "The Soil Remembers Too", titleJa: "土もまた覚えている", titleKo: "흙도 기억한다",
         en: "Thirty days, and you finally understand what \"starting over\" actually meant: not a blank page, but a used one, scraped almost clean. The soil forgives slowly because it forgets slower still — and somewhere under everything you've built this month, the last life is still faintly readable, if you dig.",
         ja: "三十日が経ち、あなたはようやく「やり直す」という言葉の本当の意味を理解する——白紙ではなく、ほとんどきれいに削られた、使用済みの紙なのだと。土がゆっくり赦すのは、それ以上にゆっくり忘れるからだ。そして今月あなたが築いたものの下には、掘れば読み取れるほど、前の生がまだかすかに残っている。",
-        ko: "서른 날이 지나고, 당신은 마침내 '다시 시작한다'는 말의 진짜 의미를 이해한다 — 백지가 아니라, 거의 깨끗하게 긁어낸, 이미 쓰였던 종이라는 것을. 흙이 천천히 용서하는 것은, 그보다 더 천천히 잊기 때문이다. 그리고 이번 달 당신이 쌓아온 모든 것 아래에는, 파보면 읽힐 만큼, 지난 삶이 아직 희미하게 남아 있다." }
+        ko: "서른 날이 지나고, 당신은 마침내 '다시 시작한다'는 말의 진짜 의미를 이해한다 — 백지가 아니라, 거의 깨끗하게 긁어낸, 이미 쓰였던 종이라는 것을. 흙이 천천히 용서하는 것은, 그보다 더 천천히 잊기 때문이다. 그리고 이번 달 당신이 쌓아온 모든 것 아래에는, 파보면 읽힐 만큼, 지난 삶이 아직 희미하게 남아 있다." },
+      { day: 60,
+        title: "The Unfinished Motion", titleJa: "終わらなかった動き", titleKo: "끝나지 않은 동작",
+        en: "Sixty days, and you finally dig where the thirty-day self told you to. What's there isn't a name — the soil never gives names — it's a single unfinished motion, folded into the muscle like a note left mid-sentence: something the last life meant to do and didn't. Nobody tells you to finish it. The body just keeps reaching toward it anyway, the way it reached before you knew why.",
+        ja: "六十日が経ち、ついに三十日目の自分が示した場所を掘る。そこにあるのは名前ではない——土は決して名前を渡さない——それは筋肉に折り込まれた、文の途中で終わったメモのような、一つの終わらなかった動きだ。前の生が、やろうとしてやれなかった何か。それを終わらせろと誰も言わない。それでも体は、理由を知る前からそうしていたように、その動きに向かって伸び続ける。",
+        ko: "예순 날이 지나고, 마침내 서른 날째의 자신이 가리켰던 곳을 판다. 거기 있는 것은 이름이 아니다 — 흙은 결코 이름을 내주지 않는다 — 그것은 문장 중간에서 끝난 쪽지처럼 근육에 접혀 들어간, 끝나지 않은 하나의 동작이다. 지난 삶이 하려다 하지 못한 무언가. 그것을 끝내라고 아무도 말하지 않는다. 그런데도 몸은, 이유를 알기 전부터 그래왔던 것처럼, 그 동작을 향해 계속 뻗는다." }
     ],
     hell: [
       { day: 3,
@@ -868,7 +878,12 @@
         title: "What Burns Off Last", titleJa: "最後に燃え尽きるもの", titleKo: "마지막에 타 없어지는 것",
         en: "Thirty days in the fire, and most of what you carried in has burned away — the excuses first, then the reasons, then the story you told yourself about both. What's left, thirty days clean of all of it, turns out to be smaller than you feared and harder to look at than you expected.",
         ja: "炎の中で三十日、あなたが持ち込んだもののほとんどは燃え尽きた——まず言い訳が、次に理由が、そして両方について自分に語っていた物語が。すべてが燃え尽きた後、三十日分きれいになって残ったものは、恐れていたよりも小さく、予想していたよりも直視しにくいものだった。",
-        ko: "불 속에서 서른 날, 당신이 가지고 들어온 것 대부분이 타 없어졌다 — 먼저 변명이, 다음엔 이유가, 그리고 그 둘에 대해 스스로에게 들려주던 이야기가. 서른 날 만에 그 모든 것에서 벗어나 남은 것은, 두려워했던 것보다 작고, 예상했던 것보다 마주보기 어려운 것이었다." }
+        ko: "불 속에서 서른 날, 당신이 가지고 들어온 것 대부분이 타 없어졌다 — 먼저 변명이, 다음엔 이유가, 그리고 그 둘에 대해 스스로에게 들려주던 이야기가. 서른 날 만에 그 모든 것에서 벗어나 남은 것은, 두려워했던 것보다 작고, 예상했던 것보다 마주보기 어려운 것이었다." },
+      { day: 60,
+        title: "What the Voice Was Waiting to Say", titleJa: "声が言いたかったこと", titleKo: "목소리가 하고 싶었던 말",
+        en: "Sixty days, and what's left of you — small, hard to look at, down to nothing but itself — finally sits still long enough to let the voice from the seventh day finish. It isn't an accusation. It's smaller than that too: just a sentence, unfinished for longer than you were alive, that only gets to end once someone stops flinching long enough to hear it through.",
+        ja: "六十日が経ち、残ったあなた——小さく、直視しがたく、自分自身以外の何も残っていない——がついに、七日目の声を最後まで言わせるだけ、じっとしていられるようになる。それは糾弾ではない。もっと小さなものだ——あなたが生きていた期間よりも長く終わらなかった、ただ一つの文。それは誰かがすくみ続けるのをやめ、最後まで聞き届けたときにだけ、終わることができる。",
+        ko: "예순 날이 지나고, 남은 당신 — 작고, 마주보기 힘들며, 자기 자신 외에는 아무것도 남지 않은 — 이 마침내 일곱째 날의 목소리가 끝까지 말하도록 가만히 있을 수 있게 된다. 그것은 비난이 아니다. 그보다도 작다 — 당신이 살아있던 시간보다 더 오래 끝나지 않은, 단 하나의 문장일 뿐이다. 그것은 누군가 움츠리기를 멈추고 끝까지 들어줄 때에야 비로소 끝을 맺을 수 있다." }
     ]
   };
 
