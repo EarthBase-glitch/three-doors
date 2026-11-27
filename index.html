@@ -872,6 +872,34 @@
     ]
   };
 
+  // Community-lore "answer" — a second one-time narrative thread,
+  // deliberately hooked to a different trigger than the Memories
+  // milestones above: the first time a visitor's own submitted lore for
+  // a realm is approved (not a streak count), that realm answers back
+  // once, permanently (see answeredLore in useDailyTasks). Ties the
+  // lore-submission pipeline and the story together instead of leaving
+  // them as two unrelated systems.
+  var LORE_ANSWERS = {
+    heaven: {
+      title: "What the Light Took", titleJa: "光が受け取ったもの", titleKo: "빛이 받아들인 것",
+      en: "What you described didn't just get shown to others — the light kept it, the same way it keeps everything here: gently, permanently, without comment. Somewhere in what this place is becoming, a piece of it is now yours.",
+      ja: "あなたが描いたものは、ただ他の人々に見せられただけではない——光はそれを受け取った。ここにあるすべてをそうするように、静かに、永遠に、何も言わずに。この場所がなっていくものの中に、その一部はもう、あなたのものだ。",
+      ko: "당신이 묘사한 것은 그저 다른 사람들에게 보여진 것만이 아니다 — 빛은 그것을 받아들였다. 이곳의 모든 것을 그렇게 하듯, 조용히, 영원히, 아무 말 없이. 이 장소가 되어가는 것 안에, 그 한 조각은 이제 당신의 것이다."
+    },
+    earth: {
+      title: "What Took Root", titleJa: "根を下ろしたもの", titleKo: "뿌리내린 것",
+      en: "What you wrote down didn't stay words — the soil took it in, the way it takes in everything left here long enough. It isn't a description anymore. It's underneath, now, the same as the lives before you.",
+      ja: "あなたが書き残したものは、言葉のままでは終わらなかった——土はそれを取り込んだ、ここに十分長くとどまったものすべてを取り込むように。それはもう描写ではない。今は地面の下にある、あなたより前の生たちと同じように。",
+      ko: "당신이 적어 남긴 것은 말로만 남지 않았다 — 흙은 그것을 받아들였다, 이곳에 충분히 오래 머문 모든 것을 받아들이듯이. 그것은 더 이상 묘사가 아니다. 이제는 땅 밑에 있다, 당신보다 앞선 삶들과 마찬가지로."
+    },
+    hell: {
+      title: "What It Remembered", titleJa: "それが覚えていたもの", titleKo: "그것이 기억한 것",
+      en: "The fire doesn't forget what gets fed to it. What you described is burning somewhere now too, alongside you — not punishment, just the one kind of memory this place actually keeps.",
+      ja: "炎は、与えられたものを忘れない。あなたが描いたものは、今どこかであなたと並んで燃えている——罰ではなく、ただこの場所が実際に保っている、唯一の種類の記憶として。",
+      ko: "불꽃은 먹인 것을 잊지 않는다. 당신이 묘사한 것은 지금 어딘가에서 당신과 나란히 타오르고 있다 — 벌이 아니라, 그저 이곳이 실제로 간직하는 단 하나의 기억으로서."
+    }
+  };
+
   function dateKey(offsetDays){
     var d = new Date();
     if(offsetDays) d.setDate(d.getDate() + offsetDays);
@@ -912,13 +940,13 @@
   // actually pay for moving to a different door.
   function useDailyTasks(accountId){
     var dbRef = useRef(null);
-    var _s = useState({ streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], resolvedFor:null });
+    var _s = useState({ streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], answeredLore:[], resolvedFor:null });
     var state = _s[0], setState = _s[1];
     var loaded = !accountId || state.resolvedFor === accountId;
 
     useEffect(function(){
       if(!accountId){
-        setState(function(s){ return Object.assign({}, s, { streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], resolvedFor:null }); });
+        setState(function(s){ return Object.assign({}, s, { streak:0, points:0, lastCompletedDate:null, unlockedVisions:[], answeredLore:[], resolvedFor:null }); });
         return;
       }
       var cancelled = false;
@@ -938,6 +966,7 @@
             points: (found && found.points) || 0,
             lastCompletedDate: (found && found.lastCompletedDate) || null,
             unlockedVisions: (found && found.unlockedVisions) || [],
+            answeredLore: (found && found.answeredLore) || [],
             resolvedFor: accountId
           });
         }
@@ -991,7 +1020,28 @@
       return { ok:true };
     }
 
-    return { state: Object.assign({}, state, { loaded:loaded }), markDone: markDone, spend: spend };
+    // Unlocks a realm's LORE_ANSWERS entry the first time one of the
+    // visitor's own submissions for that realm is approved. A set() with
+    // merge:true (not update()) because a brand-new account may not have
+    // a dailytasks doc yet at all — e.g. it submitted lore before ever
+    // completing a daily task.
+    async function markLoreAnswered(realmKey){
+      if(!accountId) return { ok:false };
+      if(state.answeredLore.indexOf(realmKey) !== -1) return { ok:true };
+      var nextAnswered = state.answeredLore.concat([realmKey]);
+      var ns = dbRef.current;
+      if(ns){
+        try{
+          await ns.doc("dailytasks/" + accountId).set({ answeredLore: nextAnswered }, { merge:true });
+        }catch(e){
+          return { ok:false };
+        }
+      }
+      setState(function(s){ return Object.assign({}, s, { answeredLore: nextAnswered }); });
+      return { ok:true };
+    }
+
+    return { state: Object.assign({}, state, { loaded:loaded }), markDone: markDone, spend: spend, markLoreAnswered: markLoreAnswered };
   }
 
   // Door-opening sound, synthesized entirely with the Web Audio API — no
@@ -1928,6 +1978,12 @@
     var _status = useState("idle");
     var status = _status[0], setStatus = _status[1];
     var unsubRef = useRef(null);
+    // Guards against firing onLoreAnswered more than once per mount while
+    // the parent's answeredLore prop hasn't caught up with a write still
+    // in flight (Firestore snapshots can fire more than once in a row).
+    var answeredSentRef = useRef(false);
+
+    useEffect(function(){ answeredSentRef.current = false; }, [props.doorKey, props.accountId]);
 
     useEffect(function(){
       var cancelled = false;
@@ -1942,12 +1998,21 @@
               var docs = snap.docs.map(function(d){ return Object.assign({ id:d.id }, d.data()); });
               docs.sort(function(a,b){ return (b.createdAt||0) - (a.createdAt||0); });
               if(!cancelled) setItems(docs);
+              // The first time one of this account's own submissions for
+              // this realm shows up approved, let the realm answer back —
+              // see LORE_ANSWERS / markLoreAnswered.
+              if(!cancelled && !answeredSentRef.current && props.accountId &&
+                 (props.answeredLore || []).indexOf(props.doorKey) === -1 &&
+                 docs.some(function(d){ return d.accountId === props.accountId; })){
+                answeredSentRef.current = true;
+                if(props.onLoreAnswered) props.onLoreAnswered(props.doorKey);
+              }
             }, function(){});
           unsubRef.current = unsub;
         }catch(e){}
       })();
       return function(){ cancelled = true; if(unsubRef.current) unsubRef.current(); };
-    }, [props.doorKey]);
+    }, [props.doorKey, props.accountId, props.answeredLore]);
 
     async function submit(e){
       e.preventDefault();
@@ -1961,6 +2026,7 @@
           realm: props.doorKey,
           text: trimmed.slice(0, 600),
           authorName: props.authorName || "anonymous",
+          accountId: props.accountId || null,
           status: "pending",
           createdAt: Date.now()
         });
@@ -1982,6 +2048,18 @@
         ja: realm.nameJa + "のあなた自身の情景を加えよう。他の人に表示される前に審査される。",
         ko: realm.nameKo + "의 당신만의 장면을 더하라. 다른 사람에게 보이기 전에 검토된다."
       }),
+      (function(){
+        var answered = (props.answeredLore || []).indexOf(props.doorKey) !== -1;
+        var answer = LORE_ANSWERS[props.doorKey];
+        if(!answered || !answer) return null;
+        return h("div", { className:"vision-item unlocked", style:{ marginTop:"22px", marginBottom:"4px" } },
+          h("span", { className:"vision-day" }, "from your lore  ·  あなたの伝承から  ·  당신의 전승에서"),
+          h("h3", null, answer.title),
+          h(Sub, { ja: answer.titleJa, ko: answer.titleKo }),
+          h("p", null, answer.en),
+          h(Sub, { ja: answer.ja, ko: answer.ko })
+        );
+      })(),
       h("form", { className:"lore-form", onSubmit: submit },
         h("textarea", {
           className:"lore-input", maxLength:600, rows:4,
@@ -2976,6 +3054,9 @@
         key: "lore-" + key,
         doorKey: key,
         authorName: props.authorName,
+        accountId: props.accountId,
+        answeredLore: props.dailyTasksState.answeredLore,
+        onLoreAnswered: props.onLoreAnswered,
         onBack: props.onBackToCharacter
       });
     }else if(props.gamePhase === "visions"){
@@ -3236,6 +3317,11 @@
       }
       return result;
     }
+    async function handleLoreAnswered(realmKey){
+      var result = await dailyTasks.markLoreAnswered(realmKey);
+      if(result && result.ok) trackEvent("unlock_lore_answer", { door: realmKey });
+      return result;
+    }
     async function handleMoveDoor(newKey){
       var result = await dailyTasks.spend(MOVE_DOOR_COST);
       if(!result.ok) return result;
@@ -3353,6 +3439,7 @@
         onEscape: handleEscape,
         onExit: handleExit,
         onOpenLore: handleOpenLore,
+        onLoreAnswered: handleLoreAnswered,
         onOpenTasks: handleOpenTasks,
         onOpenExplore: handleOpenExplore,
         onOpenVisions: handleOpenVisions,
