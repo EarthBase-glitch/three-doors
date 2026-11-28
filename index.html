@@ -816,7 +816,13 @@
   // your current door earns that realm's vision for that day, permanently
   // (see unlockedVisions in useDailyTasks) — the first threads of an
   // actual story for a game that's otherwise just daily-habit mechanics.
-  var VISION_MILESTONES = [3, 7, 30];
+  // Per-realm, not a single shared list, so one realm can carry an extra
+  // beat the others don't — see Hell's day 14 below.
+  var REALM_MILESTONES = {
+    heaven: [3, 7, 30],
+    earth: [3, 7, 30],
+    hell: [3, 7, 14, 30]
+  };
 
   var VISIONS = {
     heaven: [
@@ -864,12 +870,50 @@
         en: "On the seventh day something speaks from inside the burn, using a voice you recognize but can't place — not one of the damned, and not yours. It asks nothing. It just wants to be heard once, the way you never let it be heard when it mattered.",
         ja: "七日目、燃える中から声がする——聞き覚えはあるのに、誰のものか分からない。それは呪われた者の声でもなく、あなたの声でもない。何も求めていない。ただ一度、聞いてもらいたいだけだ——それが大切だった時、あなたが決して聞かなかったように。",
         ko: "일곱째 날, 불타는 안쪽에서 목소리가 들린다 — 낯익지만 누구의 것인지 알 수 없다. 저주받은 자의 목소리도, 당신의 목소리도 아니다. 아무것도 요구하지 않는다. 그저 한 번, 들어달라는 것뿐이다 — 그것이 중요했던 그 순간, 당신이 결코 들어주지 않았던 것처럼." },
+      { day: 14,
+        title: "The First Thing That Wasn't Punishment", titleJa: "罰ではなかった初めてのこと", titleKo: "처음으로 벌이 아니었던 것",
+        en: "Two weeks, and the voice from the burn finally asks you something back — not forgiveness, not even your name, just whether you're still listening. You answer before you decide to. That's the first thing that's happened here that wasn't punishment, yours or anyone else's.",
+        ja: "二週間が経ち、燃える中の声がついに何かを問いかけてくる——赦しではない、名前さえ求めない。ただ、まだ聞いているかどうかだけを。あなたは決める前に答えてしまう。それはここで初めて起きた、罰ではなかったことだ。あなた自身のものでも、他の誰かのものでもなく。",
+        ko: "이 주가 지나고, 불타는 안쪽의 목소리가 마침내 무언가를 되묻는다 — 용서도 아니고, 이름조차도 아니다. 그저 아직 듣고 있는지만을. 당신은 결정하기도 전에 대답해버린다. 그것은 이곳에서 처음으로 일어난, 벌이 아니었던 일이다. 당신의 것도, 다른 누구의 것도 아닌 채로." },
       { day: 30,
         title: "What Burns Off Last", titleJa: "最後に燃え尽きるもの", titleKo: "마지막에 타 없어지는 것",
         en: "Thirty days in the fire, and most of what you carried in has burned away — the excuses first, then the reasons, then the story you told yourself about both. What's left, thirty days clean of all of it, turns out to be smaller than you feared and harder to look at than you expected.",
         ja: "炎の中で三十日、あなたが持ち込んだもののほとんどは燃え尽きた——まず言い訳が、次に理由が、そして両方について自分に語っていた物語が。すべてが燃え尽きた後、三十日分きれいになって残ったものは、恐れていたよりも小さく、予想していたよりも直視しにくいものだった。",
         ko: "불 속에서 서른 날, 당신이 가지고 들어온 것 대부분이 타 없어졌다 — 먼저 변명이, 다음엔 이유가, 그리고 그 둘에 대해 스스로에게 들려주던 이야기가. 서른 날 만에 그 모든 것에서 벗어나 남은 것은, 두려워했던 것보다 작고, 예상했던 것보다 마주보기 어려운 것이었다." }
     ]
+  };
+
+  // One more vision per realm, outside the streak-day ladder above —
+  // each unlocked by something other than a day count, and each sitting
+  // at a different point in that realm's arc: Earth's fires before day 1
+  // (a prologue to "someone else's habit"), Hell's between day 7 and 30
+  // (a complication, not a resolution), Heaven's only after every other
+  // vision there is already seen (an epilogue). Stored the same way, as
+  // "<realm>:<key>" in unlockedVisions, so no schema change either.
+  var BONUS_VISIONS = {
+    earth: {
+      key: "arrival",
+      chip: "on arrival",
+      hint: "Unlocked by paying your way into this door from another.",
+      hintJa: "別の扉からポイントを払って移った時に開かれる。",
+      hintKo: "다른 문에서 포인트를 지불해 이 문으로 옮겨올 때 열린다.",
+      title: "Whoever Had This Before You", titleJa: "あなたの前にこの身体を持っていた誰か", titleKo: "당신 전에 이 몸을 가졌던 누군가",
+      en: "You didn't arrive empty. Before you'd taken a single breath in this body, something had already been decided without you — a name you'll grow into, hands shaped by choices that weren't yours. The soil doesn't start you over. It just hands you someone else's unfinished page and calls it a beginning.",
+      ja: "あなたは空っぽのまま到着したわけではない。この体で最初の一息をつく前から、あなたの知らないところで何かはすでに決まっていた——これから馴染んでいく名前、あなたのものではなかった選択によって形作られた手。土はあなたをやり直させてはくれない。ただ、他の誰かの未完成の頁を手渡し、それを始まりと呼ぶだけだ。",
+      ko: "당신은 빈손으로 도착한 것이 아니다. 이 몸으로 첫 숨을 쉬기도 전에, 당신 모르게 이미 무언가가 결정되어 있었다 — 앞으로 익숙해질 이름, 당신의 것이 아니었던 선택들로 빚어진 손. 흙은 당신을 다시 시작하게 해주지 않는다. 그저 다른 누군가의 미완성된 페이지를 건네며 그것을 시작이라 부를 뿐이다."
+    },
+    hell: null,
+    heaven: {
+      key: "epilogue",
+      chip: "epilogue",
+      hint: "Unlocked once every other vision here has already been seen.",
+      hintJa: "ここにある他のすべての記憶を見終えた時に開かれる。",
+      hintKo: "이곳의 다른 모든 기억을 다 보았을 때 열린다.",
+      title: "What the Seam Was For", titleJa: "継ぎ目の意味", titleKo: "이음매의 쓸모",
+      en: "The seam doesn't close — you finally understand that's the point. It was never an unfinished door. It's the only part of heaven built to let anything back out, including the name you heard on the third morning. You could leave anytime. You just haven't wanted to.",
+      ja: "継ぎ目は閉じない——それが意味だったのだと、ようやく分かる。未完成の扉などではなかった。それは天国の中で唯一、何かを外へ戻せるように作られた部分だ——三日目の朝に聞いた、あの名前さえも。あなたはいつでも出て行けた。ただ、そうしたいと思わなかっただけだ。",
+      ko: "이음매는 닫히지 않는다 — 그것이 바로 그 이유였음을, 당신은 마침내 깨닫는다. 미완성된 문 같은 것은 없었다. 그것은 천국 안에서 유일하게, 무언가를 다시 밖으로 내보내기 위해 만들어진 부분이었다 — 셋째 날 아침에 들었던 그 이름조차도. 당신은 언제든 떠날 수 있었다. 다만 그러고 싶지 않았을 뿐이다."
+    }
   };
 
   function dateKey(offsetDays){
@@ -951,12 +995,27 @@
       var nextStreak = wasYesterday ? state.streak + 1 : 1;
       var nextPoints = state.points + POINTS_PER_TASK;
       var nextUnlocked = state.unlockedVisions.slice();
-      var newVision = null;
-      if(VISION_MILESTONES.indexOf(nextStreak) !== -1){
+      // A list, not a single value — Heaven's epilogue (below) can unlock
+      // in the very same call as its day-30 vision, and both deserve to
+      // be reported rather than one silently overwriting the other.
+      var newVisions = [];
+      if((REALM_MILESTONES[realmKey] || []).indexOf(nextStreak) !== -1){
         var visionKey = realmKey + ":" + nextStreak;
         if(nextUnlocked.indexOf(visionKey) === -1){
           nextUnlocked.push(visionKey);
-          newVision = visionKey;
+          newVisions.push(visionKey);
+        }
+      }
+      // Heaven's epilogue isn't tied to a day count at all — it unlocks the
+      // moment its three day-visions are all already in hand, whichever
+      // task completion that turns out to be.
+      if(realmKey === "heaven" && nextUnlocked.indexOf("heaven:epilogue") === -1){
+        var heavenDone = ["heaven:3", "heaven:7", "heaven:30"].every(function(k){
+          return nextUnlocked.indexOf(k) !== -1;
+        });
+        if(heavenDone){
+          nextUnlocked.push("heaven:epilogue");
+          newVisions.push("heaven:epilogue");
         }
       }
       var ns = dbRef.current;
@@ -973,7 +1032,7 @@
         }
       }
       setState(function(s){ return Object.assign({}, s, { streak:nextStreak, points:nextPoints, lastCompletedDate:today, unlockedVisions:nextUnlocked }); });
-      return { ok:true, newVision: newVision };
+      return { ok:true, newVisions: newVisions };
     }
 
     async function spend(amount){
@@ -991,7 +1050,26 @@
       return { ok:true };
     }
 
-    return { state: Object.assign({}, state, { loaded:loaded }), markDone: markDone, spend: spend };
+    // Grants a vision outside the normal streak-day path — used for the
+    // bonus visions above, whose unlock condition lives wherever that
+    // condition is actually checked (e.g. Earth's arrival, in App's
+    // handleMoveDoor) rather than here.
+    async function grantVision(visionKey){
+      if(!accountId || state.unlockedVisions.indexOf(visionKey) !== -1) return { ok:true, newVision:null };
+      var nextUnlocked = state.unlockedVisions.concat([visionKey]);
+      var ns = dbRef.current;
+      if(ns){
+        try{
+          await ns.doc("dailytasks/" + accountId).update({ unlockedVisions: nextUnlocked });
+        }catch(e){
+          return { ok:false };
+        }
+      }
+      setState(function(s){ return Object.assign({}, s, { unlockedVisions:nextUnlocked }); });
+      return { ok:true, newVision: visionKey };
+    }
+
+    return { state: Object.assign({}, state, { loaded:loaded }), markDone: markDone, spend: spend, grantVision: grantVision };
   }
 
   // Door-opening sound, synthesized entirely with the Web Audio API — no
@@ -2869,10 +2947,37 @@
   }
 
   // Milestone-vision journal: one section per realm's ladder of streak
-  // milestones (see VISION_MILESTONES). Unlocked entries show their full
-  // text permanently; locked ones stay dimmed teasers. Shows every realm,
-  // not just the current one, so switching doors never orphans a vision
+  // milestones (see REALM_MILESTONES), plus each realm's single bonus
+  // vision (see BONUS_VISIONS). Unlocked entries show their full text
+  // permanently; locked ones stay dimmed teasers. Shows every realm, not
+  // just the current one, so switching doors never orphans a vision
   // already earned there.
+  // Renders a realm's single bonus vision (see BONUS_VISIONS) using the
+  // same vision-item markup as the day-ladder below it, just with a text
+  // chip instead of a day count and its own locked-state hint.
+  function bonusVisionItem(realmKey, unlockedVisions){
+    var bonus = BONUS_VISIONS[realmKey];
+    if(!bonus) return null;
+    var fullKey = realmKey + ":" + bonus.key;
+    var unlocked = unlockedVisions.indexOf(fullKey) !== -1;
+    return h("div", { key: fullKey, className:"vision-item" + (unlocked ? " unlocked" : " locked") },
+      h("span", { className:"vision-day" }, bonus.chip),
+      unlocked
+        ? [
+            h("h3", { key:"t" }, bonus.title),
+            h(Sub, { key:"ts", ja:bonus.titleJa, ko:bonus.titleKo }),
+            h("p", { key:"b" }, bonus.en),
+            h(Sub, { key:"bs", ja:bonus.ja, ko:bonus.ko })
+          ]
+        : [
+            h("h3", { key:"t" }, "Not yet reached"),
+            h(Sub, { key:"ts", ja:"まだ届いていない", ko:"아직 닿지 않았다" }),
+            h("p", { key:"hint" }, bonus.hint),
+            h(Sub, { key:"hints", ja:bonus.hintJa, ko:bonus.hintKo })
+          ]
+    );
+  }
+
   function VisionsScreen(props){
     return h("div", null,
       h("div", { className:"q-eyebrow" }, "Memories"),
@@ -2894,7 +2999,7 @@
               " · ", realm.nameJa, " · ", realm.nameKo
             ),
             h("div", { className:"vision-list" },
-              VISION_MILESTONES.map(function(day){
+              (REALM_MILESTONES[d.key] || []).map(function(day){
                 var v = (VISIONS[d.key] || []).filter(function(x){ return x.day === day; })[0];
                 if(!v) return null;
                 var key = d.key + ":" + day;
@@ -2913,7 +3018,7 @@
                         h(Sub, { key:"ts", ja:"まだ届いていない", ko:"아직 닿지 않았다" })
                       ]
                 );
-              })
+              }).concat([bonusVisionItem(d.key, props.unlockedVisions)])
             )
           );
         })
@@ -3229,8 +3334,8 @@
       var result = await dailyTasks.markDone(doors.state.myChoice, dateKey(0));
       if(result && result.ok){
         trackEvent("complete_daily_task", { door: doors.state.myChoice });
-        if(result.newVision){
-          trackEvent("unlock_vision", { vision: result.newVision });
+        if(result.newVisions && result.newVisions.length){
+          result.newVisions.forEach(function(v){ trackEvent("unlock_vision", { vision: v }); });
           setHasNewVision(true);
         }
       }
@@ -3240,6 +3345,17 @@
       var result = await dailyTasks.spend(MOVE_DOOR_COST);
       if(!result.ok) return result;
       trackEvent("move_door", { from: doors.state.myChoice, to: newKey });
+      // Reincarnation's one narrative hook that isn't a streak day: paying
+      // your way into Earth from somewhere else is treated as an arrival,
+      // not just a door swap, and earns the "whoever had this before you"
+      // vision the moment it happens.
+      if(newKey === "earth"){
+        var visionResult = await dailyTasks.grantVision("earth:arrival");
+        if(visionResult && visionResult.newVision){
+          trackEvent("unlock_vision", { vision: visionResult.newVision });
+          setHasNewVision(true);
+        }
+      }
       doors.choose(newKey);
       setGamePhase("character");
       return { ok:true };
